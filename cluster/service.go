@@ -7,12 +7,6 @@ import (
 	"gopkg.in/svrkit.v1/qnet"
 )
 
-const (
-	KeyAttrIface   = "iface"
-	KeyAttrReg     = "registrar"
-	KeyAttrStartAt = "startedAt"
-)
-
 type IService interface {
 	ServiceType() uint16
 	ServiceID() uint32
