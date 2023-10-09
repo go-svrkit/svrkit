@@ -19,12 +19,12 @@ type Hooker interface {
 
 // Config 配置参数
 type Config struct {
-	LocalTime  bool   `json:"localtime" yaml:"localtime"`     // use local or UTC time
-	Level      string `json:"level" yaml:"level"`             // DEBUG, INFO, WARN, DPANIC, PANIC, FATAL
-	Encoding   string `json:"encoding" yaml:"encoding"`       // "json" or "console"
-	Filename   string `json:"filename" yaml:"filename"`       //
-	MaxSize    int    `json:"max_size" yaml:"max_size"`       // defaults to 100 megabytes
-	MaxBackups int    `json:"max_backups" yaml:"max_backups"` // maximum number of old log files to retain
+	LocalTime  bool   `json:"localtime"`   // use local or UTC time
+	Level      string `json:"level"`       // DEBUG, INFO, WARN, DPANIC, PANIC, FATAL
+	Encoding   string `json:"encoding"`    // "json" or "console"
+	Filename   string `json:"filename"`    //
+	MaxSize    int    `json:"max_size"`    // defaults to 100 megabytes
+	MaxBackups int    `json:"max_backups"` // maximum number of old log files to retain
 }
 
 func NewConfig() Config {

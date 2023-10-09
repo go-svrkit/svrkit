@@ -5,8 +5,8 @@ import (
 )
 
 // 常用的数组操作，配合下面的包使用
-// `golang.org/x/exp/slices`
-// `golang.org/x/exp/maps`
+// `golang.org/x/exp/slices`  --> std.slices
+// `golang.org/x/exp/maps`	  --> std.maps
 
 func Shuffle[E any](s []E) {
 	rand.Shuffle(len(s), func(i, j int) {
