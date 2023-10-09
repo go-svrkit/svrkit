@@ -19,3 +19,14 @@
 
 # Go workspace file
 go.work
+
+.idea/
+.vscode/
+
+/vendor
+/logs
+/bin
+pkg/mod
+pkg/sumdb
+
+/.env

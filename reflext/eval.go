@@ -1,0 +1,456 @@
+// Copyright © 2022 ichenq@gmail.com All rights reserved.
+// See accompanying files LICENSE.txt
+
+package reflext
+
+import (
+	"errors"
+	"fmt"
+	"go/ast"
+	"go/parser"
+	"io"
+	"reflect"
+	"strconv"
+)
+
+var (
+	ErrNilExprNode     = errors.New("nil expr node")
+	ErrValNotValid     = errors.New("value not valid")
+	ErrInvalidCallNode = errors.New("invalid call node")
+)
+
+type EvalNode struct {
+	Key string
+	Val reflect.Value
+}
+
+type EvalContext struct {
+	This  any
+	Expr  string
+	Nodes []*EvalNode
+}
+
+func NewEvalContext(this any) *EvalContext {
+	return &EvalContext{
+		This: this,
+	}
+}
+
+func (c *EvalContext) walkExprGet(this reflect.Value, astNode ast.Expr) (val reflect.Value, err error) {
+	if !this.IsValid() {
+		err = ErrValNotValid
+		return
+	}
+	if astNode == nil {
+		err = ErrNilExprNode
+		return
+	}
+
+	var node = new(EvalNode)
+	switch expr := astNode.(type) {
+	case *ast.Ident:
+		err = c.evalIdentGet(this, expr, node) // A
+	case *ast.IndexExpr:
+		err = c.evalIndexGet(this, expr, node) // A[B]
+	case *ast.CallExpr:
+		err = c.evalCall(this, expr, node) // A.C()
+	case *ast.SelectorExpr:
+		err = c.evalSelectorGet(this, expr, node) // A.B
+	default:
+		return val, fmt.Errorf("unexpected expr node %T", expr)
+	}
+	if err == nil {
+		c.Nodes = append(c.Nodes, node)
+	}
+	return node.Val, err
+}
+
+// 常量只能是寻址struct的field和map的key
+func (c *EvalContext) evalIdentGet(this reflect.Value, ident *ast.Ident, node *EvalNode) error {
+	if this.Kind() == reflect.Ptr {
+		this = this.Elem()
+	}
+	node.Key = ident.Name
+	switch this.Kind() {
+	case reflect.Struct:
+		node.Val = this.FieldByName(ident.Name)
+	case reflect.Map:
+		node.Val = this.MapIndex(reflect.ValueOf(ident.Name))
+	default:
+		return fmt.Errorf("unexpected kind %v with ident %s", this.Kind(), ident.Name)
+	}
+	return nil
+}
+
+func createMapKey(rv reflect.Value, value string) (val reflect.Value, err error) {
+	s, err := strconv.Unquote(value)
+	if err != nil {
+		s = value
+	}
+	var keyType = rv.Type().Key()
+	if IsPrimitive(keyType.Kind()) {
+		return parseValueOfKind(keyType, s)
+	} else {
+		err = fmt.Errorf("cannot address map key %s %s", value, keyType.Name())
+		return
+	}
+}
+
+// 只有数组、切片、字符串和map支持`[]`操作符
+func (c *EvalContext) evalIndexGet(this reflect.Value, expr *ast.IndexExpr, node *EvalNode) error {
+	index, ok := expr.Index.(*ast.BasicLit)
+	if !ok {
+		return fmt.Errorf("index is not literal")
+	}
+	rv, err := c.walkExprGet(this, expr.X)
+	if err != nil {
+		return err
+	}
+	switch rv.Kind() {
+	case reflect.Array, reflect.Slice, reflect.String:
+		i, er := strconv.Atoi(index.Value)
+		if er != nil {
+			return fmt.Errorf("cannot index by key %s: %w", index.Value, er)
+		}
+		if i >= 0 && i < rv.Len() {
+			node.Key = index.Value
+			node.Val = rv.Index(i)
+			return nil
+		} else {
+			return fmt.Errorf("index out of range: %d", i)
+		}
+	case reflect.Map:
+		key, err := createMapKey(rv, index.Value)
+		if err != nil {
+			return err
+		}
+		node.Key = index.Value
+		node.Val = rv.MapIndex(key)
+		return nil
+	default:
+		return fmt.Errorf("unexpected kind %v with ident %s", this.Kind(), expr.Index)
+	}
+}
+
+// 支持单返回值函数调用
+func callGetter(fn reflect.Value, name string) (val reflect.Value, err error) {
+	var method = fn.Type()
+	if method.NumIn() != 0 || method.NumOut() != 1 {
+		return val, fmt.Errorf("method %s signature not match", name)
+	}
+	var output = fn.Call(nil)
+	return output[0], nil
+}
+
+func (c *EvalContext) evalCall(this reflect.Value, call *ast.CallExpr, node *EvalNode) error {
+	if len(call.Args) > 0 || call.Ellipsis > 0 {
+		return ErrInvalidCallNode // 只接受无参数的函数调用
+	}
+	switch expr := call.Fun.(type) {
+	case *ast.Ident:
+		var fn = this.MethodByName(expr.Name)
+		if fn.IsValid() {
+			val, err := callGetter(fn, expr.Name)
+			if err != nil {
+				return err
+			} else {
+				node.Key = expr.Name + "()"
+				node.Val = val
+				return nil
+			}
+		} else {
+			return fmt.Errorf("method call %s not valid", expr.Name)
+		}
+	case *ast.SelectorExpr:
+		var kind = this.Kind()
+		if kind == reflect.Ptr {
+			kind = this.Elem().Kind()
+		}
+		if kind != reflect.Struct {
+			return fmt.Errorf("unexpected kind %v with ident %s", this.Kind(), expr.Sel.Name)
+		}
+		obj, err := c.walkExprGet(this, expr.X)
+		if err != nil {
+			return err
+		}
+		var fn = obj.MethodByName(expr.Sel.Name)
+		if fn.IsValid() {
+			val, err := callGetter(fn, expr.Sel.Name)
+			if err != nil {
+				return err
+			} else {
+				node.Key = expr.Sel.Name + "()"
+				node.Val = val
+				return nil
+			}
+		} else {
+			return fmt.Errorf("method call %s not valid", expr.Sel.Name)
+		}
+	default:
+		return fmt.Errorf("unexpect call expr %T", call.Fun)
+	}
+}
+
+// 选择表达式
+func (c *EvalContext) evalSelectorGet(this reflect.Value, expr *ast.SelectorExpr, node *EvalNode) error {
+	var kind = this.Kind()
+	if kind == reflect.Ptr {
+		kind = this.Elem().Kind()
+	}
+	if kind != reflect.Struct {
+		return fmt.Errorf("unexpected kind %v with ident %s", this.Kind(), expr.Sel.Name)
+	}
+	rv, err := c.walkExprGet(this, expr.X)
+	if err != nil {
+		return err
+	}
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+	node.Key = expr.Sel.Name
+	node.Val = rv.FieldByName(expr.Sel.Name)
+	return nil
+}
+
+// Eval 在`this`上，返回其`expr`对应的值
+func (c *EvalContext) Eval(expr string) (any, error) {
+	c.Expr = expr
+	node, err := parser.ParseExpr(expr)
+	if err != nil {
+		return reflect.Value{}, err
+	}
+	rv, err := c.walkExprGet(reflect.ValueOf(c.This), node)
+	if err != nil {
+		return rv, err
+	}
+	if rv.IsValid() {
+		return rv.Interface(), nil
+	}
+	return nil, ErrValNotValid
+}
+
+// set b to a
+func setValueTo(a, b reflect.Value) error {
+	ta, tb := a.Type(), b.Type()
+	if !tb.ConvertibleTo(ta) {
+		return fmt.Errorf("type %v not convertible to %v", tb.Kind(), ta.Kind())
+	}
+	v := b.Convert(tb)
+	a.Set(v)
+	return nil
+}
+
+// a.X = b
+func (c *EvalContext) setIdent(lhv, rhv reflect.Value, ident *ast.Ident) error {
+	var kind = lhv.Kind()
+	if kind == reflect.Ptr {
+		if lhv.Elem().Kind() == reflect.Struct {
+			lhv = lhv.Elem()
+		}
+	}
+	switch lhv.Kind() {
+	case reflect.Struct:
+		var field = lhv.FieldByName(ident.Name)
+		if field.IsValid() && field.CanSet() {
+			return setValueTo(field, rhv)
+		}
+		return ErrValNotValid
+
+	default:
+		return fmt.Errorf("unexpected kind %v with ident %s", lhv.Kind(), ident.Name)
+	}
+}
+
+// 数组或者map的下标赋值，a[X] = b
+func (c *EvalContext) setIndexExpr(lhv, rhv reflect.Value, expr *ast.IndexExpr) error {
+	index, ok := expr.Index.(*ast.BasicLit)
+	if !ok {
+		return fmt.Errorf("index is not literal")
+	}
+	rv, err := c.walkExprGet(lhv, expr.X)
+	if err != nil {
+		return err
+	}
+
+	if !rv.CanSet() {
+		return ErrValNotValid
+	}
+	switch rv.Kind() {
+	case reflect.Slice:
+		idx, err := strconv.Atoi(index.Value)
+		if err != nil {
+			return fmt.Errorf("cannot index by key %s: %w", index.Value, err)
+		}
+		return setValueTo(rv.Index(idx), rhv)
+
+	case reflect.Map:
+		var valType = rv.Type().Elem()
+		if !rhv.Type().ConvertibleTo(valType) {
+			return fmt.Errorf("cannot convert %v to %v", rhv.Type().Kind(), valType.Kind())
+		}
+		if key, err := createMapKey(rv, index.Value); err != nil {
+			return fmt.Errorf("cannot index map key %s: %w", index.Value, err)
+		} else {
+			rv.SetMapIndex(key, rhv.Convert(valType))
+		}
+	default:
+		return fmt.Errorf("unexpected kind %v with ident %s", lhv.Kind(), expr.Index)
+	}
+	return nil
+}
+
+func (c *EvalContext) setSelector(lhv, rhv reflect.Value, expr *ast.SelectorExpr) error {
+	if lhv.Kind() == reflect.Ptr {
+		if lhv.Elem().Kind() == reflect.Struct {
+			lhv = lhv.Elem()
+		}
+	}
+	if lhv.Kind() != reflect.Struct {
+		return fmt.Errorf("unexpected kind %v with ident %s", lhv.Kind(), expr.Sel.Name)
+	}
+	rv, err := c.walkExprGet(lhv, expr.X)
+	if err != nil {
+		return err
+	}
+	if !rv.CanSet() {
+		return ErrValNotValid
+	}
+	var field = rv.FieldByName(expr.Sel.Name)
+	if !field.IsValid() || !field.CanAddr() {
+		return ErrValNotValid
+	}
+	return setValueTo(field, rhv)
+}
+
+// Set 在`this`上，设置v到对应`expr`
+func (c *EvalContext) Set(expr string, v any) error {
+	c.Expr = expr
+	node, err := parser.ParseExpr(expr)
+	if err != nil {
+		return err
+	}
+	var lhv = reflect.ValueOf(c.This)
+	var rhv = reflect.ValueOf(v)
+	switch n := node.(type) {
+	case *ast.Ident:
+		return c.setIdent(lhv, rhv, n)
+	case *ast.IndexExpr:
+		return c.setIndexExpr(lhv, rhv, n)
+	case *ast.SelectorExpr:
+		return c.setSelector(lhv, rhv, n)
+	default:
+		return fmt.Errorf("unexpected expr node %T", node)
+	}
+}
+
+// 删除操作，slice, map
+func (c *EvalContext) removeIndex(this reflect.Value, expr *ast.IndexExpr) error {
+	index, ok := expr.Index.(*ast.BasicLit)
+	if !ok {
+		return fmt.Errorf("index is not literal")
+	}
+	rv, err := c.walkExprGet(this, expr.X)
+	if err != nil {
+		return err
+	}
+	if !rv.CanAddr() {
+		return ErrValNotValid
+	}
+	switch rv.Kind() {
+	case reflect.Slice:
+		idx, err := strconv.Atoi(index.Value)
+		if err != nil {
+			return fmt.Errorf("cannot index by key %s: %w", index.Value, err)
+		}
+		var sliceLen = rv.Len()
+		if idx < 0 || idx >= sliceLen {
+			return fmt.Errorf("slice index %s out of range", index.Value)
+		}
+		// 删除slice是通过先new一个新slice，然后把老的值赋到新slice里
+		var newSlice = reflect.MakeSlice(rv.Type(), sliceLen-1, rv.Cap())
+		var j = 0
+		for i := 0; i < sliceLen; i++ {
+			if i != idx {
+				newSlice.Index(j).Set(rv.Index(i))
+				j++
+			}
+		}
+		rv.Set(newSlice)
+
+	case reflect.Map:
+		if key, err := createMapKey(rv, index.Value); err != nil {
+			return fmt.Errorf("cannot index map key %s: %w", index.Value, err)
+		} else {
+			rv.SetMapIndex(key, reflect.Value{})
+		}
+	default:
+		return fmt.Errorf("unexpected kind %v with ident %s", this.Kind(), expr.Index)
+	}
+	return nil
+}
+
+// Delete 删除 a[X]
+func (c *EvalContext) Delete(expr string) error {
+	c.Expr = expr
+	node, err := parser.ParseExpr(expr)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return ErrNilExprNode
+	}
+	var rv = reflect.ValueOf(c.This)
+	if !rv.IsValid() {
+		return ErrValNotValid
+	}
+	switch n := node.(type) {
+	case *ast.IndexExpr:
+		return c.removeIndex(rv, n)
+	default:
+		return fmt.Errorf("unexpected expr node %T", node)
+	}
+}
+
+func (c *EvalContext) PrintNodes(w io.Writer) {
+	for _, node := range c.Nodes {
+		fmt.Fprintf(w, "%s -> %s\n", node.Key, node.Val.Type().String())
+	}
+	w.Write([]byte("\n"))
+}
+
+func parseValueOfKind(rtype reflect.Type, s string) (val reflect.Value, err error) {
+	var v = reflect.New(rtype).Elem()
+	switch rtype.Kind() {
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int, reflect.Int64:
+		if n, er := strconv.ParseInt(s, 10, 64); er != nil {
+			return val, er
+		} else {
+			v.SetInt(n)
+		}
+
+	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint, reflect.Uint64:
+		if n, er := strconv.ParseUint(s, 10, 64); er != nil {
+			return val, er
+		} else {
+			v.SetUint(n)
+		}
+
+	case reflect.Float32, reflect.Float64:
+		if f, er := strconv.ParseFloat(s, 64); er != nil {
+			return val, er
+		} else {
+			v.SetFloat(f)
+		}
+
+	case reflect.Bool:
+		b, _ := strconv.ParseBool(s)
+		v.SetBool(b)
+
+	case reflect.String:
+		v.SetString(s)
+
+	default:
+		return val, fmt.Errorf("unexpected kind %v", rtype.Kind())
+	}
+	return v, nil
+}
