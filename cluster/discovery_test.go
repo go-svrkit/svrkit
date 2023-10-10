@@ -1,7 +1,7 @@
 // Copyright © 2021 ichenq@gmail.com All rights reserved.
 // See accompanying files LICENSE.txt
 
-package discovery
+package cluster
 
 import (
 	"context"

@@ -101,7 +101,7 @@ func TestSafeMulInt64(t *testing.T) {
 	for i, tc := range testCases {
 		r, overflow := SafeMulInt64(tc.input1, tc.input2)
 		if !overflow && !tc.expectErr {
-			t.Fatalf("case %d: unexpected error: %v", i, err)
+			t.Fatalf("case %d: unexpected error: %v", i, overflow)
 			continue
 		}
 		if r != tc.expected {
@@ -123,7 +123,7 @@ func TestSafeMulUint64(t *testing.T) {
 	for i, tc := range testCases {
 		r, overflow := SafeMulUint64(tc.input1, tc.input2)
 		if !overflow && !tc.expectErr {
-			t.Fatalf("case %d: unexpected error: %v", i, err)
+			t.Fatalf("case %d: unexpected error: %v", i, overflow)
 			continue
 		}
 		if r != tc.expected {

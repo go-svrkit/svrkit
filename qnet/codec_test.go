@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"backend/svrkit/x/strutil"
 	"github.com/golang/protobuf/proto"
+	"gopkg.in/svrkit.v1/helper"
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -25,7 +25,7 @@ func randString(length int) string {
 		idx := rand.Int() % len(alphabet)
 		result[i] = alphabet[idx]
 	}
-	return strutil.BytesAsStr(result)
+	return helper.BytesAsStr(result)
 }
 
 // 校验账号信息

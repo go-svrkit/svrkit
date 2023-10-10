@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"backend/svrkit/x/strutil"
+	"gopkg.in/svrkit.v1/strutil"
 )
 
 const (
@@ -39,7 +39,7 @@ type SourceAstCache struct {
 	fset *token.FileSet
 }
 
-// 索引元信息
+// DBIndexMeta 索引元信息
 type DBIndexMeta struct {
 	Name       string   // 索引名称
 	Fields     []string // 包含列
@@ -57,7 +57,7 @@ func NewDBIndexMeta(fieldName string) *DBIndexMeta {
 	}
 }
 
-// 按优先级排序后的字段
+// SortedFieldIndex 按优先级排序后的字段
 func (n *DBIndexMeta) SortedFieldIndex() []int {
 	switch len(n.Fields) {
 	case 0:
@@ -121,7 +121,7 @@ func NewDBTableMeta(name string) *DBTableMeta {
 	return meta
 }
 
-// SQL statement generator
+// SQLStmtGen SQL statement generator
 type SQLStmtGen struct {
 	disableNotNull bool
 	tableMetas     map[string]*DBTableMeta
@@ -141,13 +141,14 @@ func (g *SQLStmtGen) GetMetaList() []*DBTableMeta {
 	return list
 }
 
-// 定义格式
+// RegisterStruct 注册结构
 //
-//	type MyORM struct {
-//	    	ID   int64 	`db:"name=id type=bigint index=primary,auto_incr"`
-//			Name string `db:"name=name type=varchar(50) collate=utf8mb4"`
-//			Hash string `db:"type=char(40) collate=utf8mb4"`
-//	}
+//	 定义格式
+//		type MyORM struct {
+//		    	ID   int64 	`db:"name=id type=bigint index=primary,auto_incr"`
+//				Name string `db:"name=name type=varchar(50) collate=utf8mb4"`
+//				Hash string `db:"type=char(40) collate=utf8mb4"`
+//		}
 func (g *SQLStmtGen) RegisterStruct(tag string, ptr interface{}, srcFile string) {
 	if tag == "" {
 		tag = DefaultDBTagKey

@@ -53,12 +53,7 @@ func (n NodeID) String() string {
 	if n.IsSession() {
 		return fmt.Sprintf("G%d#%d", n.GateID(), n.Instance())
 	}
-	const prefix = "SERVICE_"
-	var str = n.Service().String()
-	if len(str) >= len(prefix) && str[0:len(prefix)] == prefix {
-		str = str[len(prefix):]
-	}
-	return fmt.Sprintf("%s#%d", str, n.Instance())
+	return fmt.Sprintf("%02x#%d", n.Service(), n.Instance())
 }
 
 // NodeIDSet 没有重复ID的有序集合

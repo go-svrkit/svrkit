@@ -152,7 +152,7 @@ func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetM
 	}
 	netMsg.Seq = head.Seq()
 	if flags.Has(FlagError) {
-		netMsg.Errno = head.Command()
+		netMsg.Errno = int32(head.Command())
 	} else {
 		netMsg.MsgID = head.Command()
 	}
@@ -192,7 +192,7 @@ func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 
 	var size = bodySize + HeaderLength
 	var head = NewNetHeader()
-	head.Pack(uint32(size), flags, netMsg.MsgID, netMsg.Errno, netMsg.Seq)
+	head.Pack(uint32(size), flags, netMsg.MsgID, uint32(netMsg.Errno), netMsg.Seq)
 
 	var checksum = head.CalcChecksum(body)
 	head.SetCRC(checksum)

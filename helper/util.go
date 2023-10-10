@@ -1,11 +1,10 @@
-package service
+package helper
 
 import (
 	"log"
 	"net/http"
 
 	"github.com/joho/godotenv"
-	"gopkg.in/svrkit.v1/helper"
 	"gopkg.in/svrkit.v1/logger"
 )
 
@@ -23,7 +22,7 @@ func StartProfiler(addr string) {
 
 func LoadDotEnv() {
 	var filename = ".env"
-	if helper.IsFileExist(filename) {
+	if IsFileExist(filename) {
 		if err := godotenv.Load(filename); err != nil {
 			log.Printf("load %s failed: %v", filename, err)
 		} else {

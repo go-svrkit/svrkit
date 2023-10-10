@@ -25,7 +25,7 @@ func NowMs() int64 {
 }
 
 func NowTime() string {
-	return Now().Format(DateTimeLayout)
+	return Now().Format(DateLayout)
 }
 
 func ResetClock() {

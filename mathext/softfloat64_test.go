@@ -127,7 +127,7 @@ func fromint64sw(f float64) float64 {
 
 var nerr int
 
-func err(t *testing.T, format string, args ...interface{}) {
+func errf(t *testing.T, format string, args ...interface{}) {
 	t.Errorf(format, args...)
 
 	// cut errors off after a while.
@@ -145,7 +145,7 @@ func test(t *testing.T, op string, hw, sw func(float64, float64) float64, all []
 			h := hw(f, g)
 			s := sw(f, g)
 			if !same(h, s) {
-				err(t, "%g %s %g = sw %g, hw %g\n", f, op, g, s, h)
+				errf(t, "%g %s %g = sw %g, hw %g\n", f, op, g, s, h)
 			}
 			testu(t, "to32", trunc32, to32sw, h)
 			testu(t, "to64", trunc32, to64sw, h)
@@ -163,7 +163,7 @@ func testu(t *testing.T, op string, hw, sw func(float64) float64, v float64) {
 	h := hw(v)
 	s := sw(v)
 	if !same(h, s) {
-		err(t, "%s %g = sw %g, hw %g\n", op, v, s, h)
+		errf(t, "%s %g = sw %g, hw %g\n", op, v, s, h)
 	}
 }
 
@@ -183,7 +183,7 @@ func testcmp(t *testing.T, f, g float64) {
 	hcmp, hisnan := hwcmp(f, g)
 	scmp, sisnan := Fcmp64(math.Float64bits(f), math.Float64bits(g))
 	if int32(hcmp) != scmp || hisnan != sisnan {
-		err(t, "cmp(%g, %g) = sw %v, %v, hw %v, %v\n", f, g, scmp, sisnan, hcmp, hisnan)
+		errf(t, "cmp(%g, %g) = sw %v, %v, hw %v, %v\n", f, g, scmp, sisnan, hcmp, hisnan)
 	}
 }
 
