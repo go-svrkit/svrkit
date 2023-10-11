@@ -15,7 +15,7 @@ func IsCanRetryErr(err error) bool {
 	return false
 }
 
-// isBadConn returns whether err is a connection error
+// IsBadConn returns whether err is a connection error
 func IsBadConn(err error) bool {
 	if err == driver.ErrBadConn {
 		return true

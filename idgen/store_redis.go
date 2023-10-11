@@ -11,7 +11,7 @@ import (
 	"github.com/go-redis/redis/v8"
 )
 
-// 基于redis INCR命令实现的计数器
+// RedisCounter 基于redis INCR命令实现的计数器
 type RedisCounter struct {
 	guard       sync.Mutex    //
 	addr        string        // redis服务器地址
