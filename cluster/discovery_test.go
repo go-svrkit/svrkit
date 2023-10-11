@@ -24,8 +24,8 @@ func init() {
 	nodeId = strconv.Itoa(rand.Int() % 100000)
 }
 
-func connectClient(t *testing.T) *Client {
-	var client = NewClient(etcdHostAddr, etcdKeyspace, etcdUsername, etcdPassword)
+func connectClient(t *testing.T) *EtcdClient {
+	var client = NewEtcdClient(etcdHostAddr, etcdKeyspace, etcdUsername, etcdPassword)
 	client.verbose = VerboseLv2
 	if err := client.Init(context.Background()); err != nil {
 		t.Fatalf("connect server: %v", err)

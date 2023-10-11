@@ -34,8 +34,8 @@ const (
 	VerboseLv2 = 2
 )
 
-// Client 基于etcd的服务发现
-type Client struct {
+// EtcdClient 基于etcd的服务发现
+type EtcdClient struct {
 	closing   atomic.Int32     //
 	verbose   int32            //
 	endpoints []string         // etcd server address
@@ -45,8 +45,8 @@ type Client struct {
 	client    *clientv3.Client // etcd client
 }
 
-func NewClient(endpoints, namespace, username, passwd string) *Client {
-	d := &Client{
+func NewEtcdClient(endpoints, namespace, username, passwd string) *EtcdClient {
+	d := &EtcdClient{
 		endpoints: strings.Split(endpoints, ","),
 		namespace: namespace,
 		username:  username,
@@ -56,7 +56,7 @@ func NewClient(endpoints, namespace, username, passwd string) *Client {
 	return d
 }
 
-func (c *Client) Init(parentCtx context.Context) error {
+func (c *EtcdClient) Init(parentCtx context.Context) error {
 	if len(c.endpoints) == 0 {
 		return ErrEmptyEndpoint
 	}
@@ -80,7 +80,7 @@ func (c *Client) Init(parentCtx context.Context) error {
 	return nil
 }
 
-func (c *Client) Close() {
+func (c *EtcdClient) Close() {
 	if !c.closing.CompareAndSwap(0, 1) {
 		return
 	}
@@ -90,11 +90,11 @@ func (c *Client) Close() {
 	}
 }
 
-func (c *Client) SetVerbose(v int32) {
+func (c *EtcdClient) SetVerbose(v int32) {
 	c.verbose = v
 }
 
-func (c *Client) FormatKey(name string) string {
+func (c *EtcdClient) FormatKey(name string) string {
 	if name[0] == '/' {
 		return c.namespace + name
 	}
@@ -102,7 +102,7 @@ func (c *Client) FormatKey(name string) string {
 }
 
 // IsNodeExist 节点是否存在
-func (c *Client) IsNodeExist(ctx context.Context, name string) (bool, error) {
+func (c *EtcdClient) IsNodeExist(ctx context.Context, name string) (bool, error) {
 	var key = c.FormatKey(name)
 	resp, err := c.client.Get(ctx, key, clientv3.WithCountOnly())
 	if err != nil {
@@ -112,7 +112,7 @@ func (c *Client) IsNodeExist(ctx context.Context, name string) (bool, error) {
 }
 
 // GetKeyValue 获取key的值
-func (c *Client) GetKeyValue(ctx context.Context, name string) ([]byte, error) {
+func (c *EtcdClient) GetKeyValue(ctx context.Context, name string) ([]byte, error) {
 	var key = c.FormatKey(name)
 	resp, err := c.client.Get(ctx, key)
 	if err != nil {
@@ -125,7 +125,7 @@ func (c *Client) GetKeyValue(ctx context.Context, name string) ([]byte, error) {
 }
 
 // GetNode 获取节点信息
-func (c *Client) GetNode(ctx context.Context, name string) (*Node, error) {
+func (c *EtcdClient) GetNode(ctx context.Context, name string) (*Node, error) {
 	var key = c.FormatKey(name)
 	resp, err := c.client.Get(ctx, key)
 	if err != nil {
@@ -142,7 +142,7 @@ func (c *Client) GetNode(ctx context.Context, name string) (*Node, error) {
 }
 
 // PutNode 设置节点信息
-func (c *Client) PutNode(ctx context.Context, name string, value any, leaseId int64) error {
+func (c *EtcdClient) PutNode(ctx context.Context, name string, value any, leaseId int64) error {
 	var key = c.FormatKey(name)
 	data, err := json.Marshal(value)
 	if err != nil {
@@ -164,7 +164,7 @@ func (c *Client) PutNode(ctx context.Context, name string, value any, leaseId in
 }
 
 // DelKey 删除一个key
-func (c *Client) DelKey(ctx context.Context, name string) error {
+func (c *EtcdClient) DelKey(ctx context.Context, name string) error {
 	var key = c.FormatKey(name)
 	resp, err := c.client.Delete(ctx, key)
 	if err != nil {
@@ -177,7 +177,7 @@ func (c *Client) DelKey(ctx context.Context, name string) error {
 }
 
 // ListNodes 列出目录下的所有节点
-func (c *Client) ListNodes(ctx context.Context, prefix string) ([]Node, error) {
+func (c *EtcdClient) ListNodes(ctx context.Context, prefix string) ([]Node, error) {
 	var key = c.FormatKey(prefix)
 	resp, err := c.client.Get(ctx, key, clientv3.WithPrefix())
 	if err != nil {
@@ -198,7 +198,7 @@ func (c *Client) ListNodes(ctx context.Context, prefix string) ([]Node, error) {
 }
 
 // GrantLease 申请一个lease
-func (c *Client) GrantLease(ctx context.Context, ttl int) (int64, error) {
+func (c *EtcdClient) GrantLease(ctx context.Context, ttl int) (int64, error) {
 	lease, err := c.client.Grant(ctx, int64(ttl))
 	if err != nil {
 		return 0, err
@@ -209,7 +209,7 @@ func (c *Client) GrantLease(ctx context.Context, ttl int) (int64, error) {
 	return int64(lease.ID), nil
 }
 
-func (c *Client) GetLeaseTTL(ctx context.Context, leaseId int64) (int, error) {
+func (c *EtcdClient) GetLeaseTTL(ctx context.Context, leaseId int64) (int, error) {
 	resp, err := c.client.TimeToLive(ctx, clientv3.LeaseID(leaseId))
 	if err != nil {
 		return 0, nil
@@ -218,13 +218,13 @@ func (c *Client) GetLeaseTTL(ctx context.Context, leaseId int64) (int, error) {
 }
 
 // RevokeLease 撤销一个lease
-func (c *Client) RevokeLease(ctx context.Context, leaseId int64) error {
+func (c *EtcdClient) RevokeLease(ctx context.Context, leaseId int64) error {
 	_, err := c.client.Revoke(ctx, clientv3.LeaseID(leaseId))
 	return err
 }
 
-// 用于注册并保活节点
-type nodeKeepAliveContext struct {
+// NodeKeepAliveContext 用于注册并保活节点
+type NodeKeepAliveContext struct {
 	stopChan   chan struct{}
 	LeaseId    int64
 	LeaseAlive bool
@@ -233,8 +233,8 @@ type nodeKeepAliveContext struct {
 	TTL        int
 }
 
-func NewNodeKeepAliveContext(name string, value any, ttl int) *nodeKeepAliveContext {
-	return &nodeKeepAliveContext{
+func NewNodeKeepAliveContext(name string, value any, ttl int) *NodeKeepAliveContext {
+	return &NodeKeepAliveContext{
 		stopChan: make(chan struct{}, 1),
 		Name:     name,
 		Value:    value,
@@ -242,7 +242,7 @@ func NewNodeKeepAliveContext(name string, value any, ttl int) *nodeKeepAliveCont
 	}
 }
 
-func (c *Client) RevokeKeepAlive(ctx context.Context, regCtx *nodeKeepAliveContext) error {
+func (c *EtcdClient) RevokeKeepAlive(ctx context.Context, regCtx *NodeKeepAliveContext) error {
 	if c.verbose >= VerboseLv1 {
 		logger.Infof("try revoke node %s lease %d", regCtx.Name, regCtx.LeaseId)
 	}
@@ -264,7 +264,7 @@ func (c *Client) RevokeKeepAlive(ctx context.Context, regCtx *nodeKeepAliveConte
 }
 
 // RegisterNode 注册一个节点信息，并返回一个ttl秒的lease
-func (c *Client) RegisterNode(rootCtx context.Context, name string, value any, ttl int) (int64, error) {
+func (c *EtcdClient) RegisterNode(rootCtx context.Context, name string, value any, ttl int) (int64, error) {
 	ctx, cancel := context.WithTimeout(rootCtx, time.Second*OpTimeout)
 	defer cancel()
 
@@ -288,7 +288,7 @@ func (c *Client) RegisterNode(rootCtx context.Context, name string, value any, t
 	return leaseId, nil
 }
 
-func revokeLeaseWithTimeout(c *Client, leaseId int64) {
+func revokeLeaseWithTimeout(c *EtcdClient, leaseId int64) {
 	if c.verbose >= VerboseLv1 {
 		logger.Infof("try revoke lease %d", leaseId)
 	}
@@ -301,7 +301,7 @@ func revokeLeaseWithTimeout(c *Client, leaseId int64) {
 	}
 }
 
-func (c *Client) aliveKeeper(ctx context.Context, kaChan <-chan *clientv3.LeaseKeepAliveResponse, stopChan chan struct{}, leaseId int64) {
+func (c *EtcdClient) aliveKeeper(ctx context.Context, kaChan <-chan *clientv3.LeaseKeepAliveResponse, stopChan chan struct{}, leaseId int64) {
 	defer func() {
 		select {
 		case stopChan <- struct{}{}:
@@ -329,7 +329,7 @@ func (c *Client) aliveKeeper(ctx context.Context, kaChan <-chan *clientv3.LeaseK
 }
 
 // KeepAlive lease保活，当lease撤销时此stopChan被激活
-func (c *Client) KeepAlive(ctx context.Context, stopChan chan struct{}, leaseId int64) error {
+func (c *EtcdClient) KeepAlive(ctx context.Context, stopChan chan struct{}, leaseId int64) error {
 	kaChan, err := c.client.KeepAlive(ctx, clientv3.LeaseID(leaseId))
 	if err != nil {
 		return nil
@@ -338,7 +338,7 @@ func (c *Client) KeepAlive(ctx context.Context, stopChan chan struct{}, leaseId 
 	return nil
 }
 
-func (c *Client) doRegisterNode(ctx context.Context, regCtx *nodeKeepAliveContext) error {
+func (c *EtcdClient) doRegisterNode(ctx context.Context, regCtx *NodeKeepAliveContext) error {
 	var err error
 	if c.verbose >= VerboseLv1 {
 		logger.Infof("try register key: %s", c.FormatKey(regCtx.Name))
@@ -360,7 +360,7 @@ func (c *Client) doRegisterNode(ctx context.Context, regCtx *nodeKeepAliveContex
 	return nil
 }
 
-func (c *Client) regAliveKeeper(ctx context.Context, regCtx *nodeKeepAliveContext) {
+func (c *EtcdClient) regAliveKeeper(ctx context.Context, regCtx *NodeKeepAliveContext) {
 	var ticker = time.NewTicker(time.Second) // 1s
 	defer ticker.Stop()
 	for {
@@ -390,7 +390,7 @@ func (c *Client) regAliveKeeper(ctx context.Context, regCtx *nodeKeepAliveContex
 }
 
 // RegisterAndKeepAliveForever 注册一个节点，并永久保活
-func (c *Client) RegisterAndKeepAliveForever(ctx context.Context, name string, value any, ttl int) (*nodeKeepAliveContext, error) {
+func (c *EtcdClient) RegisterAndKeepAliveForever(ctx context.Context, name string, value any, ttl int) (*NodeKeepAliveContext, error) {
 	var regCtx = NewNodeKeepAliveContext(name, value, ttl)
 	if err := c.doRegisterNode(ctx, regCtx); err != nil {
 		return nil, err
@@ -429,7 +429,7 @@ func propagateWatchEvent(eventChan chan<- *NodeEvent, ev *clientv3.Event) {
 }
 
 // WatchDir 订阅目录下的节点变化
-func (c *Client) WatchDir(ctx context.Context, dir string) <-chan *NodeEvent {
+func (c *EtcdClient) WatchDir(ctx context.Context, dir string) <-chan *NodeEvent {
 	var key = c.FormatKey(dir)
 	var watchCh = c.client.Watch(clientv3.WithRequireLeader(ctx), key, clientv3.WithPrefix())
 	var eventChan = make(chan *NodeEvent, EventChanCapacity)
@@ -464,7 +464,7 @@ func (c *Client) WatchDir(ctx context.Context, dir string) <-chan *NodeEvent {
 }
 
 // WatchDirTo 订阅目录下的所有节点变化, 并把节点变化更新到nodeMap
-func (c *Client) WatchDirTo(ctx context.Context, dir string, nodeMap *NodeMap) {
+func (c *EtcdClient) WatchDirTo(ctx context.Context, dir string, nodeMap *NodeMap) {
 	var evChan = c.WatchDir(ctx, dir)
 	var prefix = c.FormatKey(dir)
 	var watcher = func() {
