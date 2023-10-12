@@ -14,6 +14,38 @@ type testGedSuit1 struct {
 	day int
 }
 
+func Test_GetNextMondayMs(t *testing.T) {
+	const nextMonday = "2023-02-06T00:00:00Z"
+	var tests = []struct {
+		input    string
+		expected string
+	}{
+		{"2023-01-30T00:00:01Z", nextMonday}, // 周一
+		{"2023-01-31T00:00:00Z", nextMonday}, // 周二
+		{"2023-02-01T00:00:00Z", nextMonday}, // 周三
+		{"2023-02-02T00:00:00Z", nextMonday}, // 周四
+		{"2023-02-03T12:00:00Z", nextMonday}, // 周五
+		{"2023-02-04T12:00:00Z", nextMonday}, // 周六
+		{"2023-02-05T23:59:59Z", nextMonday},
+		{nextMonday, "2023-02-13T00:00:00Z"},
+	}
+	for i, tc := range tests {
+		t1, err := time.Parse(time.RFC3339, tc.input)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		t2, err := time.Parse(time.RFC3339, tc.expected)
+		if err != nil {
+			t.Fatalf("%v", err)
+		}
+		var out = GetNextMonday(t1) // 下周一
+		if t2.Unix() != out.Unix() {
+			var str = out.Format(time.RFC3339)
+			t.Fatalf("case #%d(%s) next monday error, %s != %s", i+1, tc.input, str, tc.expected)
+		}
+	}
+}
+
 func TestElapsedDaysBetween(t *testing.T) {
 	var gedCases = []testGedSuit1{
 		{"2018-01-01T00:00:00", "2018-01-01T23:59:59", 0},

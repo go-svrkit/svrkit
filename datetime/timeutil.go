@@ -45,23 +45,34 @@ func Ms2Time(ms int64) time.Time {
 	return time.Unix(sec, nsec).UTC()
 }
 
-// 是否闰年
+// IsLeapYear 是否闰年
 func IsLeapYear(year int) bool {
 	return (year%4 == 0 && year%100 != 0) || year%400 == 0
 }
 
-// 当日零点
+// MidnightTimeOf 当日零点
 func MidnightTimeOf(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 
-// 下一个凌晨
+// NextMidnight 下一个凌晨
 func NextMidnight(ts int64) int64 {
 	var midTime = MidnightTimeOf(Ms2Time(ts))
 	return midTime.UnixNano()/int64(time.Millisecond) + MsPerDay
 }
 
-// N天后的这个时候
+// GetNextMonday 计算当前时间的下周一的凌晨0点
+func GetNextMonday(now time.Time) time.Time {
+	// 各个星期到其下周一的天数
+	var offsetDays = [7]int32{1, 7, 6, 5, 4, 3, 2}
+
+	var elapsedDays = offsetDays[now.Weekday()]
+	year, month, day := now.Date()
+	var t = time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	return t.Add(time.Hour * 24 * time.Duration(elapsedDays))
+}
+
+// ThisMomentAfterDays N天后的这个时候
 func ThisMomentAfterDays(this time.Time, days int) time.Time {
 	if days == 0 {
 		return this
@@ -69,7 +80,7 @@ func ThisMomentAfterDays(this time.Time, days int) time.Time {
 	return this.Add(time.Duration(days) * time.Hour * 24)
 }
 
-// 本周的起点
+// StartingOfWeek 本周的起点
 func StartingOfWeek(t time.Time) time.Time {
 	t2 := MidnightTimeOf(t)
 	weekday := int(t2.Weekday())
@@ -83,24 +94,24 @@ func StartingOfWeek(t time.Time) time.Time {
 	return t2.Add(d)
 }
 
-// 本周的最后一天
+// EndOfWeek 本周的最后一天
 func EndOfWeek(t time.Time) time.Time {
 	begin := StartingOfWeek(t)
 	end := ThisMomentAfterDays(begin, 7)
 	return end.Add(-time.Second) // 23:59:59
 }
 
-// 年度第一天
+// FirstDayOfYear 年度第一天
 func FirstDayOfYear(year int) time.Time {
 	return time.Date(year, 1, 1, 0, 0, 0, 0, DefaultLoc)
 }
 
-// 年度最后一天
+// LastDayOfYear 年度最后一天
 func LastDayOfYear(year int) time.Time {
 	return time.Date(year, 12, 31, 0, 0, 0, 0, DefaultLoc)
 }
 
-// 获取两个时间中经过的天数
+// ElapsedDaysBetween 获取两个时间中经过的天数
 func ElapsedDaysBetween(start, end time.Time) int {
 	var negative = false
 	if start.After(end) {
@@ -125,7 +136,7 @@ func ElapsedDaysBetween(start, end time.Time) int {
 	return days
 }
 
-// 一个月的天数
+// DaysCountOfMonth 一个月的天数
 func DaysCountOfMonth(year, month int) int {
 	switch time.Month(month) {
 	case time.January:
