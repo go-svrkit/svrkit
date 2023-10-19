@@ -5,6 +5,11 @@ import (
 	"time"
 )
 
+const (
+	Day  = 24 * time.Hour
+	Week = 7 * Day
+)
+
 var unitMap = map[string]int64{
 	"ns": int64(time.Nanosecond),
 	"us": int64(time.Microsecond),
@@ -14,10 +19,14 @@ var unitMap = map[string]int64{
 	"s":  int64(time.Second),
 	"m":  int64(time.Minute),
 	"h":  int64(time.Hour),
-	"d":  int64(time.Hour) * 24,
+	"d":  int64(Day),
 }
 
-// ParseDuration extends `time.ParseDuration` with days
+// ParseDuration parses a duration string, this extends `time.ParseDuration` with days
+// A duration string is a possibly signed sequence of
+// decimal numbers, each with optional fraction and a unit suffix,
+// such as "300ms", "-1.5h" or "2h45m".
+// Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h", "d".
 func ParseDuration(s string) (time.Duration, error) {
 	// [-+]?([0-9]*(\.[0-9]*)?[a-z]+)+
 	orig := s
@@ -37,7 +46,7 @@ func ParseDuration(s string) (time.Duration, error) {
 		return 0, nil
 	}
 	if s == "" {
-		return 0, errors.New("time: invalid duration " + quote(orig))
+		return 0, errors.New("ParseDuration: invalid duration " + quote(orig))
 	}
 	for s != "" {
 		var (
@@ -49,13 +58,13 @@ func ParseDuration(s string) (time.Duration, error) {
 
 		// The next character must be [0-9.]
 		if !(s[0] == '.' || '0' <= s[0] && s[0] <= '9') {
-			return 0, errors.New("time: invalid duration " + quote(orig))
+			return 0, errors.New("ParseDuration: invalid duration " + quote(orig))
 		}
 		// Consume [0-9]*
 		pl := len(s)
 		v, s, err = leadingInt(s)
 		if err != nil {
-			return 0, errors.New("time: invalid duration " + quote(orig))
+			return 0, errors.New("ParseDuration: invalid duration " + quote(orig))
 		}
 		pre := pl != len(s) // whether we consumed anything before a period
 
@@ -69,7 +78,7 @@ func ParseDuration(s string) (time.Duration, error) {
 		}
 		if !pre && !post {
 			// no digits (e.g. ".s" or "-.s")
-			return 0, errors.New("time: invalid duration " + quote(orig))
+			return 0, errors.New("ParseDuration: invalid duration " + quote(orig))
 		}
 
 		// Consume unit.
@@ -81,17 +90,17 @@ func ParseDuration(s string) (time.Duration, error) {
 			}
 		}
 		if i == 0 {
-			return 0, errors.New("time: missing unit in duration " + quote(orig))
+			return 0, errors.New("ParseDuration: missing unit in duration " + quote(orig))
 		}
 		u := s[:i]
 		s = s[i:]
 		unit, ok := unitMap[u]
 		if !ok {
-			return 0, errors.New("time: unknown unit " + quote(u) + " in duration " + quote(orig))
+			return 0, errors.New("ParseDuration: unknown unit " + quote(u) + " in duration " + quote(orig))
 		}
 		if v > (1<<63-1)/unit {
 			// overflow
-			return 0, errors.New("time: invalid duration " + quote(orig))
+			return 0, errors.New("ParseDuration: invalid duration " + quote(orig))
 		}
 		v *= unit
 		if f > 0 {
@@ -100,13 +109,13 @@ func ParseDuration(s string) (time.Duration, error) {
 			v += int64(float64(f) * (float64(unit) / scale))
 			if v < 0 {
 				// overflow
-				return 0, errors.New("time: invalid duration " + quote(orig))
+				return 0, errors.New("ParseDuration: invalid duration " + quote(orig))
 			}
 		}
 		d += v
 		if d < 0 {
 			// overflow
-			return 0, errors.New("time: invalid duration " + quote(orig))
+			return 0, errors.New("ParseDuration: invalid duration " + quote(orig))
 		}
 	}
 
@@ -120,7 +129,7 @@ func quote(s string) string {
 	return "\"" + s + "\""
 }
 
-var errLeadingInt = errors.New("time: bad [0-9]*") // never printed
+var errLeadingInt = errors.New("ParseDuration: bad [0-9]*") // never printed
 
 // leadingInt consumes the leading [0-9]* from s.
 func leadingInt(s string) (x int64, rem string, err error) {
@@ -176,114 +185,123 @@ func leadingFraction(s string) (x int64, scale float64, rem string) {
 
 // PrettyDuration returns a string representing the duration in the form of "4d2h3m5s".
 func PrettyDuration(d time.Duration) string {
-	if d == 0 {
-		return "0s"
-	}
-
-	// Largest time is 106751d23h47m16s854ms775us807ns
+	// Largest time is `-106751d23h47m16.854775807s`
 	var buf [32]byte
 	w := len(buf)
-	var sign string
 
 	u := uint64(d)
 	neg := d < 0
 	if neg {
 		u = -u
-		sign = "-"
 	}
 
-	// u is nanoseconds (ns)
-	if u > 0 {
+	// Special case: if duration is smaller than a second,
+	// use smaller units, like 1.2ms
+	if u < uint64(time.Second) {
+		var prec int
 		w--
-
-		if u%1000 > 0 {
-			buf[w] = 's'
-			w--
+		buf[w] = 's'
+		w--
+		switch {
+		case u == 0:
+			return "0s"
+		case u < uint64(time.Microsecond):
+			// print nanoseconds
+			prec = 0
 			buf[w] = 'n'
-			w = fmtInt(buf[:w], u%1000)
+		case u < uint64(time.Millisecond):
+			// print microseconds
+			prec = 3
+			// U+00B5 'µ' micro sign == 0xC2 0xB5
+			w-- // Need room for two bytes.
+			copy(buf[w:], "µ")
+		default:
+			// print milliseconds
+			prec = 6
+			buf[w] = 'm'
+		}
+		w, u = fmtFrac(buf[:w], u, prec)
+		w = fmtInt(buf[:w], u)
+	} else {
+		var sec = u % uint64(time.Minute)
+		if u%uint64(time.Second) > 0 || sec > 0 {
+			w--
+			buf[w] = 's'
+			w, u = fmtFrac(buf[:w], u, 9)
+			// u is now integer seconds
+			if u == 0 {
+				buf[w] = '0'
+			} else if sec > 0 {
+				w = fmtInt(buf[:w], u%60)
+			}
 		} else {
-			w++
+			u /= uint64(time.Second)
 		}
 
-		u /= 1000
-
-		// u is now integer microseconds (us)
+		// u is now integer minutes
+		u /= 60
 		if u > 0 {
 			w--
-			if u%1000 > 0 {
-				buf[w] = 's'
-				w--
-				buf[w] = 'u'
-				w = fmtInt(buf[:w], u%1000)
+
+			if u%60 > 0 {
+				buf[w] = 'm'
+				w = fmtInt(buf[:w], u%60)
 			} else {
 				w++
 			}
-			u /= 1000
 
-			// u is now integer milliseconds (ms)
+			// u is now integer hours
+			u /= 60
 			if u > 0 {
 				w--
-				if u%1000 > 0 {
-					buf[w] = 's'
-					w--
-					buf[w] = 'm'
-					w = fmtInt(buf[:w], u%1000)
+
+				if u%24 > 0 {
+					buf[w] = 'h'
+					w = fmtInt(buf[:w], u%24)
 				} else {
 					w++
 				}
-				u /= 1000
 
-				// u is now integer seconds (s)
+				// u is now integer days (d)
+				u /= 24
 				if u > 0 {
 					w--
-					if u%60 > 0 {
-						buf[w] = 's'
-						w = fmtInt(buf[:w], u%60)
-					} else {
-						w++
-					}
-					u /= 60
-
-					// u is now integer minutes (m)
-					if u > 0 {
-						w--
-
-						if u%60 > 0 {
-							buf[w] = 'm'
-							w = fmtInt(buf[:w], u%60)
-						} else {
-							w++
-						}
-
-						u /= 60
-
-						// u is now integer hours (h)
-						if u > 0 {
-							w--
-
-							if u%24 > 0 {
-								buf[w] = 'h'
-								w = fmtInt(buf[:w], u%24)
-							} else {
-								w++
-							}
-
-							u /= 24
-
-							// u is now integer days (d)
-							if u > 0 {
-								w--
-								buf[w] = 'd'
-								w = fmtInt(buf[:w], u)
-							}
-						}
-					}
+					buf[w] = 'd'
+					w = fmtInt(buf[:w], u)
 				}
 			}
 		}
 	}
 
-	return sign + string(buf[w:])
+	if neg {
+		w--
+		buf[w] = '-'
+	}
+	return string(buf[w:])
+}
+
+// fmtFrac formats the fraction of v/10**prec (e.g., ".12345") into the
+// tail of buf, omitting trailing zeros. It omits the decimal
+// point too when the fraction is 0. It returns the index where the
+// output bytes begin and the value v/10**prec.
+func fmtFrac(buf []byte, v uint64, prec int) (nw int, nv uint64) {
+	// Omit trailing zeros up to and including decimal point.
+	w := len(buf)
+	print := false
+	for i := 0; i < prec; i++ {
+		digit := v % 10
+		print = print || digit != 0
+		if print {
+			w--
+			buf[w] = byte(digit) + '0'
+		}
+		v /= 10
+	}
+	if print {
+		w--
+		buf[w] = '.'
+	}
+	return w, v
 }
 
 // fmtInt formats v into the tail of buf.
@@ -303,7 +321,7 @@ func fmtInt(buf []byte, v uint64) int {
 	return w
 }
 
-// 打印毫秒时间(秒），100000s => 1d3h46m40s
+// PrettyTime 返回毫秒时间的字符串显示，100000 => 1d3h46m40s
 func PrettyTime(ms int64) string {
 	return PrettyDuration(time.Duration(ms) * time.Millisecond)
 }
