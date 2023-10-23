@@ -9,6 +9,8 @@ import (
 	"log"
 	"math"
 	"strconv"
+
+	"gopkg.in/svrkit.v1/logger"
 )
 
 // ParseBool parse string to bool
@@ -307,4 +309,12 @@ func ParseTo[T cmp.Ordered | bool](s string) (T, error) {
 		}
 	}
 	return zero, fmt.Errorf("ParseTo: unsupported type %T", zero)
+}
+
+func MustParseTo[T cmp.Ordered | bool](s string) T {
+	val, err := ParseTo[T](s)
+	if err != nil {
+		logger.Panicf("cannot parse %s to %T: %v", s, val, err)
+	}
+	return val
 }

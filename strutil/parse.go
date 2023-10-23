@@ -4,7 +4,11 @@
 package strutil
 
 import (
+	"cmp"
+	"fmt"
 	"strings"
+
+	"gopkg.in/svrkit.v1/logger"
 )
 
 const (
@@ -14,6 +18,59 @@ const (
 	SepComma       = ","
 	SepEqualSign   = "="
 )
+
+// ParseToMap 解析字符串为K-V map，
+// 示例： ParseKVPairs("x=1|y=2", SepEqualSign, SepVerticalBar) -> {"a":"x,y", "c":"z"}
+func ParseToMap[K, V cmp.Ordered](text string, sep1, sep2 string) (map[K]V, error) {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil, nil
+	}
+	var arr = strings.Split(text, sep2)
+	var dict = make(map[K]V, len(arr))
+	for _, str := range arr {
+		str = strings.TrimSpace(str)
+		if str == "" {
+			continue
+		}
+		var parts = strings.Split(str, sep1)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid key-value format: %s", str)
+		}
+		key, err := ParseTo[K](parts[0])
+		if err != nil {
+			return nil, err
+		}
+		value, err := ParseTo[V](parts[1])
+		if err != nil {
+			return nil, err
+		}
+		dict[key] = value
+	}
+	return dict, nil
+}
+
+func MustParseToMap[K, V cmp.Ordered](text string, sep1, sep2 string) map[K]V {
+	dict, err := ParseToMap[K, V](text, sep1, sep2)
+	if err != nil {
+		logger.Panicf("MustParseToMap: %v", err)
+	}
+	return dict
+}
+
+// ParseToMapN 解析字符串为K-V map，
+// 示例： ParseToMapN("x=1|y=2", SepEqualSign, SepVerticalBar) -> {"a":"x,y", "c":"z"}
+func ParseToMapN[K, V cmp.Ordered](text string) (map[K]V, error) {
+	return ParseToMap[K, V](text, SepEqualSign, SepVerticalBar)
+}
+
+func MustParseToMapN[K, V cmp.Ordered](text string) map[K]V {
+	dict, err := ParseToMap[K, V](text, SepEqualSign, SepVerticalBar)
+	if err != nil {
+		logger.Panicf("MustParseToMapN: %v", err)
+	}
+	return dict
+}
 
 func unquote(s string) string {
 	n := len(s)
@@ -25,76 +82,68 @@ func unquote(s string) string {
 	return s
 }
 
-// 解析字符串为K-V map，
-// 示例：s = "a='x,y',c=z"
-//
-//	ParseKVPairs(s,",","=") ==> {"a":"x,y", "c":"z"}
-func ParseKVPairs(text string, sep, equal byte) map[string]string {
-	var result = make(map[string]string)
-	var key string
+// ParseKVPairs 解析字符串为K-V map，处理逗号分隔的特殊情况
+// 示例： ParseKVPairs("100='x,y',101=z") -> {100:"x,y", 101:"z"}
+func ParseKVPairs[K, V cmp.Ordered](text string) (map[K]V, error) {
+	const sep1, sep2 = ',', '='
+	var dict = make(map[K]V)
+	var keyStr string
 	var inQuote = false
 	var start = 0
 	for i := 0; i < len(text); i++ {
 		var ch = text[i]
 		switch ch {
-		case sep:
+		case sep1:
 			if !inQuote {
 				value := strings.TrimSpace(text[start:i])
-				if key == "" {
-					key = value
+				if keyStr == "" {
+					keyStr = value
 					value = ""
 				}
-				result[key] = unquote(value)
-				key = ""
+				key, err := ParseTo[K](keyStr)
+				if err != nil {
+					return nil, err
+				}
+				val, err := ParseTo[V](unquote(value))
+				if err != nil {
+					return nil, err
+				}
+				dict[key] = val
+				keyStr = ""
 				start = i + 1
 			}
-		case equal:
+		case sep2:
 			if !inQuote {
-				key = strings.TrimSpace(text[start:i])
+				keyStr = strings.TrimSpace(text[start:i])
 				start = i + 1
 			}
 		case KVPairQuote:
 			inQuote = !inQuote
 		}
 	}
-	if start < len(text) || key != "" {
+	if start < len(text) || keyStr != "" {
 		s := strings.TrimSpace(text[start:])
-		if key == "" {
-			key = s
+		if keyStr == "" {
+			keyStr = s
 			s = ""
 		}
-		result[key] = unquote(s)
+		key, err := ParseTo[K](keyStr)
+		if err != nil {
+			return nil, err
+		}
+		val, err := ParseTo[V](unquote(s))
+		if err != nil {
+			return nil, err
+		}
+		dict[key] = val
 	}
-	return result
+	return dict, nil
 }
 
-//// 解析字符串为map, 格式：1:100|2:200|3:300
-//func ParseKVMap(text string, sep1, sep2 string) map[int32]int32 {
-//	text = strings.TrimSpace(text)
-//	if text == "" {
-//		return nil
-//	}
-//	if sep1 == "" {
-//		sep1 = SepVerticalBar
-//	}
-//	if sep2 == "" {
-//		sep2 = SepColon
-//	}
-//	var ret = make(map[int32]int32)
-//	var pairs = strings.Split(text, sep1)
-//	for _, pair := range pairs {
-//		pair = strings.TrimSpace(pair)
-//		if pair == "" {
-//			continue
-//		}
-//		kv := strings.Split(pair, sep2)
-//		if len(kv) == 2 {
-//			var key = Parse3(kv[0])
-//			var val = Sto32(kv[1])
-//			ret[key] += val
-//		} else {
-//			return nil
-//		}
-//	}
-//	return ret
-//}
+func MustParseKVPairs[K, V cmp.Ordered](text string) map[K]V {
+	dict, err := ParseKVPairs[K, V](text)
+	if err != nil {
+		logger.Panicf("MustParseKVPairs: %v", err)
+	}
+	return dict
+}

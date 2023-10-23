@@ -5,6 +5,30 @@ import (
 	"testing"
 )
 
+func TestParseToMapN(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected map[int32]int32
+	}{
+		{"", map[int32]int32{}},
+		{"1=2", map[int32]int32{1: 2}},
+		{"1=2|3=4", map[int32]int32{1: 2, 3: 4}},
+		{"1=2|3=4|5=6", map[int32]int32{1: 2, 3: 4, 5: 6}},
+	}
+	for i, tc := range tests {
+		d, err := ParseToMapN[int32, int32](tc.input)
+		if err != nil {
+			t.Fatalf("Test case %d failed: %v", i, err)
+		}
+		if len(d) == 0 && len(tc.expected) == 0 {
+			continue
+		}
+		if !reflect.DeepEqual(d, tc.expected) {
+			t.Fatalf("Test case %d failed, expect %v, got %v", i, tc.expected, d)
+		}
+	}
+}
+
 func TestParseKVPairs(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -21,9 +45,11 @@ func TestParseKVPairs(t *testing.T) {
 		{"a = 123, b = 456", map[string]string{"a": "123", "b": "456"}},
 		{"a=123 , b='4,5,6' , c = 789", map[string]string{"a": "123", "b": "4,5,6", "c": "789"}},
 	}
-	const sep1, sep2 = ',', '='
 	for i, test := range tests {
-		r := ParseKVPairs(test.input, sep1, sep2)
+		r, err := ParseKVPairs[string, string](test.input)
+		if err != nil {
+			t.Fatalf("Test case %d failed: %v", i, err)
+		}
 		if len(r) == 0 && len(test.expected) == 0 {
 			continue
 		}
