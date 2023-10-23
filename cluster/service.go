@@ -27,19 +27,19 @@ var (
 
 // Register 注册服务
 func Register(service IService) {
-	if service == nil {
-		panic("invalid service")
-	}
 	var serviceType = service.ServiceType()
 	if dup := serviceRegistry[serviceType]; dup != nil {
-		panic("duplicate registration")
+		panic("duplicate service type registration")
 	}
 	serviceRegistry[serviceType] = reflect.TypeOf(service).Elem()
 }
 
 // CreateService 创建服务
 func CreateService(serviceType uint16) IService {
-	var rtype = serviceRegistry[serviceType]
+	rtype, found := serviceRegistry[serviceType]
+	if !found {
+		return nil
+	}
 	var rval = reflect.New(rtype)
 	return rval.Interface().(IService)
 }

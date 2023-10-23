@@ -12,6 +12,24 @@ func TestNewNode(t *testing.T) {
 	t.Logf("%v", node)
 	node.ID = 2
 	t.Logf("%v", node)
+
+	node.Set("hello", "world")
+	var s = node.Get("hello")
+	if s != "world" {
+		t.Fatalf("get hello: %s", s)
+	}
+
+	node.SetInt("hello2", 123)
+	var n = node.GetInt("hello2")
+	if n != 123 {
+		t.Fatalf("get hello2: %d", n)
+	}
+
+	node.SetBool("hello3", true)
+	var b = node.GetBool("hello3")
+	if !b {
+		t.Fatalf("get hello3: %v", b)
+	}
 }
 
 func TestNodeMap(t *testing.T) {

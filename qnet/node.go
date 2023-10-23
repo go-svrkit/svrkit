@@ -24,7 +24,7 @@ func NewBackendNode(service uint16, instance uint32) NodeID {
 	return NodeBackendTypeMask | NodeID((uint64(service)<<NodeInstanceShift)|uint64(instance))
 }
 
-// IsBackend 是否service节点
+// IsBackend 是否backend节点
 func (n NodeID) IsBackend() bool {
 	return n > NodeBackendTypeMask
 }

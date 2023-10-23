@@ -9,18 +9,21 @@ import (
 	"fmt"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 )
 
-// Node 表示一个节点信息
+// Node 表示用于服务发现的节点信息
 type Node struct {
-	Type      string `json:"type,omitempty"`
-	ID        uint32 `json:"id,omitempty"`
-	PID       int    `json:"pid,omitempty"`
-	Host      string `json:"host,omitempty"`
-	Interface string `json:"interface,omitempty"`
-	URI       string `json:"uri,omitempty"`
+	Type      string            `json:"type"`
+	ID        uint32            `json:"id"`
+	Status    uint32            `json:"status,omitempty"`
+	PID       int               `json:"pid,omitempty"`
+	Host      string            `json:"host,omitempty"`
+	Interface string            `json:"interface,omitempty"`
+	URI       string            `json:"uri,omitempty"`
+	Data      map[string]string `json:"data,omitempty"`
 }
 
 func NewNode(nodeType string, id uint32) Node {
@@ -33,6 +36,59 @@ func NewNode(nodeType string, id uint32) Node {
 		node.Host = hostname
 	}
 	return node
+}
+
+func (n *Node) Get(key string) string {
+	return n.Data[key]
+}
+
+func (n *Node) Set(key, val string) {
+	if n.Data == nil {
+		n.Data = make(map[string]string)
+	}
+	n.Data[key] = val
+}
+
+func (n *Node) GetInt(key string) int {
+	var s = n.Data[key]
+	val, _ := strconv.Atoi(s)
+	return val
+}
+
+func (n *Node) SetInt(key string, val int) {
+	var s = strconv.Itoa(val)
+	n.Set(key, s)
+}
+
+func (n *Node) GetBool(key string) bool {
+	var s = n.Data[key]
+	val, _ := strconv.ParseBool(s)
+	return val
+}
+
+func (n *Node) SetBool(key string, val bool) {
+	var s = strconv.FormatBool(val)
+	n.Set(key, s)
+}
+
+func (n *Node) GetFloat(key string) float64 {
+	var s = n.Data[key]
+	val, _ := strconv.ParseFloat(s, 64)
+	return val
+}
+
+func (n *Node) SetFloat(key string, val float64) {
+	var s = strconv.FormatFloat(val, 'f', 3, 64)
+	n.Set(key, s)
+}
+
+func (n *Node) Clone() Node {
+	var clone = *n
+	clone.Data = make(map[string]string, len(n.Data))
+	for k, v := range n.Data {
+		clone.Data[k] = v
+	}
+	return clone
 }
 
 func (n *Node) String() string {

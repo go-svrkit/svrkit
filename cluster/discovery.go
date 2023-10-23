@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -95,10 +96,7 @@ func (c *EtcdClient) SetVerbose(v int32) {
 }
 
 func (c *EtcdClient) FormatKey(name string) string {
-	if name[0] == '/' {
-		return c.namespace + name
-	}
-	return c.namespace + "/" + name
+	return path.Join(c.namespace, name)
 }
 
 // IsNodeExist 节点是否存在
