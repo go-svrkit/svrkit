@@ -77,7 +77,7 @@ func (s *MongoDBCounter) Incr(ctx context.Context) (int64, error) {
 		Label: s.label,
 	}
 	// 把counter自增再读取最新的counter
-	if err := s.incrementAndLoad(ctx, ctr); err != nil {
+	if err := s.IncrementAndLoad(ctx, 1, ctr); err != nil {
 		return 0, err
 	}
 	if s.lastCounter >= ctr.Value {
@@ -87,15 +87,15 @@ func (s *MongoDBCounter) Incr(ctx context.Context) (int64, error) {
 	return ctr.Value, nil
 }
 
-// 把counter自增再读取最新的counter
+// IncrementAndLoad 把counter自增再读取最新的counter
 // https://docs.mongodb.com/manual/core/write-operations-atomicity/
-func (s *MongoDBCounter) incrementAndLoad(ctx context.Context, ctr *Counter) error {
+func (s *MongoDBCounter) IncrementAndLoad(ctx context.Context, n int, ctr *Counter) error {
 	var filter = bson.M{"label": s.label}
 	var update = bson.M{
 		"$setOnInsert": bson.M{
 			"label": ctr.Label,
 		},
-		"$inc": bson.M{"counter": 1},
+		"$inc": bson.M{"counter": n},
 	}
 	var opt = options.FindOneAndUpdate()
 	opt.SetUpsert(true).SetReturnDocument(options.After)

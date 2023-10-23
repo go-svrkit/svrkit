@@ -22,12 +22,9 @@ type RedisCounter struct {
 
 func NewRedisCounter(addr, key string) CounterStore {
 	var client = redis.NewClient(&redis.Options{
-		Addr:         addr,
-		DialTimeout:  5 * time.Second,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 5 * time.Second,
-		PoolTimeout:  10 * time.Second,
-		PoolSize:     5,
+		Addr:        addr,
+		DialTimeout: 3 * time.Second,
+		PoolSize:    5,
 	})
 	return &RedisCounter{
 		addr:   addr,
