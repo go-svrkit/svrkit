@@ -5,69 +5,89 @@ package reflext
 
 import (
 	"image"
-	"os"
 	"reflect"
 	"testing"
 )
 
-type TB struct {
-	A string
-	C image.Rectangle
-	D []int16
-	E map[string]float64
-}
-
-func (b *TB) GetC() *image.Rectangle {
-	return &b.C
-}
-
 type TA struct {
-	A int32
-	B TB
-	C []image.Point
-	D map[float64]string
+	B        bool
+	Str      string
+	N        int64
+	F        float64
+	Pos      image.Point
+	Rect     *image.Rectangle
+	Triangle []image.Point
+	Dict     map[int]string
+
+	Next *TA
 }
 
-func (a *TA) GetB() *TB {
-	return &a.B
+func (t *TA) GetArgs() map[int]string {
+	return t.Dict
+}
+
+func (t *TA) Get(key int) string {
+	return t.Dict[key]
+}
+
+func (t *TA) GetRect() *image.Rectangle {
+	return t.Rect
+}
+
+func (t *TA) SetPos(x, y int) {
+	t.Pos.X = x
+	t.Pos.Y = y
 }
 
 func createTA() *TA {
 	return &TA{
-		B: TB{
-			A: "hello",
-			C: image.Rect(12, 34, 56, 78),
-			D: []int16{12, 34, 56},
-			E: map[string]float64{"hello": 12, "world": 34},
+		B:   true,
+		Str: "hello",
+		N:   12345,
+		F:   3.14159,
+		Pos: image.Point{X: 10, Y: 20},
+		Rect: &image.Rectangle{
+			Min: image.Point{X: 500, Y: 150},
+			Max: image.Point{X: 100, Y: 200},
 		},
-		A: 1234,
-		C: []image.Point{image.Pt(12, 34)},
-		D: map[float64]string{3.14: "PI"},
+		Triangle: []image.Point{
+			{X: 10, Y: 20},
+			{X: 30, Y: 40},
+			{X: 50, Y: 60},
+		},
+		Dict: map[int]string{
+			123: "hello",
+			456: "world",
+		},
 	}
 }
 
-func TestEvalView(t *testing.T) {
-	var obj = createTA()
+func TestEvalGet(t *testing.T) {
+	var ta = createTA()
 	tests := []struct {
 		expr         string
 		shouldHasErr bool
 		result       interface{}
 	}{
-		//{"C", false, obj.C},
-		//{"B.A", false, obj.B.A},
-		//{"B.C.Max.X", false, obj.B.C.Max.X},
-		{"C[0].X", false, obj.C[0].X},
-		{"D[3.14]", false, obj.D[3.14]},
-		{`GetB().GetC().Min.X`, false, 12},
-		{"C[10]", false, nil},
-		{"D[10]", false, nil},
-		{"B.D[10]", false, nil},
-		{"B.E[10]", false, nil},
-		{`D["KKK"]`, true, nil},
-		{`B.E["KKK"]`, true, nil},
+		{"NotExist", true, nil},
+		{"B", false, ta.B},
+		{"Str", false, ta.Str},
+		{"Pos.X", false, ta.Pos.X},
+		{"Rect.Min.X", false, ta.Rect.Min.X},
+		{"Rect.NotExist.X", true, nil},
+		{"Rect.0.X", true, nil},
+		{"Triangle[0].X", false, ta.Triangle[0].X},
+		{"Triangle[3].X", true, nil},
+		{"Triangle[`3`].X", true, nil},
+		{"Triangle[kk].X", true, nil},
+		{"Dict[123]", false, ta.Dict[123]},
+		{"Dict[`123`]", true, nil},
+		{"Dict[kkk]", true, nil},
+		{"Dict[`kkk`]", true, nil},
 	}
 	for _, tc := range tests {
-		var evalCtx = NewEvalContext(obj)
+		var evalCtx = NewEvalContext(ta)
+		evalCtx.ReadOnly = true
 		v, err := evalCtx.Eval(tc.expr)
 		if tc.shouldHasErr {
 			if err == nil {
@@ -75,8 +95,42 @@ func TestEvalView(t *testing.T) {
 			}
 			continue
 		}
-		t.Logf("%s: %v", tc.expr, err)
-		evalCtx.PrintNodes(os.Stdout)
+		t.Logf("%s: %v, %v", tc.expr, v, err)
+		//evalCtx.PrintNodes(os.Stdout)
+		if tc.result == nil && !IsInterfaceNil(v) {
+			t.Fatalf("%s: %v", tc.expr, err)
+		} else if !reflect.DeepEqual(v, tc.result) {
+			t.Fatalf("%s: %v", tc.expr, err)
+		}
+	}
+}
+
+func TestEvalEval(t *testing.T) {
+	var ta = createTA()
+	tests := []struct {
+		expr         string
+		shouldHasErr bool
+		result       interface{}
+	}{
+		{"GetXXX().A", true, false},
+		{"GetRect().Min.X", false, ta.GetRect().Min.X},
+		{"GetRect().Dx()", false, ta.GetRect().Dx()},
+		{"GetRect().DDD()", true, ta.GetRect().Dx()},
+		{"Get(123)", false, ta.Get(123)},
+		{"Get(`123`)", false, ta.Get(123)},
+		{"Get(`hello`)", true, nil},
+	}
+	for _, tc := range tests {
+		var evalCtx = NewEvalContext(ta)
+		v, err := evalCtx.Eval(tc.expr)
+		if tc.shouldHasErr {
+			if err == nil {
+				t.Fatalf("%s: %v", tc.expr, err)
+			}
+			continue
+		}
+		t.Logf("%s: %v, %v", tc.expr, v, err)
+		//evalCtx.PrintNodes(os.Stdout)
 		if tc.result == nil && !IsInterfaceNil(v) {
 			t.Fatalf("%s: %v", tc.expr, err)
 		} else if !reflect.DeepEqual(v, tc.result) {
@@ -86,23 +140,24 @@ func TestEvalView(t *testing.T) {
 }
 
 func TestEvalSet(t *testing.T) {
-	var obj = createTA()
 	tests := []struct {
 		expr         string
 		val          interface{}
 		shouldHasErr bool
 	}{
-		{"A", int32(5678), false},
-		{"B.A", "hi", false},
-		{"B.C.Max.X", 100, false},
-		{"C[0].X", 54321, false},
-		{"D[3.14]", "pi", false},
-		{"D[1.68]", "ratio", false},
-		{`B.E["hello"]`, 12345, false},
-		{`GetB().E["hello"]`, 54321, false},
+		{"B", false, false},
+		{"Str", "woohaha", false},
+		{"N", 98765, false},
+		{"F", 1.618, false},
+		{"Pos", `{"X": 11, "Y":22}`, false},
+		{"Rect", `{"Min": {"X": 1, "Y":2}, "Max":{"X":3,"Y":4}}`, false},
+		{"Triangle[0].X", 12345, false},
+		{"Dict[123]", "123", false},
+		{"GetRect().Min.X", 12345, false},
 	}
-	var ctx = NewEvalContext(obj)
 	for _, tc := range tests {
+		var obj = createTA()
+		var ctx = NewEvalContext(obj)
 		err := ctx.Set(tc.expr, tc.val)
 		t.Logf("%s: %v", tc.expr, err)
 		if tc.shouldHasErr {
@@ -122,17 +177,20 @@ func TestEvalSet(t *testing.T) {
 }
 
 func TestEvalRemove(t *testing.T) {
-	var obj = createTA()
+
 	tests := []struct {
 		expr   string
 		hasErr bool
 	}{
-		{"A", true},
-		{"B.D[1]", false},
-		{`GetB().E["hello"]`, false},
+		{"B", true},
+		{"Str", true},
+		{"Pos", true},
+		{"Triangle[1]", false},
+		{"Dict[`123`]", false},
 	}
-	var ctx = NewEvalContext(obj)
 	for _, tc := range tests {
+		var obj = createTA()
+		var ctx = NewEvalContext(obj)
 		err := ctx.Delete(tc.expr)
 		t.Logf("%s: %v", tc.expr, err)
 		if tc.hasErr {

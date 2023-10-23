@@ -25,9 +25,10 @@ type EvalNode struct {
 }
 
 type EvalContext struct {
-	This  any
-	Expr  string
-	Nodes []*EvalNode
+	This     any
+	Expr     string
+	ReadOnly bool
+	Nodes    []*EvalNode
 }
 
 func NewEvalContext(this any) *EvalContext {
@@ -67,6 +68,9 @@ func (c *EvalContext) walkExprGet(this reflect.Value, astNode ast.Expr) (val ref
 
 // 常量只能是寻址struct的field和map的key
 func (c *EvalContext) evalIdentGet(this reflect.Value, ident *ast.Ident, node *EvalNode) error {
+	if !this.IsValid() {
+		return ErrValNotValid
+	}
 	if this.Kind() == reflect.Ptr {
 		this = this.Elem()
 	}
@@ -88,12 +92,7 @@ func createMapKey(rv reflect.Value, value string) (val reflect.Value, err error)
 		s = value
 	}
 	var keyType = rv.Type().Key()
-	if IsPrimitive(keyType.Kind()) {
-		return parseValueOfKind(keyType, s)
-	} else {
-		err = fmt.Errorf("cannot address map key %s %s", value, keyType.Name())
-		return
-	}
+	return ConvParamToType(keyType, s)
 }
 
 // 只有数组、切片、字符串和map支持`[]`操作符
@@ -120,9 +119,9 @@ func (c *EvalContext) evalIndexGet(this reflect.Value, expr *ast.IndexExpr, node
 			return fmt.Errorf("index out of range: %d", i)
 		}
 	case reflect.Map:
-		key, err := createMapKey(rv, index.Value)
-		if err != nil {
-			return err
+		key, er := createMapKey(rv, index.Value)
+		if er != nil {
+			return er
 		}
 		node.Key = index.Value
 		node.Val = rv.MapIndex(key)
@@ -132,60 +131,94 @@ func (c *EvalContext) evalIndexGet(this reflect.Value, expr *ast.IndexExpr, node
 	}
 }
 
-// 支持单返回值函数调用
-func callGetter(fn reflect.Value, name string) (val reflect.Value, err error) {
-	var method = fn.Type()
-	if method.NumIn() != 0 || method.NumOut() != 1 {
-		return val, fmt.Errorf("method %s signature not match", name)
+// 支持单返回值和无返回值的带参函数调用
+func doCallMethod(fn reflect.Value, funcName string, args []string) (val reflect.Value, err error) {
+	var fnType = fn.Type()
+	// 最多1个返回值
+	if fnType.NumOut() > 1 {
+		return val, fmt.Errorf("method %s signature not match", funcName)
 	}
-	var output = fn.Call(nil)
-	return output[0], nil
+	input, er := ParseInputArgs(fn.Type(), args)
+	if er != nil {
+		err = fmt.Errorf("cannot parse input args %s: %w", funcName, er)
+		return
+	}
+	var output = fn.Call(input)
+	if len(output) > 0 {
+		return output[0], nil
+	}
+	return
+}
+
+func tryCallMethod(this reflect.Value, call *ast.CallExpr, name string) (val reflect.Value, err error) {
+	var kind = this.Kind()
+	if kind == reflect.Ptr {
+		kind = this.Elem().Kind()
+	}
+	if kind != reflect.Struct {
+		err = fmt.Errorf("unexpected kind %v with selector %v", this.Kind(), call.Fun)
+		return
+	}
+
+	var fn reflect.Value
+	var isValid = false
+	if this.Kind() == reflect.Ptr {
+		fn = this.MethodByName(name)
+		isValid = fn.IsValid()
+	} else {
+		// try pointer method first
+		if this.CanAddr() {
+			fn = this.Addr().MethodByName(name)
+			isValid = fn.IsValid()
+			if !isValid {
+				fn = this.MethodByName(name)
+				isValid = fn.IsValid()
+			}
+		}
+	}
+
+	if isValid {
+		args, er := ParseCallExprArgs(call)
+		if er != nil {
+			err = fmt.Errorf("cannot parse input args %s: %w", name, er)
+			return
+		}
+		val, err = doCallMethod(fn, name, args)
+	} else {
+		err = fmt.Errorf("method call %s() of %s not valid", name, this.Type().String())
+	}
+	return
 }
 
 func (c *EvalContext) evalCall(this reflect.Value, call *ast.CallExpr, node *EvalNode) error {
-	if len(call.Args) > 0 || call.Ellipsis > 0 {
-		return ErrInvalidCallNode // 只接受无参数的函数调用
+	if c.ReadOnly {
+		return fmt.Errorf("cannot call method in read-only mode")
+	}
+	if !this.IsValid() {
+		return ErrValNotValid
 	}
 	switch expr := call.Fun.(type) {
 	case *ast.Ident:
-		var fn = this.MethodByName(expr.Name)
-		if fn.IsValid() {
-			val, err := callGetter(fn, expr.Name)
-			if err != nil {
-				return err
-			} else {
-				node.Key = expr.Name + "()"
-				node.Val = val
-				return nil
-			}
-		} else {
-			return fmt.Errorf("method call %s not valid", expr.Name)
+		val, err := tryCallMethod(this, call, expr.Name)
+		if err != nil {
+			return err
 		}
+		node.Key = expr.Name + "()"
+		node.Val = val
+		return nil
+
 	case *ast.SelectorExpr:
-		var kind = this.Kind()
-		if kind == reflect.Ptr {
-			kind = this.Elem().Kind()
-		}
-		if kind != reflect.Struct {
-			return fmt.Errorf("unexpected kind %v with ident %s", this.Kind(), expr.Sel.Name)
-		}
 		obj, err := c.walkExprGet(this, expr.X)
 		if err != nil {
 			return err
 		}
-		var fn = obj.MethodByName(expr.Sel.Name)
-		if fn.IsValid() {
-			val, err := callGetter(fn, expr.Sel.Name)
-			if err != nil {
-				return err
-			} else {
-				node.Key = expr.Sel.Name + "()"
-				node.Val = val
-				return nil
-			}
-		} else {
-			return fmt.Errorf("method call %s not valid", expr.Sel.Name)
+		val, err := tryCallMethod(obj, call, expr.Sel.Name)
+		if err != nil {
+			return err
 		}
+		node.Key = expr.Sel.Name + "()"
+		node.Val = val
+		return nil
 	default:
 		return fmt.Errorf("unexpect call expr %T", call.Fun)
 	}
@@ -203,6 +236,9 @@ func (c *EvalContext) evalSelectorGet(this reflect.Value, expr *ast.SelectorExpr
 	rv, err := c.walkExprGet(this, expr.X)
 	if err != nil {
 		return err
+	}
+	if !rv.IsValid() {
+		return ErrValNotValid
 	}
 	if rv.Kind() == reflect.Ptr {
 		rv = rv.Elem()
@@ -229,15 +265,30 @@ func (c *EvalContext) Eval(expr string) (any, error) {
 	return nil, ErrValNotValid
 }
 
-// set b to a
-func setValueTo(a, b reflect.Value) error {
-	ta, tb := a.Type(), b.Type()
-	if !tb.ConvertibleTo(ta) {
-		return fmt.Errorf("type %v not convertible to %v", tb.Kind(), ta.Kind())
+// set `src` to `dst`
+func setValueTo(dst, src reflect.Value) error {
+	if !dst.CanAddr() {
+		return ErrValNotValid
 	}
-	v := b.Convert(tb)
-	a.Set(v)
-	return nil
+	srtType, dstType := src.Type(), dst.Type()
+	if IsPrimitive(dstType.Kind()) {
+		if srtType.ConvertibleTo(dstType) {
+			var val = src.Convert(dstType)
+			dst.Set(val)
+			return nil
+		}
+	} else if srtType.Kind() == reflect.String {
+		val, err := ConvParamToType(dstType, src.String())
+		if err == nil {
+			if dst.Kind() == reflect.Ptr {
+				dst.Set(val)
+			} else {
+				dst.Set(val.Elem())
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("type %s not convertible to %s", srtType.String(), dstType.String())
 }
 
 // a.X = b
@@ -277,9 +328,9 @@ func (c *EvalContext) setIndexExpr(lhv, rhv reflect.Value, expr *ast.IndexExpr) 
 	}
 	switch rv.Kind() {
 	case reflect.Slice:
-		idx, err := strconv.Atoi(index.Value)
-		if err != nil {
-			return fmt.Errorf("cannot index by key %s: %w", index.Value, err)
+		idx, er := strconv.Atoi(index.Value)
+		if er != nil {
+			return fmt.Errorf("cannot index by key %s: %w", index.Value, er)
 		}
 		return setValueTo(rv.Index(idx), rhv)
 
@@ -288,8 +339,8 @@ func (c *EvalContext) setIndexExpr(lhv, rhv reflect.Value, expr *ast.IndexExpr) 
 		if !rhv.Type().ConvertibleTo(valType) {
 			return fmt.Errorf("cannot convert %v to %v", rhv.Type().Kind(), valType.Kind())
 		}
-		if key, err := createMapKey(rv, index.Value); err != nil {
-			return fmt.Errorf("cannot index map key %s: %w", index.Value, err)
+		if key, er := createMapKey(rv, index.Value); er != nil {
+			return fmt.Errorf("cannot index map key %s: %w", index.Value, er)
 		} else {
 			rv.SetMapIndex(key, rhv.Convert(valType))
 		}
@@ -358,9 +409,9 @@ func (c *EvalContext) removeIndex(this reflect.Value, expr *ast.IndexExpr) error
 	}
 	switch rv.Kind() {
 	case reflect.Slice:
-		idx, err := strconv.Atoi(index.Value)
-		if err != nil {
-			return fmt.Errorf("cannot index by key %s: %w", index.Value, err)
+		idx, er := strconv.Atoi(index.Value)
+		if er != nil {
+			return fmt.Errorf("cannot index by key %s: %w", index.Value, er)
 		}
 		var sliceLen = rv.Len()
 		if idx < 0 || idx >= sliceLen {
@@ -378,10 +429,10 @@ func (c *EvalContext) removeIndex(this reflect.Value, expr *ast.IndexExpr) error
 		rv.Set(newSlice)
 
 	case reflect.Map:
-		if key, err := createMapKey(rv, index.Value); err != nil {
-			return fmt.Errorf("cannot index map key %s: %w", index.Value, err)
+		if key, er := createMapKey(rv, index.Value); er != nil {
+			return fmt.Errorf("cannot index map key %s: %w", index.Value, er)
 		} else {
-			rv.SetMapIndex(key, reflect.Value{})
+			rv.SetMapIndex(key, reflect.Value{}) // do deletion
 		}
 	default:
 		return fmt.Errorf("unexpected kind %v with ident %s", this.Kind(), expr.Index)
@@ -416,41 +467,4 @@ func (c *EvalContext) PrintNodes(w io.Writer) {
 		fmt.Fprintf(w, "%s -> %s\n", node.Key, node.Val.Type().String())
 	}
 	w.Write([]byte("\n"))
-}
-
-func parseValueOfKind(rtype reflect.Type, s string) (val reflect.Value, err error) {
-	var v = reflect.New(rtype).Elem()
-	switch rtype.Kind() {
-	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int, reflect.Int64:
-		if n, er := strconv.ParseInt(s, 10, 64); er != nil {
-			return val, er
-		} else {
-			v.SetInt(n)
-		}
-
-	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint, reflect.Uint64:
-		if n, er := strconv.ParseUint(s, 10, 64); er != nil {
-			return val, er
-		} else {
-			v.SetUint(n)
-		}
-
-	case reflect.Float32, reflect.Float64:
-		if f, er := strconv.ParseFloat(s, 64); er != nil {
-			return val, er
-		} else {
-			v.SetFloat(f)
-		}
-
-	case reflect.Bool:
-		b, _ := strconv.ParseBool(s)
-		v.SetBool(b)
-
-	case reflect.String:
-		v.SetString(s)
-
-	default:
-		return val, fmt.Errorf("unexpected kind %v", rtype.Kind())
-	}
-	return v, nil
 }
