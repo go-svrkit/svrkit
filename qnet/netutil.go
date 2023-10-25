@@ -23,18 +23,20 @@ const (
 	UrlFormKey = "pb-data"
 )
 
+const PrefixLength = 4 // sizeof uint32
+
 // ReadLenPrefixData 读取长度[4字节]开头的数据
 func ReadLenPrefixData(r io.Reader, maxSize uint) ([]byte, error) {
-	var tmp [4]byte
+	var tmp [PrefixLength]byte
 	if _, err := io.ReadFull(r, tmp[:]); err != nil {
 		return nil, fmt.Errorf("read len: %v", err)
 	}
 	var nLen = int(binary.BigEndian.Uint32(tmp[:]))
-	if nLen < 4 || nLen > int(maxSize) {
+	if nLen < PrefixLength || nLen > int(maxSize) {
 		return nil, fmt.Errorf("ReadLenPrefixData: msg size %d out of range", nLen)
 	}
 	var data []byte
-	if nLen > 4 {
+	if nLen > PrefixLength {
 		data = make([]byte, nLen-4)
 		if _, err := io.ReadFull(r, data); err != nil {
 			return nil, fmt.Errorf("ReadLenPrefixData: read body of len %d: %v", nLen, err)
@@ -48,12 +50,12 @@ func WriteLenPrefixData(w io.Writer, body []byte) error {
 	if len(body) == 0 {
 		return nil
 	}
-	var nLen = len(body) + 4
+	var nLen = len(body) + PrefixLength
 	if nLen > MaxPacketSize {
 		return fmt.Errorf("WriteLenPrefixData: msg size %d out of range", nLen)
 	}
-	var buf [4]byte
-	binary.BigEndian.PutUint32(buf[:4], uint32(nLen))
+	var buf [PrefixLength]byte
+	binary.BigEndian.PutUint32(buf[:PrefixLength], uint32(nLen))
 
 	if _, err := w.Write(buf[:]); err != nil {
 		return err

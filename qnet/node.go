@@ -24,6 +24,10 @@ func NewBackendNode(service uint16, instance uint32) NodeID {
 	return NodeBackendTypeMask | NodeID((uint64(service)<<NodeInstanceShift)|uint64(instance))
 }
 
+func NewGateSession(service uint16, session uint32) NodeID {
+	return NodeID((uint64(service) << NodeInstanceShift) | uint64(session))
+}
+
 // IsBackend 是否backend节点
 func (n NodeID) IsBackend() bool {
 	return n > NodeBackendTypeMask

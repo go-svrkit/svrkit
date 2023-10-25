@@ -14,7 +14,9 @@ import (
 	"gopkg.in/svrkit.v1/logger"
 )
 
-const TCPReadTimeout = 300 * time.Second // 默认读超时
+var (
+	TCPReadTimeout = 300 * time.Second // 默认读超时
+)
 
 type TcpSession struct {
 	StreamConnBase
@@ -96,12 +98,10 @@ func (t *TcpSession) notifyErr(reason error) {
 }
 
 func (t *TcpSession) finally(reason error) {
-	// 通知发送线程flush并退出
-	t.conn.Close()
-	close(t.done)
-	t.wg.Wait()
-
+	close(t.done) // 通知发送线程flush并退出
 	t.notifyErr(reason)
+	t.wg.Wait()
+	t.conn.Close()
 
 	t.recvQueue = nil
 	t.sendQueue = nil

@@ -113,6 +113,6 @@ func TestCodecEncode(t *testing.T) {
 	testEncode(t, 0)
 	testEncode(t, 64)
 	testEncode(t, DefaultCompressThreshold)
-	testEncode(t, MaxPayloadSize-HeaderLength-850)
+	testEncode(t, MaxPayloadSize-V1HeaderLength-850)
 	//testEncode(t, MaxPayloadSize)
 }

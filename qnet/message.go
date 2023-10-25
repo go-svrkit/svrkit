@@ -14,21 +14,12 @@ const (
 	MsgArenaPoolSize = 1024
 )
 
-// MsgFlag 消息标志位
-type MsgFlag uint8
+var msgAlloc = pool.NewArenaAllocator[NetMessage](MsgArenaPoolSize)
 
-const (
-	FlagCompress MsgFlag = 0x01 // 压缩
-	FlagEncrypt  MsgFlag = 0x02 // 加密
-	FlagError    MsgFlag = 0x4  //
-)
-
-func (g MsgFlag) Has(n MsgFlag) bool {
-	return g&n != 0
-}
-
-func (g MsgFlag) Clear(n MsgFlag) MsgFlag {
-	return g &^ n
+func AllocNetMessage() *NetMessage {
+	var message = msgAlloc.Alloc()
+	message.CreatedAt = time.Now().UnixNano() / 1e6
+	return message
 }
 
 type SessionMessage struct {
@@ -39,7 +30,7 @@ type SessionMessage struct {
 
 // NetMessage 投递给业务层的网络消息
 type NetMessage struct {
-	MsgID     uint32        `json:"mid"`            // 消息ID
+	MsgID     uint32        `json:"cmd"`            // 消息ID
 	Seq       uint32        `json:"seq"`            // 序列号
 	Errno     int32         `json:"errno"`          // 错误码
 	CreatedAt int64         `json:"created_at"`     // 创建时间(毫秒)
@@ -48,22 +39,16 @@ type NetMessage struct {
 	Session   Endpoint      `json:"-"`              //
 }
 
-func NewNetMessage(msgId uint32, seq uint32, body proto.Message) *NetMessage {
+func NewNetMessage(seq uint32, body proto.Message) *NetMessage {
 	var msg = AllocNetMessage()
-	msg.MsgID = msgId
+	msg.MsgID = DefaultMsgIDReflector(body)
 	msg.Body = body
 	msg.Seq = seq
 	return msg
 }
 
 func (m *NetMessage) Reset() {
-	m.CreatedAt = 0
-	m.MsgID = 0
-	m.Seq = 0
-	m.Errno = 0
-	m.Data = nil
-	m.Body = nil
-	m.Session = nil
+	*m = NetMessage{}
 }
 
 func (m *NetMessage) Clone() *NetMessage {
@@ -77,7 +62,7 @@ func (m *NetMessage) Clone() *NetMessage {
 }
 
 func (m *NetMessage) SetMsgID(msgId uint32) {
-	m.MsgID = uint32(msgId)
+	m.MsgID = msgId
 }
 
 func (m *NetMessage) ErrCode() int32 {
@@ -114,8 +99,8 @@ func (m *NetMessage) Refuse(ec int32) error {
 	return m.Session.SendMsg(ack, SendNonblock)
 }
 
-func (m *NetMessage) ReplyAck(msgId uint32, ack proto.Message) error {
-	var netMsg = NewNetMessage(msgId, m.Seq, ack)
+func (m *NetMessage) ReplyAck(ack proto.Message) error {
+	var netMsg = NewNetMessage(m.Seq, ack)
 	return m.Session.SendMsg(netMsg, SendNonblock)
 }
 
@@ -127,10 +112,8 @@ func (m *NetMessage) Reply(msgId uint32, data []byte) error {
 	return m.Session.SendMsg(netMsg, SendNonblock)
 }
 
-var alloc = pool.NewArenaAllocator[NetMessage](MsgArenaPoolSize)
-
-func AllocNetMessage() *NetMessage {
-	var message = alloc.Alloc()
-	message.CreatedAt = time.Now().UnixNano() / 1e6
-	return message
+// DefaultMsgIDReflector get message ID by reflection
+var DefaultMsgIDReflector = func(proto.Message) uint32 {
+	panic("not implemented")
+	return 0
 }

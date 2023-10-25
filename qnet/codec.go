@@ -15,62 +15,73 @@ import (
 )
 
 const (
-	HeaderLength             = 16                           // 消息头大小
-	MaxPacketSize            = 0x00FFFFFF                   // 最大消息大小，~16MB
-	MaxPayloadSize           = MaxPacketSize - HeaderLength // 最大消息体大小
-	MaxClientUpStreamSize    = 1 << 18                      // 最大client上行消息大小，256KB
-	DefaultCompressThreshold = 1 << 12                      // 压缩阈值，4KB
+	V1HeaderLength        = 16                             // 消息头大小
+	MaxPacketSize         = 0x00FFFFFF                     // 最大消息大小，~16MB
+	MaxPayloadSize        = MaxPacketSize - V1HeaderLength //
+	MaxClientUpStreamSize = 1 << 18                        // 最大client上行消息大小，256KB
 )
 
-// wire protocol format
-// field |--<len>--|--<crc>--|-<flag>-|--<seq>--|--<cmd>--|--<data>--|
-// bytes |----3----|----4----|----1---|----4----|----4----|---N/A----|
+var (
+	DefaultCompressThreshold = 1 << 12 // 压缩阈值，4KB
+)
 
-// NetHeader 协议头
-type NetHeader []byte
+type MsgFlag uint8
 
-func NewNetHeader() NetHeader {
-	return make([]byte, HeaderLength)
+const (
+	FlagCompress MsgFlag = 0x01 // 压缩
+	FlagEncrypt  MsgFlag = 0x02 // 加密
+	FlagError    MsgFlag = 0x04 // 错误
+	FlagRequest  MsgFlag = 0x08 //
+	FlagReserved MsgFlag = 0x80 //
+)
+
+func (g MsgFlag) Has(n MsgFlag) bool {
+	return g&n != 0
 }
 
-func (h NetHeader) Len() uint32 {
+func (g MsgFlag) Clear(n MsgFlag) MsgFlag {
+	return g &^ n
+}
+
+// wire protocol
+// ------|---------|---------|--------|---------|---------|----------|
+// field |--<len>--|--<crc>--|-<flag>-|--<seq>--|--<cmd>--|--<data>--|
+// bytes |----3----|----4----|----1---|----4----|----4----|---N/A----|
+// ------|---------|---------|--------|---------|---------|----------|
+
+// NetV1Header 协议头
+type NetV1Header []byte
+
+func NewNetV1Header() NetV1Header {
+	return make([]byte, V1HeaderLength)
+}
+
+func (h NetV1Header) Len() uint32 {
 	return bytesToInt(h[:3])
 }
 
-func (h NetHeader) CRC() uint32 {
-	return binary.LittleEndian.Uint32(h[3:])
-}
-
-func (h NetHeader) SetCRC(v uint32) {
-	binary.LittleEndian.PutUint32(h[3:], v)
-}
-
-func (h NetHeader) Flag() MsgFlag {
+func (h NetV1Header) Flag() MsgFlag {
 	return MsgFlag(h[7])
 }
 
-func (h NetHeader) Seq() uint32 {
+func (h NetV1Header) Seq() uint32 {
 	return binary.LittleEndian.Uint32(h[8:])
 }
 
-func (h NetHeader) Command() uint32 {
+func (h NetV1Header) Command() uint32 {
 	return binary.LittleEndian.Uint32(h[12:])
 }
 
-func (h NetHeader) Pack(size uint32, flag MsgFlag, msgId, errno, seq uint32) {
-	var cmd = msgId
-	if errno > 0 {
-		cmd = errno
-	}
-	intToBytes(size, h[:3])
-	// h[3:7] = checksum // set after
-	h[7] = uint8(flag)
-	binary.LittleEndian.PutUint32(h[8:], seq)
-	binary.LittleEndian.PutUint32(h[12:], cmd)
+func (h NetV1Header) CRC() uint32 {
+	return binary.LittleEndian.Uint32(h[3:])
 }
 
-// CalcChecksum checksum = f(header[7:]) and f(body)
-func (h NetHeader) CalcChecksum(body []byte) uint32 {
+func (h NetV1Header) SetCRC(v uint32) {
+	binary.LittleEndian.PutUint32(h[3:], v)
+}
+
+// CalcCRC checksum = f(header[7:]) and f(body)
+func (h NetV1Header) CalcCRC(body []byte) uint32 {
 	var crc = crc32.NewIEEE()
 	crc.Write(h[7:])
 	if len(body) > 0 {
@@ -79,38 +90,36 @@ func (h NetHeader) CalcChecksum(body []byte) uint32 {
 	return crc.Sum32()
 }
 
-// 3-bytes little endian to uint32
-func bytesToInt(b []byte) uint32 {
-	_ = b[2] // bounds check hint to compiler; see golang.org/issue/14808
-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16
+func (h NetV1Header) Pack(size uint32, flag MsgFlag, netMsg *NetMessage) {
+	var cmd = netMsg.MsgID
+	if flag.Has(FlagError) {
+		cmd = uint32(netMsg.Errno)
+	}
+	intToBytes(size, h[:3])
+	// h[3:7] = checksum // set after
+	h[7] = uint8(flag)
+	binary.LittleEndian.PutUint32(h[8:], netMsg.Seq)
+	binary.LittleEndian.PutUint32(h[12:], cmd)
 }
 
-// uint32 to little endian 3-bytes
-func intToBytes(v uint32, b []byte) {
-	b[0] = byte(v)
-	b[1] = byte(v >> 8)
-	b[2] = byte(v >> 16)
-}
-
-// ReadHeadBody `maxSize`应该小于`MaxPacketSize`
-func ReadHeadBody(rd io.Reader, head NetHeader, maxSize uint32) ([]byte, error) {
+// ReadHeadBody @maxSize should less than MaxPacketSize
+func ReadHeadBody(rd io.Reader, head NetV1Header, maxSize uint32) ([]byte, error) {
 	if _, err := io.ReadFull(rd, head); err != nil {
 		return nil, err
 	}
 	var nLen = head.Len()
-	if nLen < HeaderLength || nLen > maxSize {
+	if nLen < V1HeaderLength || nLen > maxSize {
 		logger.Errorf("ReadHeadBody: msg size %d out of range", nLen)
 		return nil, ErrPktSizeOutOfRange
 	}
 	var body []byte
-	if nLen > HeaderLength {
-		body = make([]byte, nLen-HeaderLength)
+	if nLen > V1HeaderLength {
+		body = make([]byte, nLen-V1HeaderLength)
 		if _, err := io.ReadFull(rd, body); err != nil {
 			return nil, err
 		}
 	}
-
-	var checksum = head.CalcChecksum(body)
+	var checksum = head.CalcCRC(body)
 	if crc := head.CRC(); crc != checksum {
 		logger.Errorf("ReadHeadBody: msg %v checksum mismatch %x != %x", head.Command(), checksum, crc)
 		return nil, ErrPktChecksumMismatch
@@ -139,8 +148,9 @@ func ProcessHeaderFlags(flags MsgFlag, body []byte, decrypt Encryptor) ([]byte, 
 	return body, nil
 }
 
+// DecodeMsgFrom decode message from reader
 func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetMessage) error {
-	var head = NewNetHeader()
+	var head = NewNetV1Header()
 	body, err := ReadHeadBody(rd, head, maxSize)
 	if err != nil {
 		return err
@@ -160,6 +170,7 @@ func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetM
 	return nil
 }
 
+// EncodeMsgTo encode message to writer
 func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 	if err := netMsg.Encode(); err != nil {
 		return err
@@ -167,34 +178,35 @@ func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 	var body = netMsg.Data
 	var flags MsgFlag
 	if len(body) > DefaultCompressThreshold {
-		if encoded, er := compress(body); er != nil {
-			logger.Errorf("msg %v compress failed: %v", netMsg.MsgID, er)
-		} else {
+		if encoded, err := compress(body); err == nil {
 			if len(encoded) < len(body) {
 				flags |= FlagCompress
 				body = encoded
 			}
+		} else {
+			logger.Errorf("msg %d compress failed: %v", netMsg.MsgID, err)
 		}
 	}
 	if encrypt != nil && len(body) > 0 {
-		if encrypted, err := encrypt.Encrypt(body); err != nil {
-			return err
-		} else {
+		if encrypted, err := encrypt.Encrypt(body); err == nil {
 			body = encrypted
+			flags |= FlagEncrypt
+		} else {
+			return err
 		}
-		flags |= FlagEncrypt
 	}
 
 	var bodySize = len(body)
 	if bodySize > MaxPayloadSize {
-		return fmt.Errorf("encoded msg %v size %d/%d overflow", netMsg.MsgID, bodySize, MaxPayloadSize)
+		return fmt.Errorf("encoded msg %d size %d/%d overflow", netMsg.MsgID, bodySize, MaxPayloadSize)
+	}
+	if netMsg.Errno != 0 {
+		flags |= FlagError
 	}
 
-	var size = bodySize + HeaderLength
-	var head = NewNetHeader()
-	head.Pack(uint32(size), flags, netMsg.MsgID, uint32(netMsg.Errno), netMsg.Seq)
-
-	var checksum = head.CalcChecksum(body)
+	var head = NewNetV1Header()
+	head.Pack(uint32(bodySize+V1HeaderLength), flags, netMsg)
+	var checksum = head.CalcCRC(body)
 	head.SetCRC(checksum)
 
 	if _, err := w.Write(head); err != nil {
@@ -239,4 +251,17 @@ func uncompress(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return buf.Bytes(), nil
+}
+
+// 3-bytes little endian to uint32
+func bytesToInt(b []byte) uint32 {
+	_ = b[2] // bounds check hint to compiler; see golang.org/issue/14808
+	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16
+}
+
+// uint32 to little endian 3-bytes
+func intToBytes(v uint32, b []byte) {
+	b[0] = byte(v)
+	b[1] = byte(v >> 8)
+	b[2] = byte(v >> 16)
 }

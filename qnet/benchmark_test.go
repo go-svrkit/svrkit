@@ -105,7 +105,7 @@ func startBenchClient(t *testing.T, conn net.Conn, msgCount int, totalRecvMsgCou
 	for i := 1; i <= msgCount; i++ {
 		var resp = AllocNetMessage()
 		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
-		if err := DecodeMsgFrom(rd, MaxPayloadSize, nil, resp); err != nil {
+		if err := DecodeMsgFrom(rd, 8196, nil, resp); err != nil {
 			t.Errorf("decode message: %v", err)
 			break
 		}
