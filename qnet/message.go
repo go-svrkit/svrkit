@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+	"gopkg.in/svrkit.v1/logger"
 	"gopkg.in/svrkit.v1/pool"
 )
 
@@ -113,7 +114,7 @@ func (m *NetMessage) Reply(msgId uint32, data []byte) error {
 }
 
 // DefaultMsgIDReflector get message ID by reflection
-var DefaultMsgIDReflector = func(proto.Message) uint32 {
-	panic("not implemented")
+var DefaultMsgIDReflector = func(v proto.Message) uint32 {
+	logger.Panicf("message %T reflection not implemented", v)
 	return 0
 }
