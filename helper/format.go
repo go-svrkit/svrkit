@@ -1,7 +1,13 @@
+// Copyright © 2022 ichenq@gmail.com All rights reserved.
+// See accompanying files LICENSE.txt
+
 package helper
 
 import (
 	"bytes"
+	"crypto/md5"
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -48,7 +54,8 @@ func JSONStringify(v any) string {
 	return BytesAsStr(data)
 }
 
-func FormatProtoMsg(msg proto.Message) string {
+// Proto2JSON 序列化proto消息为json格式
+func Proto2JSON(msg proto.Message) string {
 	var jm = jsonpb.Marshaler{EnumsAsInts: true}
 	var sb strings.Builder
 	if err := jm.Marshal(&sb, msg); err != nil {
@@ -57,4 +64,22 @@ func FormatProtoMsg(msg proto.Message) string {
 		return sb.String()
 	}
 	return msg.String()
+}
+
+// JSON2Proto 反序列化json字符串为proto消息
+func JSON2Proto(body string, dst proto.Message) error {
+	var rd = strings.NewReader(body)
+	return jsonpb.Unmarshal(rd, dst)
+}
+
+func MD5Sum(data []byte) string {
+	var hash = md5.New()
+	hash.Write(data)
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func SHA1Sum(data []byte) string {
+	var hash = sha1.New()
+	hash.Write(data)
+	return hex.EncodeToString(hash.Sum(nil))
 }

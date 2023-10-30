@@ -1,3 +1,6 @@
+// Copyright © 2022 ichenq@gmail.com All rights reserved.
+// See accompanying files LICENSE.txt
+
 package helper
 
 import (
