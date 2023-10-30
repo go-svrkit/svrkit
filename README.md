@@ -1,5 +1,7 @@
 # svrkit
 
+Useful tools and best practice for building game server applications.
+
 ### Guidelines
 
 Please follow the repository guidelines and standards mentioned below.
