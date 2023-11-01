@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/http"
 	"strings"
@@ -23,21 +24,21 @@ const (
 	UrlFormKey = "pb-data"
 )
 
-const PrefixLength = 4 // sizeof uint32
+const PrefixLength = 2 // sizeof uint16
 
-// ReadLenPrefixData 读取长度[4字节]开头的数据
-func ReadLenPrefixData(r io.Reader, maxSize uint) ([]byte, error) {
+// ReadLenPrefixData 读取长度[2字节]开头的数据
+func ReadLenPrefixData(r io.Reader, maxSize uint16) ([]byte, error) {
 	var tmp [PrefixLength]byte
 	if _, err := io.ReadFull(r, tmp[:]); err != nil {
 		return nil, fmt.Errorf("read len: %v", err)
 	}
-	var nLen = int(binary.BigEndian.Uint32(tmp[:]))
+	var nLen = int(binary.BigEndian.Uint16(tmp[:]))
 	if nLen < PrefixLength || nLen > int(maxSize) {
 		return nil, fmt.Errorf("ReadLenPrefixData: msg size %d out of range", nLen)
 	}
 	var data []byte
 	if nLen > PrefixLength {
-		data = make([]byte, nLen-4)
+		data = make([]byte, nLen-PrefixLength)
 		if _, err := io.ReadFull(r, data); err != nil {
 			return nil, fmt.Errorf("ReadLenPrefixData: read body of len %d: %v", nLen, err)
 		}
@@ -45,17 +46,17 @@ func ReadLenPrefixData(r io.Reader, maxSize uint) ([]byte, error) {
 	return data, nil
 }
 
-// WriteLenPrefixData 写入长度[4字节]开头的数据
+// WriteLenPrefixData 写入长度[2字节]开头的数据
 func WriteLenPrefixData(w io.Writer, body []byte) error {
 	if len(body) == 0 {
 		return nil
 	}
 	var nLen = len(body) + PrefixLength
-	if nLen > MaxPacketSize {
+	if nLen > math.MaxUint16 {
 		return fmt.Errorf("WriteLenPrefixData: msg size %d out of range", nLen)
 	}
 	var buf [PrefixLength]byte
-	binary.BigEndian.PutUint32(buf[:PrefixLength], uint32(nLen))
+	binary.BigEndian.PutUint16(buf[:PrefixLength], uint16(nLen))
 
 	if _, err := w.Write(buf[:]); err != nil {
 		return err
@@ -68,7 +69,7 @@ func WriteLenPrefixData(w io.Writer, body []byte) error {
 
 func ReadProtoMessage(conn net.Conn, msg proto.Message) error {
 	conn.SetReadDeadline(time.Now().Add(time.Second * 60))
-	body, err := ReadLenPrefixData(conn, MaxClientUpStreamSize)
+	body, err := ReadLenPrefixData(conn, math.MaxUint16)
 	if err != nil {
 		return err
 	}
