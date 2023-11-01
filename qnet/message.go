@@ -44,14 +44,6 @@ type NetMessage struct {
 	Session   Endpoint      `json:"-"`              //
 }
 
-func CreateNetMessage(cmd, seq uint32, body proto.Message) *NetMessage {
-	var msg = AllocNetMessage()
-	msg.Command = cmd
-	msg.Seq = seq
-	msg.Body = body
-	return msg
-}
-
 func NewNetMessage(cmd, seq uint32, data []byte) *NetMessage {
 	var msg = AllocNetMessage()
 	msg.Command = cmd
@@ -60,7 +52,15 @@ func NewNetMessage(cmd, seq uint32, data []byte) *NetMessage {
 	return msg
 }
 
-func NewNetMessageWith(body proto.Message) *NetMessage {
+func CreateNetMessage(cmd, seq uint32, body proto.Message) *NetMessage {
+	var msg = AllocNetMessage()
+	msg.Command = cmd
+	msg.Seq = seq
+	msg.Body = body
+	return msg
+}
+
+func CreateNetMessageWith(body proto.Message) *NetMessage {
 	var msg = AllocNetMessage()
 	msg.Command = DefaultMsgIDReflector(body)
 	msg.Body = body
@@ -126,7 +126,7 @@ func (m *NetMessage) Refuse(ec uint32) error {
 }
 
 func (m *NetMessage) ReplyAck(ack proto.Message) error {
-	var netMsg = NewNetMessageWith(ack)
+	var netMsg = CreateNetMessageWith(ack)
 	netMsg.Seq = m.Seq
 	return m.Session.SendMsg(netMsg, SendNonblock)
 }

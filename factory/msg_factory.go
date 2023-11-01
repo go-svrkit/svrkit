@@ -90,6 +90,16 @@ func RegisterAllMessages() {
 	log.Printf("%d proto message registered", len(id2type))
 }
 
+// GetMessageName 根据消息ID获取消息名称
+func GetMessageName(msgId uint32) string {
+	return id2name[msgId]
+}
+
+// GetMessageID 根据消息名称获取消息ID
+func GetMessageID(name string) uint32 {
+	return name2id[name]
+}
+
 // CreateMessageByID 根据消息ID创建消息（使用反射）
 func CreateMessageByID(msgId uint32) proto.Message {
 	if rtype, found := id2type[msgId]; found {
@@ -99,7 +109,7 @@ func CreateMessageByID(msgId uint32) proto.Message {
 	return nil
 }
 
-// CreateMessageByName （使用反射）
+// CreateMessageByName 根据消息名称创建消息（使用反射）
 func CreateMessageByName(name string) proto.Message {
 	if hash, found := name2id[name]; found {
 		return CreateMessageByID(hash)
@@ -111,10 +121,6 @@ func CreateMessageByName(name string) proto.Message {
 func GetMessageIDOf(msg proto.Message) uint32 {
 	var rtype = reflect.TypeOf(msg)
 	return type2id[rtype]
-}
-
-func GetMessageName(msgId uint32) string {
-	return id2name[uint32(msgId)]
 }
 
 func IsRequestMessage(name string) bool {
