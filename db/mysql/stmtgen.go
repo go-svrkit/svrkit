@@ -168,7 +168,7 @@ func (g *SQLStmtGen) RegisterStruct(tag string, ptr interface{}, srcFile string)
 		var field = st.Field(i)
 		var colName, colType string
 		tagText := field.Tag.Get(tag)
-		tagFields := strutil.ParseKVPairs(tagText, ' ', '=')
+		tagFields, _ := strutil.ParseToMap[string, string](tagText, " ", "=")
 		if v := tagFields[DBColumnName]; len(v) > 0 {
 			colName = v
 		}
@@ -283,7 +283,7 @@ func getStructComments(file *token.File, fast *ast.File, structTyp *ast.StructTy
 //	}
 func (g *SQLStmtGen) parseIndex(meta *DBTableMeta, name, s string) {
 	var index = NewDBIndexMeta(name)
-	var opts = strutil.ParseKVPairs(s, ',', ':')
+	opts, _ := strutil.ParseToMap[string, string](s, ",", ":")
 	if v := opts["name"]; v != "" {
 		index.Name = v
 	} else {
