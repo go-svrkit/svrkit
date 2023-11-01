@@ -19,7 +19,6 @@ import (
 // 2. `Req`结尾的消息表示请求，Client -> Server；
 // 3. `Ack`结尾的消息表示请求的响应，Server -> Client；
 // 4. `Req`和`Ack`名字前缀需要匹配，即`FooReq`和`FooAck`表示一对请求/响应协议；
-// 5. 网络层传输的是协议名称的hash，所以即使拼写有误也不可随意重命名协议；
 
 var (
 	name2id = make(map[string]uint32)       // 消息名称 <-> 消息ID
@@ -45,8 +44,8 @@ func isWellKnown(name string) bool {
 		strings.HasPrefix(name, "grpc/")
 }
 
-// HashName 计算字符串的hash值
-func HashName(name string) uint32 {
+// CalcMsgHash 计算字符串的hash值
+func CalcMsgHash(name string) uint32 {
 	var h = crc32.NewIEEE()
 	h.Write([]byte(name))
 	return h.Sum32()
@@ -65,7 +64,7 @@ func registerByNameHash(fd protoreflect.FileDescriptor) bool {
 			continue
 		}
 		var name = string(descriptor.Name())
-		var hash = HashName(name)
+		var hash = CalcMsgHash(name)
 		var rtype = proto.MessageType(fullname)
 		if rtype == nil {
 			log.Printf("message %s cannot be reflected", fullname)
