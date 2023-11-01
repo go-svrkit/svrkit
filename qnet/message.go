@@ -4,10 +4,13 @@
 package qnet
 
 import (
+	"encoding/binary"
+	"hash/crc32"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"gopkg.in/svrkit.v1/logger"
 	"gopkg.in/svrkit.v1/pool"
 )
 
@@ -31,26 +34,27 @@ type SessionMessage struct {
 
 // NetMessage 投递给业务层的网络消息
 type NetMessage struct {
-	MsgID     uint32        `json:"cmd"`            // 消息ID
+	Command   uint32        `json:"cmd"`            // 消息ID
+	Route     uint32        `json:"route"`          //
 	Seq       uint32        `json:"seq"`            // 序列号
-	Errno     int32         `json:"errno"`          // 错误码
+	Errno     uint32        `json:"errno"`          // 错误码
 	CreatedAt int64         `json:"created_at"`     // 创建时间(毫秒)
 	Body      proto.Message `json:"body,omitempty"` // pb结构体
 	Data      []byte        `json:"data,omitempty"` // raw binary data
 	Session   Endpoint      `json:"-"`              //
 }
 
-func CreateNetMessage(msgId, seq uint32, body proto.Message) *NetMessage {
+func CreateNetMessage(cmd, seq uint32, body proto.Message) *NetMessage {
 	var msg = AllocNetMessage()
-	msg.MsgID = msgId
+	msg.Command = cmd
 	msg.Seq = seq
 	msg.Body = body
 	return msg
 }
 
-func NewNetMessage(msgId, seq uint32, data []byte) *NetMessage {
+func NewNetMessage(cmd, seq uint32, data []byte) *NetMessage {
 	var msg = AllocNetMessage()
-	msg.MsgID = msgId
+	msg.Command = cmd
 	msg.Seq = seq
 	msg.Data = data
 	return msg
@@ -58,7 +62,7 @@ func NewNetMessage(msgId, seq uint32, data []byte) *NetMessage {
 
 func NewNetMessageWith(body proto.Message) *NetMessage {
 	var msg = AllocNetMessage()
-	msg.MsgID = DefaultMsgIDReflector(body)
+	msg.Command = DefaultMsgIDReflector(body)
 	msg.Body = body
 	return nil
 }
@@ -72,28 +76,34 @@ func (m *NetMessage) Clone() *NetMessage {
 		CreatedAt: time.Now().UnixNano() / 1e6,
 		Seq:       m.Seq,
 		Errno:     m.Errno,
-		MsgID:     m.MsgID,
+		Command:   m.Command,
 		Body:      m.Body,
 	}
 }
 
 func (m *NetMessage) SetMsgID(msgId uint32) {
-	m.MsgID = msgId
+	m.Command = msgId
 }
 
-func (m *NetMessage) ErrCode() int32 {
+func (m *NetMessage) ErrCode() uint32 {
 	return m.Errno
 }
 
 // Encode encode `Body` to `Data`
 func (m *NetMessage) Encode() error {
-	if m.Data == nil && m.Body != nil {
+	if m.Data != nil {
+		return nil
+	}
+	if m.Errno != 0 {
+		var buf [binary.MaxVarintLen32]byte
+		var i = binary.PutUvarint(buf[:], uint64(m.Errno))
+		m.Data = buf[:i]
+	} else if m.Body != nil {
 		data, err := proto.Marshal(m.Body)
 		if err != nil {
 			return err
 		}
 		m.Data = data
-		m.Body = nil
 		return nil
 	}
 	return nil
@@ -108,7 +118,7 @@ func (m *NetMessage) DecodeTo(msg proto.Message) error {
 	return nil
 }
 
-func (m *NetMessage) Refuse(ec int32) error {
+func (m *NetMessage) Refuse(ec uint32) error {
 	var ack = AllocNetMessage()
 	ack.Seq = m.Seq
 	ack.Errno = ec
@@ -121,16 +131,22 @@ func (m *NetMessage) ReplyAck(ack proto.Message) error {
 	return m.Session.SendMsg(netMsg, SendNonblock)
 }
 
-func (m *NetMessage) Reply(msgId uint32, data []byte) error {
+func (m *NetMessage) Reply(cmd uint32, data []byte) error {
 	var netMsg = AllocNetMessage()
 	netMsg.Seq = m.Seq
-	netMsg.MsgID = msgId
+	netMsg.Command = cmd
 	netMsg.Data = data
 	return m.Session.SendMsg(netMsg, SendNonblock)
 }
 
 // DefaultMsgIDReflector get message ID by reflection
-var DefaultMsgIDReflector = func(v proto.Message) uint32 {
-	logger.Panicf("message %T reflection not implemented", v)
-	return 0
+var DefaultMsgIDReflector = func(msg proto.Message) uint32 {
+	var name = reflect.TypeOf(msg).String()
+	var idx = strings.LastIndex(name, ".") // *protos.LoginReq --> LoginReq
+	if idx > 0 {
+		name = name[idx+1:]
+	}
+	var crc = crc32.NewIEEE()
+	crc.Write([]byte(name))
+	return crc.Sum32()
 }

@@ -121,7 +121,7 @@ func (t *TcpSession) flush() {
 			}
 			var buf bytes.Buffer
 			if err := t.write(netMsg, &buf); err != nil {
-				logger.Errorf("%v flush message %v: %v", t.node, netMsg.MsgID, err)
+				logger.Errorf("%v flush message %v: %v", t.node, netMsg.Command, err)
 			}
 		default:
 			return
@@ -156,7 +156,7 @@ func (t *TcpSession) writePump() {
 			}
 			buf.Reset()
 			if err := t.write(netMsg, &buf); err != nil {
-				logger.Errorf("%v write message %v: %v", t.node, netMsg.MsgID, err)
+				logger.Errorf("%v write message %v: %v", t.node, netMsg.Command, err)
 				continue
 			}
 

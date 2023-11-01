@@ -10,7 +10,7 @@ ALL_TEST_PKG=gopkg.in/svrkit.v1/...
 .PHONY: clean test all
 
 vet:
-	$(GO) vet ${ALL_TEST_PKG} -cover -cpu=4
+	$(GO) vet ${ALL_TEST_PKG}
 
 test:
 	$(GO) test -v ${ALL_TEST_PKG} -cover -cpu=4

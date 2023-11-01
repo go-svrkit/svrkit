@@ -52,7 +52,7 @@ func (m *testProtoMsgReq) String() string { return proto.CompactTextString(m) }
 func (*testProtoMsgReq) ProtoMessage()    {}
 
 func isMsgEqual(t *testing.T, a, b *NetMessage) bool {
-	if !(a.MsgID == b.MsgID && a.Seq == b.Seq) {
+	if !(a.Command == b.Command && a.Seq == b.Seq) {
 		return false
 	}
 	if err := a.Encode(); err != nil {
@@ -70,7 +70,7 @@ func isMsgEqual(t *testing.T, a, b *NetMessage) bool {
 
 func testEncode(t *testing.T, size int) {
 	var netMsg = AllocNetMessage()
-	netMsg.MsgID = 1001
+	netMsg.Command = 1001
 	netMsg.Seq = 1
 
 	if size > 0 {

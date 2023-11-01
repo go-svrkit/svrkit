@@ -74,7 +74,7 @@ func startBenchServer(t *testing.T, ctx context.Context, addr string, ready chan
 
 		case msg := <-incoming:
 			var resp = msg.Clone()
-			msg.Reply(resp.MsgID, resp.Data)
+			msg.Reply(resp.Command, resp.Data)
 
 		case <-ctx.Done():
 			// handle shutdown
@@ -89,7 +89,7 @@ func startBenchClient(t *testing.T, conn net.Conn, msgCount int, totalRecvMsgCou
 	for i := 1; i <= msgCount; i++ {
 		var buf bytes.Buffer
 		var msg = new(NetMessage)
-		msg.MsgID = uint32(i)
+		msg.Command = uint32(i)
 		msg.Seq = uint32(i)
 		if err := EncodeMsgTo(msg, nil, &buf); err != nil {
 			t.Errorf("Encode: %v", err)

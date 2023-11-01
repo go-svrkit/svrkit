@@ -26,80 +26,80 @@ type (
 // 消息派发
 var handlers = make(map[uint32]any)
 
-func HasRegistered(msgId uint32) bool {
-	_, found := handlers[msgId]
+func HasRegistered(cmd uint32) bool {
+	_, found := handlers[cmd]
 	return found
 }
 
 // Deregister 取消所有
-func Deregister(msgId uint32) any {
-	var old = handlers[msgId]
-	delete(handlers, msgId)
+func Deregister(cmd uint32) any {
+	var old = handlers[cmd]
+	delete(handlers, cmd)
 	return old
 }
 
 // RegisterV1 注册消息处理函数
-func RegisterV1(msgId uint32, action MessageHandlerV1) {
-	if HasRegistered(msgId) {
-		logger.Warnf("duplicate handler registration of message %v", msgId)
+func RegisterV1(cmd uint32, action MessageHandlerV1) {
+	if HasRegistered(cmd) {
+		logger.Warnf("duplicate handler registration of message %v", cmd)
 	}
-	handlers[msgId] = action
+	handlers[cmd] = action
 }
 
-func RegisterV2(msgId uint32, action MessageHandlerV2) {
-	if HasRegistered(msgId) {
-		logger.Warnf("duplicate handler registration of message %v", msgId)
+func RegisterV2(cmd uint32, action MessageHandlerV2) {
+	if HasRegistered(cmd) {
+		logger.Warnf("duplicate handler registration of message %v", cmd)
 	}
-	handlers[msgId] = action
+	handlers[cmd] = action
 }
 
-func RegisterV3(msgId uint32, action MessageHandlerV3) {
-	if HasRegistered(msgId) {
-		logger.Warnf("duplicate handler registration of message %v", msgId)
+func RegisterV3(cmd uint32, action MessageHandlerV3) {
+	if HasRegistered(cmd) {
+		logger.Warnf("duplicate handler registration of message %v", cmd)
 	}
-	handlers[msgId] = action
+	handlers[cmd] = action
 }
 
-func RegisterV4(msgId uint32, action MessageHandlerV4) {
-	if HasRegistered(msgId) {
-		logger.Warnf("duplicate handler registration of message %v", msgId)
+func RegisterV4(cmd uint32, action MessageHandlerV4) {
+	if HasRegistered(cmd) {
+		logger.Warnf("duplicate handler registration of message %v", cmd)
 	}
-	handlers[msgId] = action
+	handlers[cmd] = action
 }
 
-func RegisterV5(msgId uint32, action MessageHandlerV5) {
-	if HasRegistered(msgId) {
-		logger.Warnf("duplicate handler registration of message %v", msgId)
+func RegisterV5(cmd uint32, action MessageHandlerV5) {
+	if HasRegistered(cmd) {
+		logger.Warnf("duplicate handler registration of message %v", cmd)
 	}
-	handlers[msgId] = action
+	handlers[cmd] = action
 }
 
-func RegisterV6(msgId uint32, action MessageHandlerV6) {
-	if HasRegistered(msgId) {
-		logger.Warnf("duplicate handler registration of message %v", msgId)
+func RegisterV6(cmd uint32, action MessageHandlerV6) {
+	if HasRegistered(cmd) {
+		logger.Warnf("duplicate handler registration of message %v", cmd)
 	}
-	handlers[msgId] = action
+	handlers[cmd] = action
 }
 
-func RegisterV7(msgId uint32, action MessageHandlerV7) {
-	if HasRegistered(msgId) {
-		logger.Warnf("duplicate handler registration of message %v", msgId)
+func RegisterV7(cmd uint32, action MessageHandlerV7) {
+	if HasRegistered(cmd) {
+		logger.Warnf("duplicate handler registration of message %v", cmd)
 	}
-	handlers[msgId] = action
+	handlers[cmd] = action
 }
 
-func RegisterV8(msgId uint32, action MessageHandlerV8) {
-	if HasRegistered(msgId) {
-		logger.Warnf("duplicate handler registration of message %v", msgId)
+func RegisterV8(cmd uint32, action MessageHandlerV8) {
+	if HasRegistered(cmd) {
+		logger.Warnf("duplicate handler registration of message %v", cmd)
 	}
-	handlers[msgId] = action
+	handlers[cmd] = action
 }
 
 func Handle(ctx context.Context, message *qnet.NetMessage) (proto.Message, error) {
-	var msgId = message.MsgID
-	action, found := handlers[msgId]
+	var cmd = message.Command
+	action, found := handlers[cmd]
 	if !found {
-		return nil, fmt.Errorf("message %v handler not found", msgId)
+		return nil, fmt.Errorf("message %v handler not found", cmd)
 	}
 	return dispatch(ctx, action, message)
 }

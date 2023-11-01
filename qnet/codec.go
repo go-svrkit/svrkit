@@ -32,7 +32,8 @@ const (
 	FlagEncrypt  MsgFlag = 0x02 // 加密
 	FlagError    MsgFlag = 0x04 // 错误
 	FlagRequest  MsgFlag = 0x08 //
-	FlagReserved MsgFlag = 0x80 //
+	FlagFrame    MsgFlag = 0x20 //
+	FlagExtent   MsgFlag = 0x40 //
 )
 
 func (g MsgFlag) Has(n MsgFlag) bool {
@@ -91,15 +92,11 @@ func (h NetV1Header) CalcCRC(body []byte) uint32 {
 }
 
 func (h NetV1Header) Pack(size uint32, flag MsgFlag, netMsg *NetMessage) {
-	var cmd = netMsg.MsgID
-	if flag.Has(FlagError) {
-		cmd = uint32(netMsg.Errno)
-	}
 	intToBytes(size, h[:3])
 	// h[3:7] = checksum // set after
 	h[7] = uint8(flag)
 	binary.LittleEndian.PutUint32(h[8:], netMsg.Seq)
-	binary.LittleEndian.PutUint32(h[12:], cmd)
+	binary.LittleEndian.PutUint32(h[12:], netMsg.Command)
 }
 
 // ReadHeadBody @maxSize should less than MaxPacketSize
@@ -161,22 +158,30 @@ func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetM
 		return err
 	}
 	netMsg.Seq = head.Seq()
+	netMsg.Command = head.Command()
+
 	if flags.Has(FlagError) {
-		netMsg.Errno = int32(head.Command())
+		n, i := binary.Uvarint(body)
+		if i <= 0 {
+			return fmt.Errorf("decode msg %d errno negative %d", netMsg.Command, i)
+		}
+		netMsg.Errno = uint32(n)
 	} else {
-		netMsg.MsgID = head.Command()
+		netMsg.Data = body
 	}
-	netMsg.Data = body
 	return nil
 }
 
 // EncodeMsgTo encode message to writer
 func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
+	var flags MsgFlag
+	if netMsg.Errno != 0 {
+		flags |= FlagError
+	}
 	if err := netMsg.Encode(); err != nil {
 		return err
 	}
 	var body = netMsg.Data
-	var flags MsgFlag
 	if len(body) > DefaultCompressThreshold {
 		if encoded, err := compress(body); err == nil {
 			if len(encoded) < len(body) {
@@ -184,10 +189,10 @@ func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 				body = encoded
 			}
 		} else {
-			logger.Errorf("msg %d compress failed: %v", netMsg.MsgID, err)
+			logger.Errorf("msg %d compress failed: %v", netMsg.Command, err)
 		}
 	}
-	if encrypt != nil && len(body) > 0 {
+	if encrypt != nil && len(body) > binary.MaxVarintLen32 {
 		if encrypted, err := encrypt.Encrypt(body); err == nil {
 			body = encrypted
 			flags |= FlagEncrypt
@@ -198,10 +203,7 @@ func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 
 	var bodySize = len(body)
 	if bodySize > MaxPayloadSize {
-		return fmt.Errorf("encoded msg %d size %d/%d overflow", netMsg.MsgID, bodySize, MaxPayloadSize)
-	}
-	if netMsg.Errno != 0 {
-		flags |= FlagError
+		return fmt.Errorf("encoded msg %d size %d/%d overflow", netMsg.Command, bodySize, MaxPayloadSize)
 	}
 
 	var head = NewNetV1Header()
