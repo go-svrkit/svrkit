@@ -7,12 +7,12 @@ import (
 	"bytes"
 	"crypto"
 	"crypto/hmac"
-	"crypto/rand"
+	crand "crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"log"
+	"math/rand"
 	"strings"
 
 	"golang.org/x/crypto/pbkdf2"
@@ -24,15 +24,15 @@ const (
 )
 
 // code taken from werkzeug
-// 	https://github.com/pallets/werkzeug/blob/master/src/werkzeug/security.py
+// https://github.com/pallets/werkzeug/blob/3.0.1/src/werkzeug/security.py
 
 func generateSalt(length int) []byte {
 	if length <= 0 {
 		length = 16
 	}
 	var salt = make([]byte, length)
-	if _, err := rand.Read(salt); err != nil {
-		log.Panicf("rand.Read: %v", err)
+	for i := 0; i < length; i++ {
+		salt[i] = SALT_CHARS[rand.Intn(len(SALT_CHARS))]
 	}
 	return salt
 }
@@ -56,7 +56,7 @@ func GeneratePasswordHash(password, method string) string {
 		passwdText = password
 
 	case "default", "pbkdf2:sha256":
-		var salt = generateSalt(32)
+		var salt = generateSalt(16)
 		var dk = pbkdf2.Key([]byte(password), salt, DEFAULT_PBKDF2_ITERATIONS, 32, sha256.New)
 		saltText = hex.EncodeToString(salt)
 		passwdText = hex.EncodeToString(dk)
@@ -99,10 +99,11 @@ func VerifyPasswordHash(hashText, password string) bool {
 }
 
 // SignAccessToken 注册签名
-func SignAccessToken(node, gameId, key string) string {
+func SignAccessToken(key string, args ...string) string {
 	var buf bytes.Buffer
-	buf.WriteString(node)
-	buf.WriteString(gameId)
+	for i := 0; i < len(args); i++ {
+		buf.WriteString(args[i])
+	}
 	h := hmac.New(sha256.New, []byte(key))
 	h.Write(buf.Bytes())
 	return hex.EncodeToString(h.Sum(nil))
@@ -119,7 +120,7 @@ func SignEncryptSignature(method string, encrypt AESCryptor, priKey *rsa.Private
 	hash.Write(key)
 	hash.Write(iv)
 	var digest = hash.Sum(nil)
-	return rsa.SignPSS(rand.Reader, priKey, crypto.SHA256, digest, nil)
+	return rsa.SignPSS(crand.Reader, priKey, crypto.SHA256, digest, nil)
 }
 
 // VerifyEncryptSignature 校验签名

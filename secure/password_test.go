@@ -4,25 +4,16 @@
 package secure
 
 import (
-	"math/rand"
 	"testing"
 )
 
 var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-func RandString(n int) string {
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	return string(b)
-}
-
 func TestGeneratePasswordHash(t *testing.T) {
 	var methods = []string{"plain", "default"}
 	for _, method := range methods {
 		for i := 0; i < 20; i++ {
-			var password = RandString(12)
+			var password = randString(12)
 			var hashText = GeneratePasswordHash(password, method)
 			var ok = VerifyPasswordHash(hashText, password)
 			if !ok {
@@ -34,7 +25,7 @@ func TestGeneratePasswordHash(t *testing.T) {
 
 func BenchmarkGeneratePasswordHash(b *testing.B) {
 	b.StopTimer()
-	var password = RandString(12)
+	var password = randString(12)
 	b.StartTimer()
 	var hashText = GeneratePasswordHash(password, "")
 	var ok = VerifyPasswordHash(hashText, password)

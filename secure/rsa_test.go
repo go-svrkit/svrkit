@@ -68,21 +68,3 @@ func TestRSADecrypt(t *testing.T) {
 	}
 	t.Logf("RSA encryption OK")
 }
-
-func randBytes(length int) []byte {
-	if length <= 0 {
-		return nil
-	}
-	result := make([]byte, length)
-	for i := 0; i < length; i++ {
-		ch := uint8(mathrand.Int31() % 0xFF)
-		result[i] = ch
-	}
-	return result
-}
-
-func cloneBytes(data []byte) []byte {
-	newdata := make([]byte, len(data))
-	copy(newdata, data)
-	return newdata
-}
