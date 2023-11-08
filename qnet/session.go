@@ -31,7 +31,7 @@ func NewTcpSession(conn net.Conn) *TcpSession {
 		conn: conn,
 		done: make(chan struct{}),
 	}
-	session.addr = conn.RemoteAddr().String()
+	session.RemoteAddr = conn.RemoteAddr().String()
 	return session
 }
 
@@ -45,7 +45,7 @@ func (t *TcpSession) SetIntranet(v bool) {
 
 func (t *TcpSession) Go(reader, writer bool) {
 	if reader || writer {
-		t.running.CompareAndSwap(0, 1)
+		t.running.CompareAndSwap(false, true)
 	}
 	if writer {
 		t.wg.Add(1)
@@ -58,7 +58,7 @@ func (t *TcpSession) Go(reader, writer bool) {
 }
 
 func (t *TcpSession) Close() error {
-	if !t.running.CompareAndSwap(1, 0) {
+	if !t.running.CompareAndSwap(true, false) {
 		return nil // close in progress
 	}
 
@@ -73,7 +73,7 @@ func (t *TcpSession) Close() error {
 }
 
 func (t *TcpSession) ForceClose(reason error) {
-	if !t.running.CompareAndSwap(1, 0) {
+	if !t.running.CompareAndSwap(true, false) {
 		return // close in progress
 	}
 
@@ -109,7 +109,7 @@ func (t *TcpSession) finally(reason error) {
 	t.conn = nil
 	t.encrypt = nil
 	t.decrypt = nil
-	t.userdata = nil
+	t.Userdata = nil
 }
 
 func (t *TcpSession) flush() {

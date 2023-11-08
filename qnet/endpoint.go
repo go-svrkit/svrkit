@@ -31,11 +31,11 @@ type Endpoint interface {
 	Node() NodeID
 	SetNode(NodeID)
 
-	RemoteAddr() string
+	GetRemoteAddr() string
 	UnderlyingConn() net.Conn
 
 	SetUserData(any)
-	UserData() any
+	GetUserData() any
 
 	SetSendQueue(chan *NetMessage)
 	SetEncryption(Encryptor, Encryptor)
