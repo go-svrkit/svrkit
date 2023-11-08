@@ -30,3 +30,4 @@ pkg/mod
 pkg/sumdb
 
 /.env
+*.log
