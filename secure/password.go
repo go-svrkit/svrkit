@@ -20,7 +20,7 @@ import (
 
 const (
 	SALT_CHARS                = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	DEFAULT_PBKDF2_ITERATIONS = 150000
+	DEFAULT_PBKDF2_ITERATIONS = 310_000
 )
 
 // code taken from werkzeug
@@ -98,7 +98,7 @@ func VerifyPasswordHash(hashText, password string) bool {
 	return false
 }
 
-// 注册签名
+// SignAccessToken 注册签名
 func SignAccessToken(node, gameId, key string) string {
 	var buf bytes.Buffer
 	buf.WriteString(node)
@@ -108,7 +108,7 @@ func SignAccessToken(node, gameId, key string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-// 签名
+// SignEncryptSignature 签名
 func SignEncryptSignature(method string, encrypt AESCryptor, priKey *rsa.PrivateKey) ([]byte, error) {
 	if method == "" {
 		return nil, nil
@@ -122,7 +122,7 @@ func SignEncryptSignature(method string, encrypt AESCryptor, priKey *rsa.Private
 	return rsa.SignPSS(rand.Reader, priKey, crypto.SHA256, digest, nil)
 }
 
-// 校验签名
+// VerifyEncryptSignature 校验签名
 func VerifyEncryptSignature(method string, signature []byte, encrypt AESCryptor, pubKey *rsa.PublicKey) error {
 	if method == "" {
 		return nil

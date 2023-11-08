@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-// https://en.wikipedia.org/wiki/Advanced_Encryption_Standard
+// AESCryptor https://en.wikipedia.org/wiki/Advanced_Encryption_Standard
 type AESCryptor interface {
 	Key() ([]byte, []byte)
 	Encrypt([]byte) ([]byte, error)
@@ -24,7 +24,7 @@ func GetEncryptionMethod(mode string, keySize int) string {
 	return fmt.Sprintf("aes-%d-%s", keySize*8, strings.ToLower(mode))
 }
 
-// `method` is like "aes-128-cbc", "aes-256-ctr", "aes-192-gcm"
+// CreateAESCryptor `method` is like "aes-128-cbc", "aes-256-ctr", "aes-192-gcm"
 func CreateAESCryptor(method string) (AESCryptor, error) {
 	var parts = strings.Split(method, "-")
 	if strings.ToUpper(parts[0]) != "AES" {

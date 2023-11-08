@@ -20,7 +20,7 @@ func LoadRSAPublicKeyFile(pemFile string) (*rsa.PublicKey, error) {
 	return LoadRSAPublicKey(data)
 }
 
-// 解析公钥文件
+// LoadRSAPublicKey 解析公钥文件
 func LoadRSAPublicKey(data []byte) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode(data)
 	if block == nil {
@@ -44,7 +44,7 @@ func LoadRSAPrivateKeyFile(pemFile string) (*rsa.PrivateKey, error) {
 	return LoadRSAPrivateKey(data)
 }
 
-// 解析私钥文件
+// LoadRSAPrivateKey 解析私钥文件
 func LoadRSAPrivateKey(data []byte) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode(data)
 	if block == nil {
@@ -60,7 +60,7 @@ func LoadRSAPrivateKey(data []byte) (*rsa.PrivateKey, error) {
 	return key, nil
 }
 
-// 最大加密内容大小
+// MaxEncryptSize 最大加密内容大小
 func MaxEncryptSize(pubkey *rsa.PublicKey) int {
 	var k = pubkey.Size()
 	var hash = sha256.New()
