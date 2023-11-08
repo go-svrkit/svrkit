@@ -45,7 +45,7 @@ func (t *TcpSession) SetIntranet(v bool) {
 
 func (t *TcpSession) Go(reader, writer bool) {
 	if reader || writer {
-		t.running.CompareAndSwap(false, true)
+		t.Running.Store(true)
 	}
 	if writer {
 		t.wg.Add(1)
@@ -58,14 +58,14 @@ func (t *TcpSession) Go(reader, writer bool) {
 }
 
 func (t *TcpSession) Close() error {
-	if !t.running.CompareAndSwap(true, false) {
+	if !t.Running.CompareAndSwap(true, false) {
 		return nil // close in progress
 	}
 
 	var conn = t.UnderlyingConn()
 	if tc, ok := conn.(*net.TCPConn); ok {
 		if err := tc.CloseRead(); err != nil {
-			logger.Infof("%v close read: %v", t.node, err)
+			logger.Infof("%v close read: %v", t.Node, err)
 		}
 	}
 	t.finally(ErrConnForceClose) // 阻塞等待投递剩余的消息
@@ -73,24 +73,24 @@ func (t *TcpSession) Close() error {
 }
 
 func (t *TcpSession) ForceClose(reason error) {
-	if !t.running.CompareAndSwap(true, false) {
+	if !t.Running.CompareAndSwap(true, false) {
 		return // close in progress
 	}
 
 	var conn = t.UnderlyingConn()
 	if tc, ok := conn.(*net.TCPConn); ok {
 		if err := tc.CloseRead(); err != nil {
-			logger.Infof("%v close read: %v", t.node, err)
+			logger.Infof("%v close read: %v", t.Node, err)
 		}
 	}
 	go t.finally(reason) // 不阻塞等待
 }
 
 func (t *TcpSession) notifyErr(reason error) {
-	if t.errChan != nil {
+	if t.ErrChan != nil {
 		var err = NewError(reason, t)
 		select {
-		case t.errChan <- err:
+		case t.ErrChan <- err:
 		default:
 			return
 		}
@@ -103,25 +103,25 @@ func (t *TcpSession) finally(reason error) {
 	t.wg.Wait()
 	t.conn.Close()
 
-	t.recvQueue = nil
-	t.sendQueue = nil
-	t.errChan = nil
 	t.conn = nil
-	t.encrypt = nil
-	t.decrypt = nil
+	t.RecvQueue = nil
+	t.SendQueue = nil
+	t.ErrChan = nil
+	t.Encrypt = nil
+	t.Decrypt = nil
 	t.Userdata = nil
 }
 
 func (t *TcpSession) flush() {
 	for {
 		select {
-		case netMsg, ok := <-t.sendQueue:
+		case netMsg, ok := <-t.SendQueue:
 			if !ok {
 				return
 			}
 			var buf bytes.Buffer
 			if err := t.write(netMsg, &buf); err != nil {
-				logger.Errorf("%v flush message %v: %v", t.node, netMsg.Command, err)
+				logger.Errorf("%v flush message %v: %v", t.Node, netMsg.Command, err)
 			}
 		default:
 			return
@@ -130,7 +130,7 @@ func (t *TcpSession) flush() {
 }
 
 func (t *TcpSession) write(netMsg *NetMessage, buf *bytes.Buffer) error {
-	if err := EncodeMsgTo(netMsg, t.decrypt, buf); err != nil {
+	if err := EncodeMsgTo(netMsg, t.Decrypt, buf); err != nil {
 		return err
 	}
 	if _, err := t.conn.Write(buf.Bytes()); err != nil {
@@ -143,20 +143,20 @@ func (t *TcpSession) writePump() {
 	defer func() {
 		t.flush()
 		t.wg.Done()
-		logger.Debugf("TcpSession: node %v writer stopped", t.node)
+		logger.Debugf("TcpSession: node %v writer stopped", t.Node)
 	}()
 
 	//logger.Debugf("TcpSession: node %v(%v) writer started", t.node, t.addr)
 	var buf bytes.Buffer
 	for {
 		select {
-		case netMsg, ok := <-t.sendQueue:
+		case netMsg, ok := <-t.SendQueue:
 			if !ok {
 				return
 			}
 			buf.Reset()
 			if err := t.write(netMsg, &buf); err != nil {
-				logger.Errorf("%v write message %v: %v", t.node, netMsg.Command, err)
+				logger.Errorf("%v write message %v: %v", t.Node, netMsg.Command, err)
 				continue
 			}
 
@@ -173,9 +173,9 @@ func (t *TcpSession) readMessage(rd io.Reader, netMsg *NetMessage) error {
 	}
 	var deadline = time.Now().Add(TCPReadTimeout)
 	if err := t.conn.SetReadDeadline(deadline); err != nil {
-		logger.Errorf("session %v set read deadline: %v", t.node, err)
+		logger.Errorf("session %v set read deadline: %v", t.Node, err)
 	}
-	if err := DecodeMsgFrom(rd, maxBytes, t.decrypt, netMsg); err != nil {
+	if err := DecodeMsgFrom(rd, maxBytes, t.Decrypt, netMsg); err != nil {
 		return err
 	}
 	netMsg.Session = t
@@ -185,7 +185,7 @@ func (t *TcpSession) readMessage(rd io.Reader, netMsg *NetMessage) error {
 func (t *TcpSession) readPump() {
 	defer func() {
 		t.wg.Done()
-		logger.Debugf("TcpSession: node %v reader stopped", t.node)
+		logger.Debugf("TcpSession: node %v reader stopped", t.Node)
 	}()
 
 	//logger.Debugf("TcpSession: node %v(%v) reader started", t.node, t.addr)
@@ -194,13 +194,13 @@ func (t *TcpSession) readPump() {
 		var netMsg = AllocNetMessage()
 		if err := t.readMessage(rd, netMsg); err != nil {
 			if err != io.EOF {
-				logger.Errorf("session %v read packet %v", t.node, err)
+				logger.Errorf("session %v read packet %v", t.Node, err)
 			}
 			t.ForceClose(err) // I/O超时或者发生错误，强制关闭连接
 			return
 		}
 
 		// 如果channel满了，不能丢弃，需要阻塞等待
-		t.recvQueue <- netMsg
+		t.RecvQueue <- netMsg
 	}
 }

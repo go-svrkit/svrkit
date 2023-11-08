@@ -28,17 +28,15 @@ type Encryptor interface {
 
 // Endpoint 网络端点
 type Endpoint interface {
-	Node() NodeID
+	GetNode() NodeID
 	SetNode(NodeID)
 
 	GetRemoteAddr() string
 	UnderlyingConn() net.Conn
 
-	SetUserData(any)
 	GetUserData() any
-
-	SetSendQueue(chan *NetMessage)
 	SetEncryption(Encryptor, Encryptor)
+	SetSendQueue(chan *NetMessage)
 
 	Go(reader, writer bool) // 开启read/write线程
 

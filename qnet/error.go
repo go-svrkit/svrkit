@@ -32,7 +32,7 @@ func NewError(err error, endpoint Endpoint) *Error {
 
 func (e Error) Error() string {
 	if e.Err == nil {
-		return fmt.Sprintf("node %v(%s) EOF", e.Endpoint.Node(), e.Endpoint.RemoteAddr())
+		return fmt.Sprintf("node %v(%s) EOF", e.Endpoint.GetNode(), e.Endpoint.GetRemoteAddr())
 	}
-	return fmt.Sprintf("node %v(%s) %s", e.Endpoint.Node(), e.Endpoint.RemoteAddr(), e.Err.Error())
+	return fmt.Sprintf("node %v(%s) %s", e.Endpoint.GetNode(), e.Endpoint.GetRemoteAddr(), e.Err.Error())
 }
