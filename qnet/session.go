@@ -21,8 +21,8 @@ var (
 type TcpSession struct {
 	StreamConnBase
 	conn     net.Conn       // tcp Conn
-	done     chan struct{}  //
-	wg       sync.WaitGroup //
+	done     chan struct{}  // sync write pump
+	wg       sync.WaitGroup // sync flush write
 	intranet bool           // 内联网
 }
 
@@ -61,10 +61,8 @@ func (t *TcpSession) Close() error {
 	if !t.Running.CompareAndSwap(true, false) {
 		return nil // close in progress
 	}
-
-	var conn = t.UnderlyingConn()
-	if tc, ok := conn.(*net.TCPConn); ok {
-		if err := tc.CloseRead(); err != nil {
+	if conn, ok := t.conn.(*net.TCPConn); ok {
+		if err := conn.CloseRead(); err != nil {
 			logger.Infof("%v close read: %v", t.Node, err)
 		}
 	}
@@ -77,9 +75,8 @@ func (t *TcpSession) ForceClose(reason error) {
 		return // close in progress
 	}
 
-	var conn = t.UnderlyingConn()
-	if tc, ok := conn.(*net.TCPConn); ok {
-		if err := tc.CloseRead(); err != nil {
+	if conn, ok := t.conn.(*net.TCPConn); ok {
+		if err := conn.CloseRead(); err != nil {
 			logger.Infof("%v close read: %v", t.Node, err)
 		}
 	}
@@ -101,7 +98,6 @@ func (t *TcpSession) finally(reason error) {
 	close(t.done) // 通知发送线程flush并退出
 	t.notifyErr(reason)
 	t.wg.Wait()
-	t.conn.Close()
 
 	t.conn = nil
 	t.RecvQueue = nil
@@ -113,6 +109,8 @@ func (t *TcpSession) finally(reason error) {
 }
 
 func (t *TcpSession) flush() {
+	defer t.conn.Close() // close after flush, and this stops reader pump
+
 	for {
 		select {
 		case netMsg, ok := <-t.SendQueue:
