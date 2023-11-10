@@ -197,7 +197,8 @@ func (t *TcpSession) readPump() {
 			t.ForceClose(err) // I/O超时或者发生错误，强制关闭连接
 			return
 		}
-
+		netMsg.Session = t
+		netMsg.CreatedAt = time.Now().UnixMicro()
 		// 如果channel满了，不能丢弃，需要阻塞等待
 		t.RecvQueue <- netMsg
 	}

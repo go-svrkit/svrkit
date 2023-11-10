@@ -36,7 +36,7 @@ type NetMessage struct {
 	Seq       uint32        `json:"seq,omitempty"`
 	Errno     uint32        `json:"errno,omitempty"`
 	Data      []byte        `json:"data,omitempty"`
-	CreatedAt int64         `json:"created_at,omitempty"`
+	CreatedAt int64         `json:"created_at,omitempty"` // microseconds
 	Body      proto.Message `json:"body,omitempty"`
 	Session   Endpoint      `json:"-"`
 }
