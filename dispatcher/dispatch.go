@@ -21,10 +21,17 @@ type (
 	MessageHandlerV6 func(context.Context, proto.Message) (proto.Message, error)
 	MessageHandlerV7 func(*qnet.NetMessage) error
 	MessageHandlerV8 func(context.Context, *qnet.NetMessage) error
+
+	PreHookFunc  func(context.Context, *qnet.NetMessage)
+	PostHookFunc func(context.Context, *qnet.NetMessage)
 )
 
 // 消息派发
-var handlers = make(map[uint32]any)
+var (
+	handlers  = make(map[uint32]any)
+	preHooks  []PreHookFunc
+	postHooks []PostHookFunc
+)
 
 func HasRegistered(cmd uint32) bool {
 	_, found := handlers[cmd]
@@ -36,6 +43,22 @@ func Deregister(cmd uint32) any {
 	var old = handlers[cmd]
 	delete(handlers, cmd)
 	return old
+}
+
+func RegisterPreHook(h PreHookFunc, prepend bool) {
+	if prepend {
+		preHooks = append([]PreHookFunc{h}, preHooks...)
+	} else {
+		preHooks = append(preHooks, h)
+	}
+}
+
+func RegisterPostHook(h PostHookFunc, prepend bool) {
+	if prepend {
+		postHooks = append([]PostHookFunc{h}, postHooks...)
+	} else {
+		postHooks = append(postHooks, h)
+	}
 }
 
 // RegisterV1 注册消息处理函数
@@ -101,7 +124,23 @@ func Handle(ctx context.Context, message *qnet.NetMessage) (proto.Message, error
 	if !found {
 		return nil, fmt.Errorf("message %v handler not found", cmd)
 	}
+
+	invokePreHooks(ctx, message)
+	defer invokePostHooks(ctx, message)
+
 	return dispatch(ctx, action, message)
+}
+
+func invokePreHooks(ctx context.Context, msg *qnet.NetMessage) {
+	for _, h := range preHooks {
+		h(ctx, msg)
+	}
+}
+
+func invokePostHooks(ctx context.Context, msg *qnet.NetMessage) {
+	for _, h := range postHooks {
+		h(ctx, msg)
+	}
 }
 
 func dispatch(ctx context.Context, action any, msg *qnet.NetMessage) (resp proto.Message, err error) {
