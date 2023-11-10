@@ -380,7 +380,7 @@ func (c *EtcdClient) regAliveKeeper(ctx context.Context, regCtx *NodeKeepAliveCo
 
 		case <-ctx.Done():
 			if c.verbose >= VerboseLv1 {
-				logger.Infof("register alive keeper with key %s stopped", regCtx.Name)
+				logger.Infof("registration alive keeper with key %s stopped", regCtx.Name)
 			}
 			return
 		}
