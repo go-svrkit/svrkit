@@ -21,9 +21,7 @@ const (
 var msgAlloc = pool.NewArenaAllocator[NetMessage](MsgArenaPoolSize)
 
 func AllocNetMessage() *NetMessage {
-	var message = msgAlloc.Alloc()
-	message.CreatedAt = time.Now().UnixNano() / 1e6
-	return message
+	return msgAlloc.Alloc()
 }
 
 type SessionMessage struct {
@@ -32,16 +30,15 @@ type SessionMessage struct {
 	MsgBody proto.Message
 }
 
-// NetMessage 投递给业务层的网络消息
 type NetMessage struct {
-	Command   uint32        `json:"cmd"`            // 消息ID
-	Route     uint32        `json:"route"`          //
-	Seq       uint32        `json:"seq"`            // 序列号
-	Errno     uint32        `json:"errno"`          // 错误码
-	CreatedAt int64         `json:"created_at"`     // 创建时间(毫秒)
-	Body      proto.Message `json:"body,omitempty"` // pb结构体
-	Data      []byte        `json:"data,omitempty"` // raw binary data
-	Session   Endpoint      `json:"-"`              //
+	Command   uint32        `json:"cmd"`
+	Route     uint32        `json:"route,omitempty"`
+	Seq       uint32        `json:"seq,omitempty"`
+	Errno     uint32        `json:"errno,omitempty"`
+	Data      []byte        `json:"data,omitempty"`
+	CreatedAt int64         `json:"created_at,omitempty"`
+	Body      proto.Message `json:"body,omitempty"`
+	Session   Endpoint      `json:"-"`
 }
 
 func NewNetMessage(cmd, seq uint32, data []byte) *NetMessage {
@@ -149,4 +146,24 @@ var DefaultMsgIDReflector = func(msg proto.Message) uint32 {
 	var crc = crc32.NewIEEE()
 	crc.Write([]byte(name))
 	return crc.Sum32()
+}
+
+// TryEnqueueMsg 尝试将消息放入队列，如果队列已满返回false
+func TryEnqueueMsg(queue chan<- *NetMessage, msg *NetMessage) bool {
+	select {
+	case queue <- msg:
+		return true
+	default:
+		return false // queue is full
+	}
+}
+
+// TryDequeueMsg 尝试从队列中取出消息，如果队列为空返回nil
+func TryDequeueMsg(queue <-chan *NetMessage) *NetMessage {
+	select {
+	case msg := <-queue:
+		return msg
+	default:
+		return nil
+	}
 }
