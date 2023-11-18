@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -25,14 +26,19 @@ const (
 
 // PrettyBytes 打印容量大小
 func PrettyBytes(nbytes int) string {
-	if nbytes < KB {
-		return fmt.Sprintf("%dB", nbytes)
-	} else if nbytes < MB {
-		return fmt.Sprintf("%.1fKB", float64(nbytes)/KB)
-	} else if nbytes < GB {
-		return fmt.Sprintf("%.2fMB", float64(nbytes)/MB)
+	var sign = ""
+	if nbytes < 0 {
+		sign = "-"
+		nbytes = -nbytes
 	}
-	return fmt.Sprintf("%.2fGB", float64(nbytes)/GB)
+	if nbytes < KB {
+		return fmt.Sprintf("%s%dB", sign, nbytes)
+	} else if nbytes < MB {
+		return fmt.Sprintf("%s%.1fKB", sign, float64(nbytes)/KB)
+	} else if nbytes < GB {
+		return fmt.Sprintf("%s%.2fMB", sign, float64(nbytes)/MB)
+	}
+	return fmt.Sprintf("%s%.2fGB", sign, float64(nbytes)/GB)
 }
 
 // JSONParse 避免大数值被解析为float导致的精度丢失
@@ -68,8 +74,7 @@ func Proto2JSON(msg proto.Message) string {
 
 // JSON2Proto 反序列化json字符串为proto消息
 func JSON2Proto(body string, dst proto.Message) error {
-	var rd = strings.NewReader(body)
-	return jsonpb.Unmarshal(rd, dst)
+	return jsonpb.Unmarshal(strings.NewReader(body), dst)
 }
 
 func MD5Sum(data []byte) string {
@@ -80,6 +85,12 @@ func MD5Sum(data []byte) string {
 
 func SHA1Sum(data []byte) string {
 	var hash = sha1.New()
+	hash.Write(data)
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+func SHA256Sum(data []byte) string {
+	var hash = sha256.New()
 	hash.Write(data)
 	return hex.EncodeToString(hash.Sum(nil))
 }
