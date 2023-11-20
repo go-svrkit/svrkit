@@ -22,7 +22,7 @@ type (
 	MessageHandlerV7 func(*qnet.NetMessage) error
 	MessageHandlerV8 func(context.Context, *qnet.NetMessage) error
 
-	PreHookFunc  func(context.Context, *qnet.NetMessage)
+	PreHookFunc  func(context.Context, *qnet.NetMessage) bool
 	PostHookFunc func(context.Context, *qnet.NetMessage)
 )
 
@@ -125,16 +125,21 @@ func Handle(ctx context.Context, message *qnet.NetMessage) (proto.Message, error
 		return nil, fmt.Errorf("message %v handler not found", cmd)
 	}
 
-	invokePreHooks(ctx, message)
+	if !invokePreHooks(ctx, message) {
+		return nil, nil // stop continue
+	}
 	defer invokePostHooks(ctx, message)
 
 	return dispatch(ctx, action, message)
 }
 
-func invokePreHooks(ctx context.Context, msg *qnet.NetMessage) {
+func invokePreHooks(ctx context.Context, msg *qnet.NetMessage) bool {
 	for _, h := range preHooks {
-		h(ctx, msg)
+		if !h(ctx, msg) {
+			return false // stop continue
+		}
 	}
+	return true
 }
 
 func invokePostHooks(ctx context.Context, msg *qnet.NetMessage) {
