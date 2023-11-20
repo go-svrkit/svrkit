@@ -33,9 +33,12 @@ type Stack struct {
 	pcs []uintptr
 }
 
-// CallerNames 只打印函数名
-func (s Stack) CallerNames() string {
-	var sb strings.Builder
+// CallerNames 获取堆栈函数名
+func (s Stack) CallerNames(limit int) []string {
+	if limit <= 0 || limit > len(s.pcs) {
+		limit = len(s.pcs)
+	}
+	var names = make([]string, 0, limit)
 	for _, v := range s.pcs {
 		pc := Frame(v).PC()
 		fn := runtime.FuncForPC(pc)
@@ -43,12 +46,12 @@ func (s Stack) CallerNames() string {
 			break
 		}
 		fnName := fn.Name()
-		fmt.Fprintf(&sb, "%s() ", fnName)
-		if fnName == "main.main" {
+		names = append(names, fnName+"()")
+		if len(names) >= limit || fnName == "main.main" {
 			break
 		}
 	}
-	return sb.String()
+	return names
 }
 
 func (s Stack) String() string {
@@ -74,13 +77,19 @@ func GetCallerStack(stack *Stack, skip int) {
 	if stack.pcs == nil {
 		stack.pcs = make([]uintptr, 32) // 32 depth is enough
 	}
-	n := runtime.Callers(skip, stack.pcs[:])
+	n := runtime.Callers(skip+1, stack.pcs[:])
 	stack.pcs = stack.pcs[0:n]
+}
+
+func GetCurrentCallStack(skip int) Stack {
+	var stack Stack
+	GetCallerStack(&stack, skip+1)
+	return stack
 }
 
 func Backtrace(title string, val interface{}, w io.Writer) {
 	var stack Stack
-	GetCallerStack(&stack, 3)
+	GetCallerStack(&stack, 1)
 	var now = time.Now()
 	fmt.Fprintf(w, "%s\nTraceback[%s] (most recent call last):\n", title, now.Format(timestampLayout))
 	fmt.Fprintf(w, "%v %v\n", stack, val)
