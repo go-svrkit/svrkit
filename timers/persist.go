@@ -4,7 +4,9 @@
 package timers
 
 import (
-	"github.com/fxamacker/cbor/v2"
+	"bytes"
+
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 type TimerInfo struct {
@@ -41,13 +43,21 @@ func DumpTimers() ([]byte, error) {
 			info.Timers = append(info.Timers, ti)
 		}
 	})
-	// use RFC8949 Concise Binary Object Representation (CBOR) format to encode timer data
-	return cbor.Marshal(info)
+	// use MsgPack format (https://msgpack.org/) to encode timer data
+	var buf bytes.Buffer
+	var enc = msgpack.NewEncoder(&buf)
+	enc.SetCustomStructTag("json")
+	if err := enc.Encode(info); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func LoadTimers(data []byte) error {
 	var info AllTimersInfo
-	if err := cbor.Unmarshal(data, &info); err != nil {
+	var dec = msgpack.NewDecoder(bytes.NewReader(data))
+	dec.SetCustomStructTag("json")
+	if err := dec.Decode(&info); err != nil {
 		return err
 	}
 
