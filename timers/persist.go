@@ -46,6 +46,7 @@ func DumpTimers() ([]byte, error) {
 	// use MsgPack format (https://msgpack.org/) to encode timer data
 	var buf bytes.Buffer
 	var enc = msgpack.NewEncoder(&buf)
+	enc.SetOmitEmpty(true)
 	enc.SetCustomStructTag("json")
 	if err := enc.Encode(info); err != nil {
 		return nil, err
