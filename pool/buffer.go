@@ -9,23 +9,23 @@ const (
 )
 
 var (
-	defaultPool = NewBucketPool(MinBufSize, MaxBufSize)
+	bucketPool  = NewBucketPool(MinBufSize, MaxBufSize)
 	emptyBuffer = make([]byte, 0)
 )
 
-func AllocBuffer(size int) []byte {
+func AllocBytes(size int) []byte {
 	switch {
 	case size <= 0:
 		return emptyBuffer
 	case size < MaxBufSize:
-		return defaultPool.Get(size)
+		return bucketPool.Get(size)
 	default:
 		return make([]byte, size)
 	}
 }
 
-func FreeBuffer(buf []byte) {
+func FreeBytes(buf []byte) {
 	if cap(buf) > 0 && cap(buf) < MaxBufSize {
-		defaultPool.Put(buf)
+		bucketPool.Put(buf)
 	}
 }

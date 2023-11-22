@@ -8,11 +8,11 @@ import (
 )
 
 func TestAllocBuffer(t *testing.T) {
-	var b = AllocBuffer(12)
+	var b = AllocBytes(12)
 	println("len", len(b))
 	println("cap", cap(b))
-	FreeBuffer(b)
-	b = AllocBuffer(16)
+	FreeBytes(b)
+	b = AllocBytes(16)
 	println("len", len(b))
 	println("cap", cap(b))
 }
