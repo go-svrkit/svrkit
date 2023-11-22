@@ -111,13 +111,15 @@ func (t *TcpSession) finally(reason error) {
 func (t *TcpSession) flush() {
 	defer t.conn.Close() // close after flush, and this stops reader pump
 
+	var buf bytes.Buffer
+	t.conn.SetWriteDeadline(time.Now().Add(time.Minute))
 	for {
 		select {
 		case netMsg, ok := <-t.SendQueue:
 			if !ok {
 				return
 			}
-			var buf bytes.Buffer
+			buf.Reset()
 			if err := t.write(netMsg, &buf); err != nil {
 				logger.Errorf("%v flush message %v: %v", t.Node, netMsg.Command, err)
 			}
@@ -145,15 +147,20 @@ func (t *TcpSession) writePump() {
 	}()
 
 	//logger.Debugf("TcpSession: node %v(%v) writer started", t.node, t.addr)
-	var buf bytes.Buffer
+	var buf = new(bytes.Buffer)
 	for {
 		select {
 		case netMsg, ok := <-t.SendQueue:
 			if !ok {
 				return
 			}
-			buf.Reset()
-			if err := t.write(netMsg, &buf); err != nil {
+			// reuse small size buffer
+			if buf.Cap() < 16<<10 {
+				buf.Reset()
+			} else {
+				buf = new(bytes.Buffer)
+			}
+			if err := t.write(netMsg, buf); err != nil {
 				logger.Errorf("%v write message %v: %v", t.Node, netMsg.Command, err)
 				continue
 			}
