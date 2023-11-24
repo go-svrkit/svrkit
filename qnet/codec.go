@@ -10,19 +10,20 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"sync"
 
 	"gopkg.in/svrkit.v1/logger"
 )
 
 const (
-	V1HeaderLength        = 16                             // 消息头大小
-	MaxPacketSize         = 0x00FFFFFF                     // 最大消息大小，~16MB
-	MaxPayloadSize        = MaxPacketSize - V1HeaderLength //
-	MaxClientUpStreamSize = 1 << 18                        // 最大client上行消息大小，256KB
+	V1HeaderLength = 16                             // 消息头大小
+	MaxPacketSize  = 0x00FFFFFF                     // 最大消息大小，~16MB
+	MaxPayloadSize = MaxPacketSize - V1HeaderLength //
 )
 
 var (
 	DefaultCompressThreshold = 1 << 12 // 压缩阈值，4KB
+	MaxClientUpStreamSize    = 1 << 18 // 最大client上行消息大小，256KB
 )
 
 type MsgFlag uint8
@@ -147,7 +148,9 @@ func ProcessHeaderFlags(flags MsgFlag, body []byte, decrypt Encryptor) ([]byte, 
 
 // DecodeMsgFrom decode message from reader
 func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetMessage) error {
-	var head = NewNetV1Header()
+	var head = AllocNetHeader()
+	defer FreeNetHeader(head)
+
 	body, err := ReadHeadBody(rd, head, maxSize)
 	if err != nil {
 		return err
@@ -266,4 +269,18 @@ func intToBytes(v uint32, b []byte) {
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 	b[2] = byte(v >> 16)
+}
+
+var headPool = &sync.Pool{
+	New: func() interface{} {
+		return NewNetV1Header()
+	},
+}
+
+func AllocNetHeader() NetV1Header {
+	return headPool.Get().(NetV1Header)
+}
+
+func FreeNetHeader(head NetV1Header) {
+	headPool.Put(head)
 }

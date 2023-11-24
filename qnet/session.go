@@ -174,7 +174,7 @@ func (t *TcpSession) writePump() {
 func (t *TcpSession) readMessage(rd io.Reader, netMsg *NetMessage) error {
 	var maxBytes uint32 = MaxPayloadSize
 	if !t.intranet {
-		maxBytes = MaxClientUpStreamSize
+		maxBytes = uint32(MaxClientUpStreamSize)
 	}
 	var deadline = time.Now().Add(TCPReadTimeout)
 	if err := t.conn.SetReadDeadline(deadline); err != nil {

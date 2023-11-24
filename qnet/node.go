@@ -15,16 +15,16 @@ const (
 )
 
 // NodeID 节点ID
-// 一个64位整数表示的节点号，用以标识一个service(最高位为1)，低32位为服务实例编号，32-48位为服务类型；
-// 或者一个客户端session(最高位为0)，低32位为GATE内部的session编号，32-48位为GATE编号；
+// 一个64位整数表示的节点号，用以标识一个service，低32位为服务实例编号，32-48位为服务类型；
+// 或者一个客户端session，低32位为GATE内部的session编号，32-48位为GATE编号；
 type NodeID uint64
 
-// NewBackendNode 根据服务号和实例号创建一个节点ID
-func NewBackendNode(service uint16, instance uint32) NodeID {
+// MakeBackendNode 根据服务号和实例号创建一个节点ID
+func MakeBackendNode(service uint16, instance uint32) NodeID {
 	return NodeBackendTypeMask | NodeID((uint64(service)<<NodeInstanceShift)|uint64(instance))
 }
 
-func NewGateSession(service uint16, session uint32) NodeID {
+func MakeGateSession(service uint16, session uint32) NodeID {
 	return NodeID((uint64(service) << NodeInstanceShift) | uint64(session))
 }
 
