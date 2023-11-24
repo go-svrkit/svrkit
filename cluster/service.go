@@ -10,11 +10,9 @@ import (
 // IService 服务接口
 type IService interface {
 	ServiceType() uint16
-	ServiceID() uint32
 	Node() qnet.NodeID
 	SetNode(node qnet.NodeID)
 	SetAttr(name string, v any)
-
 	Init(ctx context.Context) error
 	Startup(ctx context.Context) error
 	Run(ctx context.Context) error
