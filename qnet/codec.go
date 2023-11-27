@@ -29,12 +29,10 @@ var (
 type MsgFlag uint8
 
 const (
-	FlagCompress MsgFlag = 0x01 // 压缩
-	FlagEncrypt  MsgFlag = 0x02 // 加密
-	FlagError    MsgFlag = 0x04 // 错误
-	FlagRequest  MsgFlag = 0x08 //
-	FlagFrame    MsgFlag = 0x20 //
-	FlagExtent   MsgFlag = 0x40 //
+	FlagCompress MsgFlag = 0x10 // 压缩
+	FlagEncrypt  MsgFlag = 0x20 // 加密
+	FlagError    MsgFlag = 0x40 // 错误
+	FlagExtent   MsgFlag = 0x80 //
 )
 
 func (g MsgFlag) Has(n MsgFlag) bool {
@@ -137,10 +135,11 @@ func ProcessHeaderFlags(flags MsgFlag, body []byte, decrypt Encryptor) ([]byte, 
 		}
 	}
 	if flags.Has(FlagCompress) {
-		if decoded, err := uncompress(body); err != nil {
+		var decoded bytes.Buffer
+		if err := uncompress(body, &decoded); err != nil {
 			return nil, err
 		} else {
-			body = decoded
+			body = decoded.Bytes()
 		}
 	}
 	return body, nil
@@ -186,16 +185,17 @@ func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 	}
 	var body = netMsg.Data
 	if len(body) > DefaultCompressThreshold {
-		if encoded, err := compress(body); err == nil {
-			if len(encoded) < len(body) {
+		var encoded bytes.Buffer
+		if err := compress(body, &encoded); err == nil {
+			if encoded.Len() < len(body) {
 				flags |= FlagCompress
-				body = encoded
+				body = encoded.Bytes()
 			}
 		} else {
 			logger.Errorf("msg %d compress failed: %v", netMsg.Command, err)
 		}
 	}
-	if encrypt != nil && len(body) > binary.MaxVarintLen32 {
+	if encrypt != nil {
 		if encrypted, err := encrypt.Encrypt(body); err == nil {
 			body = encrypted
 			flags |= FlagEncrypt
@@ -225,37 +225,36 @@ func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 	return nil
 }
 
-func compress(data []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	var w = zlib.NewWriter(&buf)
-	if _, err := w.Write(data); err != nil {
-		if er := w.Close(); er != nil {
-			return nil, er
-		}
-		return nil, err
+func compress(input []byte, buf *bytes.Buffer) (err error) {
+	if len(input) == 0 {
+		return
 	}
-	if err := w.Close(); err != nil {
-		return nil, err
+	var w = zlib.NewWriter(buf)
+	defer func() {
+		err = w.Close()
+	}()
+	if _, err = w.Write(input); err != nil {
+		return
 	}
-	return buf.Bytes(), nil
+	return
 }
 
-func uncompress(data []byte) ([]byte, error) {
-	r, err := zlib.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
+func uncompress(input []byte, buf *bytes.Buffer) (err error) {
+	if len(input) == 0 {
+		return
 	}
-	var buf bytes.Buffer
-	if _, err = io.Copy(&buf, r); err != nil {
-		if er := r.Close(); er != nil {
-			return nil, er
-		}
-		return nil, err
+	var r io.ReadCloser
+	if r, err = zlib.NewReader(bytes.NewReader(input)); err != nil {
+		return
 	}
-	if err = r.Close(); err != nil {
-		return nil, err
+	defer func() {
+		err = r.Close()
+	}()
+
+	if _, err = io.Copy(buf, r); err != nil {
+		return
 	}
-	return buf.Bytes(), nil
+	return
 }
 
 // 3-bytes little endian to uint32

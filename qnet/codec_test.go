@@ -116,3 +116,29 @@ func TestCodecEncode(t *testing.T) {
 	testEncode(t, MaxPayloadSize-V1HeaderLength-850)
 	//testEncode(t, MaxPayloadSize)
 }
+
+func TestCompress(t *testing.T) {
+	tests := []struct {
+		input string
+	}{
+		//{""},
+		{"hell world"},
+		{"aaabbbcccdddeeefffggg"},
+		{"a quick brown fox jumps over the lazy dog"},
+		{"It was the best of times, it was the worst of times, it was the age of wisdom, it was the age of foolishness, it was the epoch of belief, it was the epoch of incredulity, it was the season of Light, it was the season of Darkness, it was the spring of hope, it was the winter of despair, we had everything before us, we had nothing before us, we were all going direct to Heaven, we were all going direct the other way—in short, the period was so far like the present period, that some of its noisiest authorities insisted on its being received, for good or for evil, in the superlative degree of comparison only."},
+	}
+	for i, tc := range tests {
+		var encoded bytes.Buffer
+		if err := compress([]byte(tc.input), &encoded); err != nil {
+			t.Fatalf("compress: %v", err)
+		}
+		var decoded bytes.Buffer
+		if err := uncompress(encoded.Bytes(), &decoded); err != nil {
+			t.Fatalf("uncompress: %v", err)
+		}
+		var out = string(decoded.Bytes())
+		if out != tc.input {
+			t.Logf("case %d: compress %s -> %s", i+1, tc.input, out)
+		}
+	}
+}
