@@ -12,12 +12,37 @@ import (
 )
 
 const (
-	KVPairQuote    = '\''
+	KVPairQuote = '\''
+
 	SepVerticalBar = "|"
 	SepColon       = ":"
 	SepComma       = ","
 	SepEqualSign   = "="
 )
+
+func ParseSlice[T cmp.Ordered](text, sep string) ([]T, error) {
+	var parts = strings.Split(text, sep)
+	var slice = make([]T, 0, len(parts))
+	for _, s := range parts {
+		if s == "" {
+			continue
+		}
+		v, err := ParseTo[T](s)
+		if err != nil {
+			return nil, err
+		}
+		slice = append(slice, v)
+	}
+	return slice, nil
+}
+
+func MustParseSlice[T cmp.Ordered](text, sep string) []T {
+	slice, err := ParseSlice[T](text, sep)
+	if err != nil {
+		logger.Panicf("MustParseSlice: %v", err)
+	}
+	return slice
+}
 
 // ParseToMap 解析字符串为K-V map，
 // 示例： ParseKVPairs("x=1|y=2", SepEqualSign, SepVerticalBar) -> {"a":"x,y", "c":"z"}

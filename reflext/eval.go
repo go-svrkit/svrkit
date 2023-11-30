@@ -152,6 +152,10 @@ func doCallMethod(fn reflect.Value, funcName string, args []string) (val reflect
 
 func tryCallMethod(this reflect.Value, call *ast.CallExpr, name string) (val reflect.Value, err error) {
 	var kind = this.Kind()
+	if kind == reflect.Interface {
+		kind = this.Elem().Kind()
+		this = this.Elem()
+	}
 	if kind == reflect.Ptr {
 		kind = this.Elem().Kind()
 	}
