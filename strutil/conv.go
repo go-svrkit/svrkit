@@ -1,4 +1,4 @@
-// Copyright © 2018 ichenq@gmail.com All rights reserved.
+// Copyright © 2020 ichenq@gmail.com All rights reserved.
 // See accompanying files LICENSE.txt
 
 package strutil

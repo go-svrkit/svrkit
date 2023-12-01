@@ -46,6 +46,9 @@ func (s Stack) CallerNames(limit int) []string {
 			break
 		}
 		fnName := fn.Name()
+		if idx := strings.LastIndex(fnName, "/"); idx > 0 {
+			fnName = fnName[idx+1:]
+		}
 		names = append(names, fnName+"()")
 		if len(names) >= limit || fnName == "main.main" {
 			break
