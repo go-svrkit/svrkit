@@ -65,7 +65,7 @@ func startBenchServer(t *testing.T, ctx context.Context, addr string, ready chan
 			session.RecvQueue = incoming
 			session.ErrChan = errChan
 			session.SetSendQueue(make(chan *NetMessage, 256))
-			session.Go(true, true)
+			session.Go(context.Background(), true, true)
 			autoId++
 
 		case netErr := <-errChan:

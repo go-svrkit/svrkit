@@ -4,6 +4,7 @@
 package qnet
 
 import (
+	"context"
 	"net"
 	"sync"
 )
@@ -38,7 +39,7 @@ type Endpoint interface {
 	SetEncryption(Encryptor, Encryptor)
 	SetSendQueue(chan *NetMessage)
 
-	Go(reader, writer bool) // 开启read/write线程
+	Go(ctx context.Context, reader, writer bool) // 开启read/write线程
 
 	SendMsg(*NetMessage, int) error
 	Close() error

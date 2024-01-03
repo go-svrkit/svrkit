@@ -6,6 +6,7 @@ package qnet
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"io"
 	"net"
 	"sync"
@@ -43,17 +44,17 @@ func (t *TcpSession) SetIntranet(v bool) {
 	t.intranet = v
 }
 
-func (t *TcpSession) Go(reader, writer bool) {
+func (t *TcpSession) Go(ctx context.Context, reader, writer bool) {
 	if reader || writer {
 		t.Running.Store(true)
 	}
 	if writer {
 		t.wg.Add(1)
-		go t.writePump()
+		go t.writePump(ctx)
 	}
 	if reader {
 		t.wg.Add(1)
-		go t.readPump()
+		go t.readPump(ctx)
 	}
 }
 
@@ -139,7 +140,7 @@ func (t *TcpSession) write(netMsg *NetMessage, buf *bytes.Buffer) error {
 	return nil
 }
 
-func (t *TcpSession) writePump() {
+func (t *TcpSession) writePump(ctx context.Context) {
 	defer func() {
 		t.flush()
 		t.wg.Done()
@@ -167,6 +168,9 @@ func (t *TcpSession) writePump() {
 
 		case <-t.done:
 			return
+
+		case <-ctx.Done():
+			return
 		}
 	}
 }
@@ -187,7 +191,7 @@ func (t *TcpSession) readMessage(rd io.Reader, netMsg *NetMessage) error {
 	return nil
 }
 
-func (t *TcpSession) readPump() {
+func (t *TcpSession) readPump(ctx context.Context) {
 	defer func() {
 		t.wg.Done()
 		slog.Debugf("TcpSession: node %v reader stopped", t.Node)
@@ -208,5 +212,11 @@ func (t *TcpSession) readPump() {
 		netMsg.CreatedAt = time.Now().UnixMicro()
 		// 如果channel满了，不能丢弃，需要阻塞等待
 		t.RecvQueue <- netMsg
+
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 	}
 }
