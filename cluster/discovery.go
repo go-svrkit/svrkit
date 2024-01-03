@@ -27,7 +27,7 @@ var (
 )
 
 const (
-	EventChanCapacity = 1024
+	EventChanCapacity = 256
 	OpTimeout         = 5
 
 	VerboseLv1 = 1
@@ -36,7 +36,7 @@ const (
 
 // EtcdClient 基于etcd的服务发现
 type EtcdClient struct {
-	closing   atomic.Int32     //
+	closing   atomic.Bool      //
 	verbose   int32            //
 	endpoints []string         // etcd server address
 	namespace string           // name space of key
@@ -81,7 +81,7 @@ func (c *EtcdClient) Init(parentCtx context.Context) error {
 }
 
 func (c *EtcdClient) Close() {
-	if !c.closing.CompareAndSwap(0, 1) {
+	if !c.closing.CompareAndSwap(false, true) {
 		return
 	}
 	if c.client != nil {
@@ -195,7 +195,7 @@ func (c *EtcdClient) ListNodes(ctx context.Context, prefix string) ([]Node, erro
 }
 
 // GrantLease 申请一个lease
-func (c *EtcdClient) GrantLease(ctx context.Context, ttl int) (int64, error) {
+func (c *EtcdClient) GrantLease(ctx context.Context, ttl int32) (int64, error) {
 	lease, err := c.client.Grant(ctx, int64(ttl))
 	if err != nil {
 		return 0, err
@@ -224,13 +224,13 @@ func (c *EtcdClient) RevokeLease(ctx context.Context, leaseId int64) error {
 type NodeKeepAliveContext struct {
 	stopChan   chan struct{}
 	LeaseId    int64
-	LeaseAlive bool
+	LeaseAlive atomic.Bool
+	TTL        int32
 	Name       string
 	Value      any
-	TTL        int
 }
 
-func NewNodeKeepAliveContext(name string, value any, ttl int) *NodeKeepAliveContext {
+func NewNodeKeepAliveContext(name string, value any, ttl int32) *NodeKeepAliveContext {
 	return &NodeKeepAliveContext{
 		stopChan: make(chan struct{}, 1),
 		Name:     name,
@@ -243,7 +243,7 @@ func (c *EtcdClient) RevokeKeepAlive(ctx context.Context, regCtx *NodeKeepAliveC
 	if c.verbose >= VerboseLv1 {
 		slog.Infof("try revoke node %s lease %d", regCtx.Name, regCtx.LeaseId)
 	}
-	if regCtx.LeaseId == 0 || !regCtx.LeaseAlive {
+	if regCtx.LeaseId == 0 || !regCtx.LeaseAlive.Load() {
 		if c.verbose >= VerboseLv1 {
 			slog.Infof("node %s lease %d is not alive", regCtx.Name, regCtx.LeaseId)
 		}
@@ -261,7 +261,7 @@ func (c *EtcdClient) RevokeKeepAlive(ctx context.Context, regCtx *NodeKeepAliveC
 }
 
 // RegisterNode 注册一个节点信息，并返回一个ttl秒的lease
-func (c *EtcdClient) RegisterNode(rootCtx context.Context, name string, value any, ttl int) (int64, error) {
+func (c *EtcdClient) RegisterNode(rootCtx context.Context, name string, value any, ttl int32) (int64, error) {
 	ctx, cancel := context.WithTimeout(rootCtx, time.Second*OpTimeout)
 	defer cancel()
 
@@ -340,7 +340,7 @@ func (c *EtcdClient) doRegisterNode(ctx context.Context, regCtx *NodeKeepAliveCo
 	if c.verbose >= VerboseLv1 {
 		slog.Infof("try register key: %s", c.FormatKey(regCtx.Name))
 	}
-	regCtx.LeaseAlive = false
+	regCtx.LeaseAlive.Store(false)
 	regCtx.LeaseId = 0
 
 	regCtx.LeaseId, err = c.RegisterNode(ctx, regCtx.Name, regCtx.Value, regCtx.TTL)
@@ -350,7 +350,7 @@ func (c *EtcdClient) doRegisterNode(ctx context.Context, regCtx *NodeKeepAliveCo
 	if err = c.KeepAlive(ctx, regCtx.stopChan, regCtx.LeaseId); err != nil {
 		return err
 	}
-	regCtx.LeaseAlive = true
+	regCtx.LeaseAlive.Store(true)
 	if c.verbose >= VerboseLv1 {
 		slog.Infof("register key [%s] with lease %x done", c.FormatKey(regCtx.Name), regCtx.LeaseId)
 	}
@@ -363,7 +363,7 @@ func (c *EtcdClient) regAliveKeeper(ctx context.Context, regCtx *NodeKeepAliveCo
 	for {
 		select {
 		case <-ticker.C:
-			if !regCtx.LeaseAlive {
+			if !regCtx.LeaseAlive.Load() {
 				if err := c.doRegisterNode(ctx, regCtx); err != nil {
 					slog.Infof("register or keepalive %s failed: %v", regCtx.Name, err)
 				}
@@ -371,7 +371,7 @@ func (c *EtcdClient) regAliveKeeper(ctx context.Context, regCtx *NodeKeepAliveCo
 
 		case <-regCtx.stopChan:
 			var leaseId = regCtx.LeaseId
-			regCtx.LeaseAlive = false
+			regCtx.LeaseAlive.Store(false)
 			regCtx.LeaseId = 0
 			if c.verbose >= VerboseLv1 {
 				slog.Infof("node %s lease(%d) is not alive, try register later", regCtx.Name, leaseId)
@@ -387,7 +387,7 @@ func (c *EtcdClient) regAliveKeeper(ctx context.Context, regCtx *NodeKeepAliveCo
 }
 
 // RegisterAndKeepAliveForever 注册一个节点，并永久保活
-func (c *EtcdClient) RegisterAndKeepAliveForever(ctx context.Context, name string, value any, ttl int) (*NodeKeepAliveContext, error) {
+func (c *EtcdClient) RegisterAndKeepAliveForever(ctx context.Context, name string, value any, ttl int32) (*NodeKeepAliveContext, error) {
 	var regCtx = NewNodeKeepAliveContext(name, value, ttl)
 	if err := c.doRegisterNode(ctx, regCtx); err != nil {
 		return nil, err

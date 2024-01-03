@@ -131,7 +131,7 @@ func TestEtcdClient_RegisterNode(t *testing.T) {
 			if err = client.KeepAlive(ctx, regCtx.stopChan, regCtx.LeaseId); err != nil {
 				t.Logf("keepalive: %v", err)
 			} else {
-				regCtx.LeaseAlive = true
+				regCtx.LeaseAlive.Store(true)
 				t.Logf("register %s with lease %d done", name, regCtx.LeaseId)
 			}
 		}
@@ -148,14 +148,14 @@ func TestEtcdClient_RegisterNode(t *testing.T) {
 		case <-ticker.C:
 			ticks++
 			fmt.Printf("ticks %d\n", ticks)
-			if !regCtx.LeaseAlive {
+			if !regCtx.LeaseAlive.Load() {
 				fmt.Printf("re-register worker at tick %d, in case of etcd server lost\n", ticks)
 				client.DelKey(context.Background(), name)
 				job()
 			}
 
 		case <-regCtx.stopChan:
-			regCtx.LeaseAlive = false
+			regCtx.LeaseAlive.Store(false)
 			fmt.Printf("lease %d is dead, try re-register later\n", regCtx.LeaseId)
 
 		case <-ctx.Done():
