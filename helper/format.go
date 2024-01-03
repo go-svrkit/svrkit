@@ -15,7 +15,7 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
-	"gopkg.in/svrkit.v1/logger"
+	"gopkg.in/svrkit.v1/slog"
 )
 
 const (
@@ -54,7 +54,7 @@ func JSONParse(data []byte, v any) error {
 func JSONStringify(v any) string {
 	data, err := json.Marshal(v)
 	if err != nil {
-		logger.Errorf("JSONStringify %T: %v", v, err)
+		slog.Errorf("JSONStringify %T: %v", v, err)
 		return ""
 	}
 	return BytesAsStr(data)
@@ -65,7 +65,7 @@ func Proto2JSON(msg proto.Message) string {
 	var jm = jsonpb.Marshaler{EnumsAsInts: true}
 	var sb strings.Builder
 	if err := jm.Marshal(&sb, msg); err != nil {
-		logger.Errorf("marshal %T: %v", msg, err)
+		slog.Errorf("marshal %T: %v", msg, err)
 	} else {
 		return sb.String()
 	}

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/svrkit.v1/logger"
+	"gopkg.in/svrkit.v1/slog"
 )
 
 var (
@@ -63,7 +63,7 @@ func (t *TcpSession) Close() error {
 	}
 	if conn, ok := t.conn.(*net.TCPConn); ok {
 		if err := conn.CloseRead(); err != nil {
-			logger.Infof("%v close read: %v", t.Node, err)
+			slog.Infof("%v close read: %v", t.Node, err)
 		}
 	}
 	t.finally(ErrConnForceClose) // 阻塞等待投递剩余的消息
@@ -77,7 +77,7 @@ func (t *TcpSession) ForceClose(reason error) {
 
 	if conn, ok := t.conn.(*net.TCPConn); ok {
 		if err := conn.CloseRead(); err != nil {
-			logger.Infof("%v close read: %v", t.Node, err)
+			slog.Infof("%v close read: %v", t.Node, err)
 		}
 	}
 	go t.finally(reason) // 不阻塞等待
@@ -121,7 +121,7 @@ func (t *TcpSession) flush() {
 			}
 			buf.Reset()
 			if err := t.write(netMsg, &buf); err != nil {
-				logger.Errorf("%v flush message %v: %v", t.Node, netMsg.Command, err)
+				slog.Errorf("%v flush message %v: %v", t.Node, netMsg.Command, err)
 			}
 		default:
 			return
@@ -143,10 +143,10 @@ func (t *TcpSession) writePump() {
 	defer func() {
 		t.flush()
 		t.wg.Done()
-		logger.Debugf("TcpSession: node %v writer stopped", t.Node)
+		slog.Debugf("TcpSession: node %v writer stopped", t.Node)
 	}()
 
-	//logger.Debugf("TcpSession: node %v(%v) writer started", t.node, t.addr)
+	//slog.Debugf("TcpSession: node %v(%v) writer started", t.node, t.addr)
 	var buf = new(bytes.Buffer)
 	for {
 		select {
@@ -161,7 +161,7 @@ func (t *TcpSession) writePump() {
 				buf = new(bytes.Buffer)
 			}
 			if err := t.write(netMsg, buf); err != nil {
-				logger.Errorf("%v write message %v: %v", t.Node, netMsg.Command, err)
+				slog.Errorf("%v write message %v: %v", t.Node, netMsg.Command, err)
 				continue
 			}
 
@@ -178,7 +178,7 @@ func (t *TcpSession) readMessage(rd io.Reader, netMsg *NetMessage) error {
 	}
 	var deadline = time.Now().Add(TCPReadTimeout)
 	if err := t.conn.SetReadDeadline(deadline); err != nil {
-		logger.Errorf("session %v set read deadline: %v", t.Node, err)
+		slog.Errorf("session %v set read deadline: %v", t.Node, err)
 	}
 	if err := DecodeMsgFrom(rd, maxBytes, t.Decrypt, netMsg); err != nil {
 		return err
@@ -190,16 +190,16 @@ func (t *TcpSession) readMessage(rd io.Reader, netMsg *NetMessage) error {
 func (t *TcpSession) readPump() {
 	defer func() {
 		t.wg.Done()
-		logger.Debugf("TcpSession: node %v reader stopped", t.Node)
+		slog.Debugf("TcpSession: node %v reader stopped", t.Node)
 	}()
 
-	//logger.Debugf("TcpSession: node %v(%v) reader started", t.node, t.addr)
+	//slog.Debugf("TcpSession: node %v(%v) reader started", t.node, t.addr)
 	var rd = bufio.NewReader(t.conn)
 	for t.IsRunning() {
 		var netMsg = AllocNetMessage()
 		if err := t.readMessage(rd, netMsg); err != nil {
 			if err != io.EOF {
-				logger.Errorf("session %v read packet %v", t.Node, err)
+				slog.Errorf("session %v read packet %v", t.Node, err)
 			}
 			t.ForceClose(err) // I/O超时或者发生错误，强制关闭连接
 			return

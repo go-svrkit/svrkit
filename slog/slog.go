@@ -1,7 +1,7 @@
 // Copyright © 2020 ichenq@gmail.com All rights reserved.
 // See accompanying files LICENSE.txt
 
-package logger
+package slog
 
 import (
 	"go.uber.org/zap"
@@ -26,17 +26,11 @@ func SetDefault(log *zap.Logger) {
 	_sugar = log.Sugar()
 }
 
-func InitBy(cfg *Config) {
-	var log = cfg.Build()
-	SetDefault(log)
-}
-
-func InitWith(callerSkip int, core zapcore.Core) {
-	var log = zap.New(core,
+func SetDefaultWith(callerSkip int, core zapcore.Core) {
+	SetDefault(zap.New(core,
 		zap.AddCallerSkip(callerSkip),
 		zap.AddCaller(),
-		zap.AddStacktrace(zapcore.PanicLevel))
-	SetDefault(log)
+		zap.AddStacktrace(zapcore.PanicLevel)))
 }
 
 func Level() zapcore.Level {

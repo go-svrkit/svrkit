@@ -8,8 +8,8 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
-	"gopkg.in/svrkit.v1/logger"
 	"gopkg.in/svrkit.v1/qnet"
+	"gopkg.in/svrkit.v1/slog"
 )
 
 type (
@@ -64,56 +64,56 @@ func RegisterPostHook(h PostHookFunc, prepend bool) {
 // RegisterV1 注册消息处理函数
 func RegisterV1(cmd uint32, action MessageHandlerV1) {
 	if HasRegistered(cmd) {
-		logger.Warnf("duplicate handler registration of message %v", cmd)
+		slog.Warnf("duplicate handler registration of message %v", cmd)
 	}
 	handlers[cmd] = action
 }
 
 func RegisterV2(cmd uint32, action MessageHandlerV2) {
 	if HasRegistered(cmd) {
-		logger.Warnf("duplicate handler registration of message %v", cmd)
+		slog.Warnf("duplicate handler registration of message %v", cmd)
 	}
 	handlers[cmd] = action
 }
 
 func RegisterV3(cmd uint32, action MessageHandlerV3) {
 	if HasRegistered(cmd) {
-		logger.Warnf("duplicate handler registration of message %v", cmd)
+		slog.Warnf("duplicate handler registration of message %v", cmd)
 	}
 	handlers[cmd] = action
 }
 
 func RegisterV4(cmd uint32, action MessageHandlerV4) {
 	if HasRegistered(cmd) {
-		logger.Warnf("duplicate handler registration of message %v", cmd)
+		slog.Warnf("duplicate handler registration of message %v", cmd)
 	}
 	handlers[cmd] = action
 }
 
 func RegisterV5(cmd uint32, action MessageHandlerV5) {
 	if HasRegistered(cmd) {
-		logger.Warnf("duplicate handler registration of message %v", cmd)
+		slog.Warnf("duplicate handler registration of message %v", cmd)
 	}
 	handlers[cmd] = action
 }
 
 func RegisterV6(cmd uint32, action MessageHandlerV6) {
 	if HasRegistered(cmd) {
-		logger.Warnf("duplicate handler registration of message %v", cmd)
+		slog.Warnf("duplicate handler registration of message %v", cmd)
 	}
 	handlers[cmd] = action
 }
 
 func RegisterV7(cmd uint32, action MessageHandlerV7) {
 	if HasRegistered(cmd) {
-		logger.Warnf("duplicate handler registration of message %v", cmd)
+		slog.Warnf("duplicate handler registration of message %v", cmd)
 	}
 	handlers[cmd] = action
 }
 
 func RegisterV8(cmd uint32, action MessageHandlerV8) {
 	if HasRegistered(cmd) {
-		logger.Warnf("duplicate handler registration of message %v", cmd)
+		slog.Warnf("duplicate handler registration of message %v", cmd)
 	}
 	handlers[cmd] = action
 }

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gopkg.in/svrkit.v1/logger"
+	"gopkg.in/svrkit.v1/slog"
 )
 
 const (
@@ -39,7 +39,7 @@ func ParseSlice[T cmp.Ordered](text, sep string) ([]T, error) {
 func MustParseSlice[T cmp.Ordered](text, sep string) []T {
 	slice, err := ParseSlice[T](text, sep)
 	if err != nil {
-		logger.Panicf("MustParseSlice: %v", err)
+		slog.Panicf("MustParseSlice: %v", err)
 	}
 	return slice
 }
@@ -78,7 +78,7 @@ func ParseToMap[K, V cmp.Ordered](text string, sep1, sep2 string) (map[K]V, erro
 func MustParseToMap[K, V cmp.Ordered](text string, sep1, sep2 string) map[K]V {
 	dict, err := ParseToMap[K, V](text, sep1, sep2)
 	if err != nil {
-		logger.Panicf("MustParseToMap: %v", err)
+		slog.Panicf("MustParseToMap: %v", err)
 	}
 	return dict
 }
@@ -92,7 +92,7 @@ func ParseToMapN[K, V cmp.Ordered](text string) (map[K]V, error) {
 func MustParseToMapN[K, V cmp.Ordered](text string) map[K]V {
 	dict, err := ParseToMap[K, V](text, SepEqualSign, SepVerticalBar)
 	if err != nil {
-		logger.Panicf("MustParseToMapN: %v", err)
+		slog.Panicf("MustParseToMapN: %v", err)
 	}
 	return dict
 }
@@ -168,7 +168,7 @@ func ParseKVPairs[K, V cmp.Ordered](text string) (map[K]V, error) {
 func MustParseKVPairs[K, V cmp.Ordered](text string) map[K]V {
 	dict, err := ParseKVPairs[K, V](text)
 	if err != nil {
-		logger.Panicf("MustParseKVPairs: %v", err)
+		slog.Panicf("MustParseKVPairs: %v", err)
 	}
 	return dict
 }

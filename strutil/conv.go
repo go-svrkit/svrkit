@@ -10,7 +10,7 @@ import (
 	"math"
 	"strconv"
 
-	"gopkg.in/svrkit.v1/logger"
+	"gopkg.in/svrkit.v1/slog"
 )
 
 // ParseBool parse string to bool
@@ -223,7 +223,8 @@ func MustParseF64(s string) float64 {
 	return f
 }
 
-// ParseTo parse string to any number type, no best performance but easy to use
+// ParseTo parse string to any number type
+// this routine may not have the best performance, but it has the best usability.
 func ParseTo[T cmp.Ordered | bool](s string) (T, error) {
 	var zero T
 	if s == "" {
@@ -314,7 +315,7 @@ func ParseTo[T cmp.Ordered | bool](s string) (T, error) {
 func MustParseTo[T cmp.Ordered | bool](s string) T {
 	val, err := ParseTo[T](s)
 	if err != nil {
-		logger.Panicf("cannot parse %s to %T: %v", s, val, err)
+		slog.Panicf("cannot parse %s to %T: %v", s, val, err)
 	}
 	return val
 }

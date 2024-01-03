@@ -16,8 +16,7 @@ import (
 	"unsafe"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
-
-	"gopkg.in/svrkit.v1/logger"
+	"gopkg.in/svrkit.v1/slog"
 )
 
 var (
@@ -156,7 +155,7 @@ func (c *EtcdClient) PutNode(ctx context.Context, name string, value any, leaseI
 		return err
 	}
 	if c.verbose >= VerboseLv1 {
-		logger.Infof("put key [%s] at rev %d", key, resp.Header.Revision)
+		slog.Infof("put key [%s] at rev %d", key, resp.Header.Revision)
 	}
 	return nil
 }
@@ -242,20 +241,20 @@ func NewNodeKeepAliveContext(name string, value any, ttl int) *NodeKeepAliveCont
 
 func (c *EtcdClient) RevokeKeepAlive(ctx context.Context, regCtx *NodeKeepAliveContext) error {
 	if c.verbose >= VerboseLv1 {
-		logger.Infof("try revoke node %s lease %d", regCtx.Name, regCtx.LeaseId)
+		slog.Infof("try revoke node %s lease %d", regCtx.Name, regCtx.LeaseId)
 	}
 	if regCtx.LeaseId == 0 || !regCtx.LeaseAlive {
 		if c.verbose >= VerboseLv1 {
-			logger.Infof("node %s lease %d is not alive", regCtx.Name, regCtx.LeaseId)
+			slog.Infof("node %s lease %d is not alive", regCtx.Name, regCtx.LeaseId)
 		}
 		return nil
 	}
 	if err := c.RevokeLease(ctx, regCtx.LeaseId); err != nil {
-		logger.Warnf("revoke node %s lease %x failed: %v", regCtx.Name, regCtx.LeaseId, err)
+		slog.Warnf("revoke node %s lease %x failed: %v", regCtx.Name, regCtx.LeaseId, err)
 		return err
 	} else {
 		if c.verbose >= VerboseLv1 {
-			logger.Infof("revoke node %s lease %x done", regCtx.Name, regCtx.LeaseId)
+			slog.Infof("revoke node %s lease %x done", regCtx.Name, regCtx.LeaseId)
 		}
 	}
 	return nil
@@ -288,14 +287,14 @@ func (c *EtcdClient) RegisterNode(rootCtx context.Context, name string, value an
 
 func revokeLeaseWithTimeout(c *EtcdClient, leaseId int64) {
 	if c.verbose >= VerboseLv1 {
-		logger.Infof("try revoke lease %d", leaseId)
+		slog.Infof("try revoke lease %d", leaseId)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*OpTimeout)
 	defer cancel()
 	if err := c.RevokeLease(ctx, leaseId); err != nil {
-		logger.Warnf("revoke lease %x failed: %v", leaseId, err)
+		slog.Warnf("revoke lease %x failed: %v", leaseId, err)
 	} else {
-		logger.Infof("revoke lease %x done", leaseId)
+		slog.Infof("revoke lease %x done", leaseId)
 	}
 }
 
@@ -312,15 +311,15 @@ func (c *EtcdClient) aliveKeeper(ctx context.Context, kaChan <-chan *clientv3.Le
 		select {
 		case ka, ok := <-kaChan:
 			if !ok || ka == nil {
-				logger.Infof("lease %d is not alive", leaseId)
+				slog.Infof("lease %d is not alive", leaseId)
 				return
 			}
 			if c.verbose >= VerboseLv2 {
-				logger.Infof("lease %d respond alive, ttl %d", ka.ID, ka.TTL)
+				slog.Infof("lease %d respond alive, ttl %d", ka.ID, ka.TTL)
 			}
 
 		case <-ctx.Done():
-			logger.Infof("stop keepalive with lease %d", leaseId)
+			slog.Infof("stop keepalive with lease %d", leaseId)
 			return
 		}
 	}
@@ -339,7 +338,7 @@ func (c *EtcdClient) KeepAlive(ctx context.Context, stopChan chan struct{}, leas
 func (c *EtcdClient) doRegisterNode(ctx context.Context, regCtx *NodeKeepAliveContext) error {
 	var err error
 	if c.verbose >= VerboseLv1 {
-		logger.Infof("try register key: %s", c.FormatKey(regCtx.Name))
+		slog.Infof("try register key: %s", c.FormatKey(regCtx.Name))
 	}
 	regCtx.LeaseAlive = false
 	regCtx.LeaseId = 0
@@ -353,7 +352,7 @@ func (c *EtcdClient) doRegisterNode(ctx context.Context, regCtx *NodeKeepAliveCo
 	}
 	regCtx.LeaseAlive = true
 	if c.verbose >= VerboseLv1 {
-		logger.Infof("register key [%s] with lease %x done", c.FormatKey(regCtx.Name), regCtx.LeaseId)
+		slog.Infof("register key [%s] with lease %x done", c.FormatKey(regCtx.Name), regCtx.LeaseId)
 	}
 	return nil
 }
@@ -366,7 +365,7 @@ func (c *EtcdClient) regAliveKeeper(ctx context.Context, regCtx *NodeKeepAliveCo
 		case <-ticker.C:
 			if !regCtx.LeaseAlive {
 				if err := c.doRegisterNode(ctx, regCtx); err != nil {
-					logger.Infof("register or keepalive %s failed: %v", regCtx.Name, err)
+					slog.Infof("register or keepalive %s failed: %v", regCtx.Name, err)
 				}
 			}
 
@@ -375,12 +374,12 @@ func (c *EtcdClient) regAliveKeeper(ctx context.Context, regCtx *NodeKeepAliveCo
 			regCtx.LeaseAlive = false
 			regCtx.LeaseId = 0
 			if c.verbose >= VerboseLv1 {
-				logger.Infof("node %s lease(%d) is not alive, try register later", regCtx.Name, leaseId)
+				slog.Infof("node %s lease(%d) is not alive, try register later", regCtx.Name, leaseId)
 			}
 
 		case <-ctx.Done():
 			if c.verbose >= VerboseLv1 {
-				logger.Infof("registration alive keeper with key %s stopped", regCtx.Name)
+				slog.Infof("registration alive keeper with key %s stopped", regCtx.Name)
 			}
 			return
 		}
@@ -414,7 +413,7 @@ func propagateWatchEvent(eventChan chan<- *NodeEvent, ev *clientv3.Event) {
 	}
 	if len(ev.Kv.Value) > 0 {
 		if err := unmarshalNode(ev.Kv.Value, &event.Node); err != nil {
-			logger.Errorf("unmarshal node %s: %v", event.Key, err)
+			slog.Errorf("unmarshal node %s: %v", event.Key, err)
 			return
 		}
 	}
@@ -422,7 +421,7 @@ func propagateWatchEvent(eventChan chan<- *NodeEvent, ev *clientv3.Event) {
 	select {
 	case eventChan <- event:
 	default:
-		logger.Warnf("watch event channel is full, new event lost: %v", event)
+		slog.Warnf("watch event channel is full, new event lost: %v", event)
 	}
 }
 
@@ -440,7 +439,7 @@ func (c *EtcdClient) WatchDir(ctx context.Context, dir string) <-chan *NodeEvent
 					return
 				}
 				if resp.Err() != nil {
-					logger.Warnf("watch key %s canceled: %v", key, resp.Err())
+					slog.Warnf("watch key %s canceled: %v", key, resp.Err())
 					return
 				}
 				for _, ev := range resp.Events {
@@ -450,7 +449,7 @@ func (c *EtcdClient) WatchDir(ctx context.Context, dir string) <-chan *NodeEvent
 			case <-ctx.Done():
 				if c.client != nil {
 					if err := c.client.Watcher.Close(); err != nil {
-						logger.Warnf("close watcher: %v", err)
+						slog.Warnf("close watcher: %v", err)
 					}
 				}
 				return

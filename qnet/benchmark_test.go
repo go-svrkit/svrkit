@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"gopkg.in/svrkit.v1/datetime"
-	"gopkg.in/svrkit.v1/logger"
+	"gopkg.in/svrkit.v1/slog"
 )
 
 func serveListen(ln net.Listener, bus chan net.Conn) {
@@ -32,11 +32,11 @@ func serveListen(ln net.Listener, bus chan net.Conn) {
 				if max := time.Second; tempDelay > max {
 					tempDelay = max
 				}
-				logger.Warnf("Accept error: %v, retrying in %v", err, tempDelay)
+				slog.Warnf("Accept error: %v, retrying in %v", err, tempDelay)
 				time.Sleep(tempDelay)
 				continue
 			}
-			logger.Errorf("accept error: %v", err)
+			slog.Errorf("accept error: %v", err)
 			return
 		}
 		bus <- conn

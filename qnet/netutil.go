@@ -17,7 +17,7 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
-	"gopkg.in/svrkit.v1/logger"
+	"gopkg.in/svrkit.v1/slog"
 )
 
 const (
@@ -170,7 +170,7 @@ func WriteProtoHTTPResponse(w http.ResponseWriter, msg proto.Message, contentTyp
 		var m jsonpb.Marshaler
 		var buf bytes.Buffer
 		if err := m.Marshal(&buf, msg); err != nil {
-			logger.Errorf("WriteProtoResponse: jsonpb.Marshal: %v", err)
+			slog.Errorf("WriteProtoResponse: jsonpb.Marshal: %v", err)
 			return err
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -179,7 +179,7 @@ func WriteProtoHTTPResponse(w http.ResponseWriter, msg proto.Message, contentTyp
 	default:
 		rawbytes, err := proto.Marshal(msg)
 		if err != nil {
-			logger.Errorf("WriteProtoResponse: pb.Marshal: %v", err)
+			slog.Errorf("WriteProtoResponse: pb.Marshal: %v", err)
 			return err
 		}
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -193,14 +193,14 @@ func WriteProtoHTTPResponse(w http.ResponseWriter, msg proto.Message, contentTyp
 func GetLocalIPList() []net.IP {
 	inetfaces, err := net.Interfaces()
 	if err != nil {
-		logger.Errorf("cannot fetch net interfaces: %v", err)
+		slog.Errorf("cannot fetch net interfaces: %v", err)
 		return nil
 	}
 	var ipList []net.IP
 	for _, inetface := range inetfaces {
 		addrs, err := inetface.Addrs()
 		if err != nil {
-			logger.Errorf("cannot fetch net address: %v", err)
+			slog.Errorf("cannot fetch net address: %v", err)
 		}
 		for _, addr := range addrs {
 			var ip net.IP

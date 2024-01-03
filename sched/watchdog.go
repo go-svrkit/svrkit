@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"gopkg.in/svrkit.v1/debug"
-	"gopkg.in/svrkit.v1/logger"
 	"gopkg.in/svrkit.v1/qnet"
+	"gopkg.in/svrkit.v1/slog"
 )
 
 const WatchAliveTTL = 100 // 100s
@@ -52,7 +52,7 @@ func (wd *WatchDog) worker() {
 	defer func() {
 		if v := recover(); v != nil {
 			debug.Backtrace("watchdog panic", v, os.Stderr)
-			logger.Errorf("watchdog panic: %v", v)
+			slog.Errorf("watchdog panic: %v", v)
 		}
 		wd.wg.Done()
 	}()
@@ -85,10 +85,10 @@ func (wd *WatchDog) dumpGoroutines() {
 	profile := pprof.Lookup("goroutine")
 	if f, err := os.Create(filename); err == nil {
 		if er := profile.WriteTo(f, 0); er != nil {
-			logger.Errorf("write goroutine profile failed: %v", er)
+			slog.Errorf("write goroutine profile failed: %v", er)
 		}
 	} else {
-		logger.Errorf("create goroutine profile file failed: %v", err)
+		slog.Errorf("create goroutine profile file failed: %v", err)
 	}
 }
 
@@ -96,7 +96,7 @@ func (wd *WatchDog) dumpCPU() {
 	var filename = wd.genPprofFileName("cpu")
 	f, err := os.Create(filename)
 	if err != nil {
-		logger.Errorf("create cpu profile file failed: %v", err)
+		slog.Errorf("create cpu profile file failed: %v", err)
 		return
 	}
 	var timer = time.NewTimer(time.Minute)
@@ -104,7 +104,7 @@ func (wd *WatchDog) dumpCPU() {
 		pprof.StopCPUProfile()
 		timer.Stop()
 		if err := f.Close(); err != nil {
-			logger.Errorf("close cpu profile file failed: %v", err)
+			slog.Errorf("close cpu profile file failed: %v", err)
 		}
 	}()
 

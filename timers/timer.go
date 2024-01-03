@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"gopkg.in/svrkit.v1/datetime"
-	"gopkg.in/svrkit.v1/logger"
 	"gopkg.in/svrkit.v1/sched"
+	"gopkg.in/svrkit.v1/slog"
 )
 
 const (
@@ -124,7 +124,7 @@ func Shutdown() {
 }
 
 func timeoutWorker() {
-	defer logger.Infof("timer worker exit")
+	defer slog.Infof("timer worker exit")
 
 	for running.Load() {
 		select {
@@ -144,7 +144,7 @@ func Preprocess(msg *TimeoutMsg) bool {
 		var runner = msg.Data.(sched.IRunner)
 		if runner != nil {
 			if err := runner.Run(); err != nil {
-				logger.Errorf("run timeout msg %d %T: %v", msg.Action, runner, err)
+				slog.Errorf("run timeout msg %d %T: %v", msg.Action, runner, err)
 			}
 		}
 		return true
