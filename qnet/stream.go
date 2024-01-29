@@ -1,4 +1,4 @@
-// Copyright © 2020 ichenq@gmail.com All rights reserved.
+// Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
 package qnet
@@ -67,13 +67,12 @@ func (c *StreamConnBase) SendMsg(msg *NetMessage, mode int) error {
 		return ErrConnNotRunning
 	}
 	switch mode {
-	case SendNonblock:
-		if !c.SendNonBlock(msg) {
-			return ErrConnOutboundOverflow
-		}
-		return nil
-	default:
+	case SendBlock:
 		c.SendQueue <- msg // blocking send
 		return nil
 	}
+	if !c.SendNonBlock(msg) {
+		return ErrConnOutboundOverflow
+	}
+	return nil
 }

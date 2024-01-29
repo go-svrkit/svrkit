@@ -1,5 +1,5 @@
-// Copyright © 2020 ichenq@gmail.com All rights reserved.
-// See accompanying files LICENSE.
+// Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
+// See accompanying files LICENSE.txt
 
 package qnet
 

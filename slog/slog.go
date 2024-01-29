@@ -1,4 +1,4 @@
-// Copyright © 2020 ichenq@gmail.com All rights reserved.
+// Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
 package slog
@@ -17,17 +17,17 @@ func Sugared() *zap.SugaredLogger {
 	return _sugar
 }
 
-func Default() *zap.Logger {
+func Logger() *zap.Logger {
 	return _logger
 }
 
-func SetDefault(log *zap.Logger) {
+func SetLogger(log *zap.Logger) {
 	_logger = log
 	_sugar = log.Sugar()
 }
 
-func SetDefaultWith(callerSkip int, core zapcore.Core) {
-	SetDefault(zap.New(core,
+func SetLoggerrWith(core zapcore.Core, callerSkip int) {
+	SetLogger(zap.New(core,
 		zap.AddCallerSkip(callerSkip),
 		zap.AddCaller(),
 		zap.AddStacktrace(zapcore.PanicLevel)))
