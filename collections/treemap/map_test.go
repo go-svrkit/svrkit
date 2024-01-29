@@ -7,34 +7,24 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"gopkg.in/svrkit.v1/collections/util"
 )
 
-type Int int
-
-func (n Int) CompareTo(other Comparable) int {
-	var n2 = other.(Int)
-	if n < n2 {
-		return -1
-	} else if n > n2 {
-		return 1
-	}
-	return 0
-}
-
-func createTreeMap() *Map {
-	var m = New()
-	m.Put(Int(5), "e")
-	m.Put(Int(6), "f")
-	m.Put(Int(7), "g")
-	m.Put(Int(3), "c")
-	m.Put(Int(4), "d")
-	m.Put(Int(1), "x")
-	m.Put(Int(2), "b")
-	m.Put(Int(1), "a") //overwrite
+func createTreeMap() *Map[int, string] {
+	var m = New[int, string](util.OrderedCmp[int])
+	m.Put(5, "e")
+	m.Put(6, "f")
+	m.Put(7, "g")
+	m.Put(3, "c")
+	m.Put(4, "d")
+	m.Put(1, "x")
+	m.Put(2, "b")
+	m.Put(1, "a") //overwrite
 	return m
 }
 
-func mapKeysText(m *Map) string {
+func mapKeysText(m *Map[int, string]) string {
 	var sb strings.Builder
 	for _, key := range m.Keys() {
 		fmt.Fprintf(&sb, "%v", key)
@@ -42,7 +32,7 @@ func mapKeysText(m *Map) string {
 	return sb.String()
 }
 
-func mapValuesText(m *Map) string {
+func mapValuesText(m *Map[int, string]) string {
 	var sb strings.Builder
 	for _, val := range m.Values() {
 		fmt.Fprintf(&sb, "%v", val)
@@ -50,7 +40,7 @@ func mapValuesText(m *Map) string {
 	return sb.String()
 }
 
-func checkMapKeyValue(t *testing.T, m *Map, keyS, valueS string, size int) {
+func checkMapKeyValue(t *testing.T, m *Map[int, string], keyS, valueS string, size int) {
 	if actualValue := m.Size(); actualValue != size {
 		t.Errorf("Got %v expected %v", actualValue, size)
 	}
@@ -68,24 +58,24 @@ func TestTreeMapPut(t *testing.T) {
 	checkMapKeyValue(t, m, "1234567", "abcdefg", 7)
 
 	tests := []struct {
-		key   KeyType
-		value any
+		key   int
+		value string
 		found bool
 	}{
-		{Int(1), "a", true},
-		{Int(2), "b", true},
-		{Int(3), "c", true},
-		{Int(4), "d", true},
-		{Int(5), "e", true},
-		{Int(6), "f", true},
-		{Int(7), "g", true},
-		{Int(8), nil, false},
+		{1, "a", true},
+		{2, "b", true},
+		{3, "c", true},
+		{4, "d", true},
+		{5, "e", true},
+		{6, "f", true},
+		{7, "g", true},
+		{8, "", false},
 	}
 	for _, tc := range tests {
 		// retrievals
 		actualValue, actualFound := m.Get(tc.key)
 		if actualValue != tc.value || actualFound != tc.found {
-			t.Errorf("Got %v expected %v", actualValue, tc.value)
+			t.Errorf("key %v got %v expected %v", tc.key, actualValue, tc.value)
 		}
 	}
 }
@@ -93,31 +83,31 @@ func TestTreeMapPut(t *testing.T) {
 func TestTreeMapRemove(t *testing.T) {
 	var m = createTreeMap()
 	for i := 5; i <= 8; i++ {
-		m.Remove(Int(i))
+		m.Remove(i)
 	}
-	m.Remove(Int(5)) // remove again
+	m.Remove(5) // remove again
 
 	checkMapKeyValue(t, m, "1234", "abcd", 4)
 
 	tests := []struct {
-		key   KeyType
-		value any
+		key   int
+		value string
 		found bool
 	}{
-		{Int(1), "a", true},
-		{Int(2), "b", true},
-		{Int(3), "c", true},
-		{Int(4), "d", true},
-		{Int(5), nil, false},
-		{Int(6), nil, false},
-		{Int(7), nil, false},
-		{Int(8), nil, false},
+		{1, "a", true},
+		{2, "b", true},
+		{3, "c", true},
+		{4, "d", true},
+		{5, "", false},
+		{6, "", false},
+		{7, "", false},
+		{8, "", false},
 	}
 	for _, tc := range tests {
 		// retrievals
 		actualValue, actualFound := m.Get(tc.key)
 		if actualValue != tc.value || actualFound != tc.found {
-			t.Errorf("Got %v expected %v", actualValue, tc.value)
+			t.Errorf("key %v got %v expected %v", tc.key, actualValue, tc.value)
 		}
 	}
 
@@ -126,24 +116,25 @@ func TestTreeMapRemove(t *testing.T) {
 }
 
 func TestTreeMapFirstLast(t *testing.T) {
-	var m Map
-	if actualValue := m.FirstKey(); actualValue != nil {
+	var m = New[int, string](util.OrderedCmp[int])
+	if actualValue, found := m.FirstKey(); found {
 		t.Errorf("Got %v expected %v", actualValue, nil)
 	}
-	if actualValue := m.LastKey(); actualValue != nil {
+	if actualValue, found := m.LastKey(); found {
 		t.Errorf("Got %v expected %v", actualValue, nil)
 	}
 
-	m.Put(Int(1), "a")
-	m.Put(Int(5), "e")
-	m.Put(Int(6), "f")
-	m.Put(Int(7), "g")
-	m.Put(Int(3), "c")
-	m.Put(Int(4), "d")
-	m.Put(Int(1), "x") // overwrite
-	m.Put(Int(2), "b")
+	m.Put(1, "a")
+	m.Put(5, "e")
+	m.Put(6, "f")
+	m.Put(7, "g")
+	m.Put(3, "c")
+	m.Put(4, "d")
+	m.Put(1, "x") // overwrite
+	m.Put(2, "b")
 
-	firstKey, lastKey := m.FirstKey(), m.LastKey()
+	firstKey, _ := m.FirstKey()
+	lastKey, _ := m.LastKey()
 	firstVal, _ := m.Get(firstKey)
 	lastVal, _ := m.Get(lastKey)
 
@@ -163,48 +154,48 @@ func TestTreeMapFirstLast(t *testing.T) {
 }
 
 func TestTreeMapCeilingAndFloor(t *testing.T) {
-	var m Map
+	var m = New[int, string](util.OrderedCmp[int])
 
-	if entry := m.FloorEntry(Int(0)); entry != nil {
+	if entry := m.FloorEntry(0); entry != nil {
 		t.Errorf("Got %v expected %v", entry, "<nil>")
 	}
-	if entry := m.CeilingEntry(Int(0)); entry != nil {
+	if entry := m.CeilingEntry(0); entry != nil {
 		t.Errorf("Got %v expected %v", entry, "<nil>")
 	}
 
-	m.Put(Int(5), "e")
-	m.Put(Int(6), "f")
-	m.Put(Int(7), "g")
-	m.Put(Int(3), "c")
-	m.Put(Int(4), "d")
-	m.Put(Int(1), "x")
-	m.Put(Int(2), "b")
+	m.Put(5, "e")
+	m.Put(6, "f")
+	m.Put(7, "g")
+	m.Put(3, "c")
+	m.Put(4, "d")
+	m.Put(1, "x")
+	m.Put(2, "b")
 
-	if node := m.FloorEntry(Int(4)); node.GetKey() != Int(4) {
+	if node := m.FloorEntry(4); node.GetKey() != 4 {
 		t.Errorf("Got %v expected %v", node.GetKey(), 4)
 	}
-	if node := m.FloorEntry(Int(0)); node != nil {
+	if node := m.FloorEntry(0); node != nil {
 		t.Errorf("Got %v expected %v", node.GetKey(), "<nil>")
 	}
 
-	if node := m.CeilingEntry(Int(4)); node.GetKey() != Int(4) {
+	if node := m.CeilingEntry(4); node.GetKey() != 4 {
 		t.Errorf("Got %v expected %v", node.GetKey(), 4)
 	}
-	if node := m.CeilingEntry(Int(8)); node != nil {
+	if node := m.CeilingEntry(8); node != nil {
 		t.Errorf("Got %v expected %v", node.GetKey(), "<nil>")
 	}
 }
 
-func createTreeMap2() *Map {
-	var m = New()
-	m.Put(Int(5), "e")
-	m.Put(Int(6), "f")
-	m.Put(Int(7), "g")
-	m.Put(Int(3), "c")
-	m.Put(Int(4), "d")
-	m.Put(Int(1), "x")
-	m.Put(Int(2), "b")
-	m.Put(Int(1), "a") //overwrite
+func createTreeMap2() *Map[int, string] {
+	var m = New[int, string](util.OrderedCmp[int])
+	m.Put(5, "e")
+	m.Put(6, "f")
+	m.Put(7, "g")
+	m.Put(3, "c")
+	m.Put(4, "d")
+	m.Put(1, "x")
+	m.Put(2, "b")
+	m.Put(1, "a") //overwrite
 
 	// │   ┌── 7
 	// └── 6

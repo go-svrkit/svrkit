@@ -3,21 +3,6 @@
 
 package treemap
 
-type (
-	KeyType     Comparable
-	EntryAction func(key KeyType, val any)
-)
-
-// Comparable 丐版java.lang.Comparable
-// 内部实现要符合结合律:  (a.CompareTo(b) > 0 && b.CompareTo(c) > 0) implies a.CompareTo(c) > 0
-type Comparable interface {
-	// CompareTo returns an integer comparing two Comparables.
-	// a.CompareTo(b) < 0 implies a < b
-	// a.CompareTo(b) > 0 implies a > b
-	// a.CompareTo(b) == 0 implies a == b
-	CompareTo(Comparable) int
-}
-
 // Color Red-black mechanics
 type Color uint8
 
@@ -37,15 +22,15 @@ func (c Color) String() string {
 	}
 }
 
-type Entry struct {
-	key                 KeyType
-	value               any
-	left, right, parent *Entry
+type Entry[K, V any] struct {
+	left, right, parent *Entry[K, V]
 	color               Color
+	key                 K
+	value               V
 }
 
-func NewEntry(key KeyType, val any, parent *Entry) *Entry {
-	return &Entry{
+func NewEntry[K, V any](key K, val V, parent *Entry[K, V]) *Entry[K, V] {
+	return &Entry[K, V]{
 		key:    key,
 		value:  val,
 		parent: parent,
@@ -53,62 +38,67 @@ func NewEntry(key KeyType, val any, parent *Entry) *Entry {
 	}
 }
 
-func (e *Entry) GetKey() KeyType {
+func (e *Entry[K, V]) GetKey() K {
 	return e.key
 }
 
-func (e *Entry) GetValue() any {
+func (e *Entry[K, V]) GetValue() V {
 	return e.value
 }
 
-func (e *Entry) SetValue(val any) any {
+func (e *Entry[K, V]) SetValue(val V) V {
 	var old = e.value
 	e.value = val
 	return old
 }
 
-func (e *Entry) Equals(other *Entry) bool {
-	if e == other {
-		return true
-	}
-	return e.key == other.key && e.value == other.value
+//func (e *Entry[K, V]) Equals(other *Entry[K, V]) bool {
+//	if e == other {
+//		return true
+//	}
+//	return e.key == other.key && e.value == other.value
+//}
+
+func zeroOf[K any]() K {
+	var zero K
+	return zero
 }
 
-func key(e *Entry) KeyType {
+func keyOf[K, V any](e *Entry[K, V]) (K, bool) {
 	if e != nil {
-		return e.key
+		return e.key, true
 	}
-	return nil
+	return zeroOf[K](), false
 }
 
-func colorOf(p *Entry) Color {
+func colorOf[K, V any](p *Entry[K, V]) Color {
 	if p != nil {
 		return p.color
 	}
 	return BLACK
 }
 
-func parentOf(p *Entry) *Entry {
+func parentOf[K, V any](p *Entry[K, V]) *Entry[K, V] {
 	if p != nil {
 		return p.parent
 	}
 	return nil
 }
 
-func setColor(p *Entry, color Color) {
+func setColor[K, V any](p *Entry[K, V], color Color) {
 	if p != nil {
 		p.color = color
 	}
 }
 
-func leftOf(p *Entry) *Entry {
+func leftOf[K, V any](p *Entry[K, V]) *Entry[K, V] {
 	if p != nil {
 		return p.left
 	}
 	return nil
 }
 
-func rightOf(p *Entry) *Entry {
+func rightOf[K, V any](p *Entry[K, V]) *Entry[K, V] {
 	if p != nil {
 		return p.right
 	}
@@ -116,7 +106,7 @@ func rightOf(p *Entry) *Entry {
 }
 
 // Returns the successor of the specified Entry, or null if no such.
-func successor(t *Entry) *Entry {
+func successor[K, V any](t *Entry[K, V]) *Entry[K, V] {
 	if t == nil {
 		return nil
 	} else if t.right != nil {
@@ -137,7 +127,7 @@ func successor(t *Entry) *Entry {
 }
 
 // Returns the predecessor of the specified Entry, or null if no such.
-func predecessor(t *Entry) *Entry {
+func predecessor[K, V any](t *Entry[K, V]) *Entry[K, V] {
 	if t == nil {
 		return nil
 	} else if t.left != nil {

@@ -3,6 +3,10 @@
 
 package treemap
 
+import (
+	"gopkg.in/svrkit.v1/collections/util"
+)
+
 // Map is a Red-Black tree based map implementation.
 // The map is sorted according to the Comparable natural ordering of its keys
 // This implementation provides guaranteed log(n) time cost for the
@@ -10,122 +14,125 @@ package treemap
 //
 // more details see links below
 // https://github.com/openjdk/jdk/blob/jdk-17+35/src/java.base/share/classes/java/util/TreeMap.java
-type Map struct {
-	root    *Entry
-	size    int // The number of entries in the tree
-	version int // The number of structural modifications to the tree.
+type Map[K, V any] struct {
+	root       *Entry[K, V]
+	comparator util.Comparator[K]
+	size       int // The number of entries in the tree
+	version    int // The number of structural modifications to the tree.
 }
 
-func New() *Map {
-	return &Map{}
+func New[K, V any](comparator util.Comparator[K]) *Map[K, V] {
+	return &Map[K, V]{
+		comparator: comparator,
+	}
 }
 
 // Size returns the number of key-value mappings in this map.
-func (m *Map) Size() int {
+func (m *Map[K, V]) Size() int {
 	return m.size
 }
 
-func (m *Map) IsEmpty() bool {
+func (m *Map[K, V]) IsEmpty() bool {
 	return m.size == 0
 }
 
 // ContainsKey return true if this map contains a mapping for the specified key
-func (m *Map) ContainsKey(key KeyType) bool {
+func (m *Map[K, V]) ContainsKey(key K) bool {
 	return m.getEntry(key) != nil
 }
 
 // Get returns the value to which the specified key is mapped,
 // or nil if this map contains no mapping for the key.
-func (m *Map) Get(key KeyType) (any, bool) {
+func (m *Map[K, V]) Get(key K) (V, bool) {
 	var p = m.getEntry(key)
 	if p != nil {
 		return p.value, true
 	}
-	return nil, false
+	return zeroOf[V](), false
 }
 
 // GetOrDefault returns the value to which the specified key is mapped,
 // or `defaultValue` if this map contains no mapping for the key.
-func (m *Map) GetOrDefault(key KeyType, defaultValue any) any {
+func (m *Map[K, V]) GetOrDefault(key K, defVal V) V {
 	var p = m.getEntry(key)
 	if p != nil {
 		return p.value
 	}
-	return defaultValue
+	return defVal
 }
 
 // FirstKey returns the first key in the TreeMap (according to the key's order)
-func (m *Map) FirstKey() KeyType {
-	return key(m.getFirstEntry())
+func (m *Map[K, V]) FirstKey() (K, bool) {
+	return keyOf[K](m.getFirstEntry())
 }
 
 // LastKey returns the last key in the TreeMap (according to the key's order)
-func (m *Map) LastKey() KeyType {
-	return key(m.getLastEntry())
+func (m *Map[K, V]) LastKey() (K, bool) {
+	return keyOf(m.getLastEntry())
 }
 
-func (m *Map) RootEntry() *Entry {
+func (m *Map[K, V]) RootEntry() *Entry[K, V] {
 	return m.root
 }
 
-func (m *Map) FirstEntry() *Entry {
+func (m *Map[K, V]) FirstEntry() *Entry[K, V] {
 	return m.getFirstEntry()
 }
 
-func (m *Map) LastEntry() *Entry {
+func (m *Map[K, V]) LastEntry() *Entry[K, V] {
 	return m.getLastEntry()
 }
 
-// Gets the entry corresponding to the specified key;
+// FloorEntry gets the entry corresponding to the specified key;
 // if no such entry exists, returns the entry for the greatest key less than the specified key;
-func (m *Map) FloorEntry(key KeyType) *Entry {
+func (m *Map[K, V]) FloorEntry(key K) *Entry[K, V] {
 	return m.getFloorEntry(key)
 }
 
-// Gets the specified key, returns the greatest key less than the specified key if not exist.
-func (m *Map) FloorKey(key KeyType) KeyType {
+// FloorKey gets the specified key, returns the greatest key less than the specified key if not exist.
+func (m *Map[K, V]) FloorKey(key K) (K, bool) {
 	var entry = m.getFloorEntry(key)
 	if entry != nil {
-		return entry.key
+		return entry.key, true
 	}
-	return nil
+	return zeroOf[K](), false
 }
 
 // CeilingEntry gets the entry corresponding to the specified key;
 // returns the entry for the least key greater than the specified key if not exist.
-func (m *Map) CeilingEntry(key KeyType) *Entry {
+func (m *Map[K, V]) CeilingEntry(key K) *Entry[K, V] {
 	return m.getCeilingEntry(key)
 }
 
 // CeilingKey gets the specified key, return the least key greater than the specified key if not exist.
-func (m *Map) CeilingKey(key KeyType) KeyType {
+func (m *Map[K, V]) CeilingKey(key K) (K, bool) {
 	var entry = m.getCeilingEntry(key)
 	if entry != nil {
-		return entry.key
+		return entry.key, true
 	}
-	return nil
+	return zeroOf[K](), false
 }
 
 // HigherEntry gets the entry for the least key greater than the specified key
-func (m *Map) HigherEntry(key KeyType) *Entry {
+func (m *Map[K, V]) HigherEntry(key K) *Entry[K, V] {
 	return m.getHigherEntry(key)
 }
 
 // HigherKey returns the least key greater than the specified key
-func (m *Map) HigherKey(key KeyType) KeyType {
+func (m *Map[K, V]) HigherKey(key K) (K, bool) {
 	var entry = m.getHigherEntry(key)
 	if entry != nil {
-		return entry.key
+		return entry.key, true
 	}
-	return nil
+	return zeroOf[K](), false
 }
 
 // Foreach performs the given action for each entry in this map until all entries
 // have been processed or the action panic
-func (m *Map) Foreach(action EntryAction) {
+func (m *Map[K, V]) Foreach(visit util.KeyValVisitor[K, V]) {
 	var ver = m.version
 	for e := m.getFirstEntry(); e != nil; e = successor(e) {
-		action(e.key, e.value)
+		visit(e.key, e.value)
 		if ver != m.version {
 			panic("concurrent map modification")
 		}
@@ -133,8 +140,8 @@ func (m *Map) Foreach(action EntryAction) {
 }
 
 // Keys return list of all keys
-func (m *Map) Keys() []KeyType {
-	var keys = make([]KeyType, 0, m.size)
+func (m *Map[K, V]) Keys() []K {
+	var keys = make([]K, 0, m.size)
 	for e := m.getFirstEntry(); e != nil; e = successor(e) {
 		keys = append(keys, e.key)
 	}
@@ -142,46 +149,46 @@ func (m *Map) Keys() []KeyType {
 }
 
 // Values return list of all values
-func (m *Map) Values() []any {
-	var values = make([]any, 0, m.size)
+func (m *Map[K, V]) Values() []V {
+	var values = make([]V, 0, m.size)
 	for e := m.getFirstEntry(); e != nil; e = successor(e) {
 		values = append(values, e.value)
 	}
 	return values
 }
 
-func (m *Map) Iterator() *EntryIterator {
+func (m *Map[K, V]) Iterator() util.Iterator[*Entry[K, V]] {
 	return NewEntryIterator(m, m.getFirstEntry())
 }
 
-func (m *Map) DescendingIterator() *DescendingEntryIterator {
+func (m *Map[K, V]) DescendingIterator() util.Iterator[*Entry[K, V]] {
 	return NewKeyDescendingEntryIterator(m, m.getLastEntry())
 }
 
-func (m *Map) KeyIterator() *KeyIterator {
+func (m *Map[K, V]) KeyIterator() util.Iterator[K] {
 	return NewKeyIterator(m, m.getFirstEntry())
 }
 
-func (m *Map) DescendingKeyIterator() *DescendingKeyIterator {
+func (m *Map[K, V]) DescendingKeyIterator() util.Iterator[K] {
 	return NewDescendingKeyIterator(m, m.getLastEntry())
 }
 
-func (m *Map) ValueIterator() *ValueIterator {
+func (m *Map[K, V]) ValueIterator() util.Iterator[V] {
 	return NewValueIterator(m, m.getFirstEntry())
 }
 
 // Put associates the specified value with the specified key in this map.
 // If the map previously contained a mapping for the key, the old value is replaced.
-func (m *Map) Put(key KeyType, value any) any {
+func (m *Map[K, V]) Put(key K, value V) V {
 	return m.put(key, value, true)
 }
 
-func (m *Map) PutIfAbsent(key KeyType, value any) any {
+func (m *Map[K, V]) PutIfAbsent(key K, value V) V {
 	return m.put(key, value, false)
 }
 
 // Remove removes the mapping for this key from this TreeMap if present.
-func (m *Map) Remove(key KeyType) bool {
+func (m *Map[K, V]) Remove(key K) bool {
 	var p = m.getEntry(key)
 	if p != nil {
 		m.deleteEntry(p)
@@ -191,7 +198,7 @@ func (m *Map) Remove(key KeyType) bool {
 }
 
 // Clear removes all the mappings from this map.
-func (m *Map) Clear() {
+func (m *Map[K, V]) Clear() {
 	m.version++
 	m.size = 0
 	m.root = nil
@@ -199,7 +206,7 @@ func (m *Map) Clear() {
 
 // Returns the first Entry in the TreeMap (according to the key's order)
 // Returns nil if the TreeMap is empty.
-func (m *Map) getFirstEntry() *Entry {
+func (m *Map[K, V]) getFirstEntry() *Entry[K, V] {
 	var p = m.root
 	if p != nil {
 		for p.left != nil {
@@ -211,7 +218,7 @@ func (m *Map) getFirstEntry() *Entry {
 
 // Returns the last Entry in the TreeMap (according to the key's order)
 // Returns nil if the TreeMap is empty.
-func (m *Map) getLastEntry() *Entry {
+func (m *Map[K, V]) getLastEntry() *Entry[K, V] {
 	var p = m.root
 	if p != nil {
 		for p.right != nil {
@@ -223,10 +230,10 @@ func (m *Map) getLastEntry() *Entry {
 
 // Returns this map's entry for the given key,
 // or nil if the map does not contain an entry for the key.
-func (m *Map) getEntry(key KeyType) *Entry {
+func (m *Map[K, V]) getEntry(key K) *Entry[K, V] {
 	var p = m.root
 	for p != nil {
-		var cmp = key.CompareTo(p.key)
+		var cmp = m.comparator(key, p.key)
 		if cmp < 0 {
 			p = p.left
 		} else if cmp > 0 {
@@ -241,10 +248,10 @@ func (m *Map) getEntry(key KeyType) *Entry {
 // Gets the entry corresponding to the specified key;
 // if no such entry exists, returns the entry for the least key greater than the specified key;
 // if no such entry exists returns nil.
-func (m *Map) getCeilingEntry(key KeyType) *Entry {
+func (m *Map[K, V]) getCeilingEntry(key K) *Entry[K, V] {
 	var p = m.root
 	for p != nil {
-		var cmp = key.CompareTo(p.key)
+		var cmp = m.comparator(key, p.key)
 		if cmp < 0 {
 			if p.left != nil {
 				p = p.left
@@ -273,10 +280,10 @@ func (m *Map) getCeilingEntry(key KeyType) *Entry {
 // Gets the entry corresponding to the specified key;
 // if no such entry exists, returns the entry for the greatest key less than the specified key;
 // if no such entry exists, returns nil.
-func (m *Map) getFloorEntry(key KeyType) *Entry {
+func (m *Map[K, V]) getFloorEntry(key K) *Entry[K, V] {
 	var p = m.root
 	for p != nil {
-		var cmp = key.CompareTo(p.key)
+		var cmp = m.comparator(key, p.key)
 		if cmp > 0 {
 			if p.right != nil {
 				p = p.right
@@ -306,10 +313,10 @@ func (m *Map) getFloorEntry(key KeyType) *Entry {
 // Gets the entry for the least key greater than the specified key;
 // if no such entry exists, returns the entry for the least key greater than the specified key;
 // if no such entry exists returns nil.
-func (m *Map) getHigherEntry(key KeyType) *Entry {
+func (m *Map[K, V]) getHigherEntry(key K) *Entry[K, V] {
 	var p = m.root
 	for p != nil {
-		var cmp = key.CompareTo(p.key)
+		var cmp = m.comparator(key, p.key)
 		if cmp < 0 {
 			if p.left != nil {
 				p = p.left
@@ -335,10 +342,10 @@ func (m *Map) getHigherEntry(key KeyType) *Entry {
 
 // Returns the entry for the greatest key less than the specified key;
 // if no such entry exists (i.e., the least key in the Tree is greater than the specified key), returns nil
-func (m *Map) getLowerEntry(key KeyType) *Entry {
+func (m *Map[K, V]) getLowerEntry(key K) *Entry[K, V] {
 	var p = m.root
 	for p != nil {
-		var cmp = key.CompareTo(p.key)
+		var cmp = m.comparator(key, p.key)
 		if cmp > 0 {
 			if p.right != nil {
 				p = p.right
@@ -362,24 +369,25 @@ func (m *Map) getLowerEntry(key KeyType) *Entry {
 	return nil
 }
 
-func (m *Map) put(key KeyType, value any, replaceOld bool) any {
+func (m *Map[K, V]) put(key K, value V, replaceOld bool) V {
+	var zero = zeroOf[V]()
 	var t = m.root
 	if t == nil {
 		m.addEntryToEmptyMap(key, value)
-		return nil
+		return zero
 	}
 	var cmp int
-	var parent *Entry
+	var parent *Entry[K, V]
 	for {
 		parent = t
-		cmp = key.CompareTo(t.key)
+		cmp = m.comparator(key, t.key)
 		if cmp < 0 {
 			t = t.left
 		} else if cmp > 0 {
 			t = t.right
 		} else {
 			var oldValue = t.value
-			if replaceOld || oldValue == nil {
+			if replaceOld {
 				t.value = value
 			}
 			return oldValue
@@ -389,10 +397,10 @@ func (m *Map) put(key KeyType, value any, replaceOld bool) any {
 		}
 	}
 	m.addEntry(key, value, parent, cmp < 0)
-	return nil
+	return zero
 }
 
-func (m *Map) addEntry(key KeyType, value any, parent *Entry, addToLeft bool) {
+func (m *Map[K, V]) addEntry(key K, value V, parent *Entry[K, V], addToLeft bool) {
 	var entry = NewEntry(key, value, parent)
 	if addToLeft {
 		parent.left = entry
@@ -404,13 +412,13 @@ func (m *Map) addEntry(key KeyType, value any, parent *Entry, addToLeft bool) {
 	m.version++
 }
 
-func (m *Map) addEntryToEmptyMap(key KeyType, value any) {
+func (m *Map[K, V]) addEntryToEmptyMap(key K, value V) {
 	m.root = NewEntry(key, value, nil)
 	m.size = 1
 	m.version++
 }
 
-func (m *Map) deleteEntry(p *Entry) {
+func (m *Map[K, V]) deleteEntry(p *Entry[K, V]) {
 	m.version++
 	m.size--
 
@@ -475,7 +483,7 @@ func (m *Map) deleteEntry(p *Entry) {
 //
 // see original version at http://staff.ustc.edu.cn/~csli/graduate/algorithms/book6/chap14.htm
 
-func (m *Map) rotateLeft(p *Entry) {
+func (m *Map[K, V]) rotateLeft(p *Entry[K, V]) {
 	if p != nil {
 		var r = p.right
 		p.right = r.left
@@ -495,7 +503,7 @@ func (m *Map) rotateLeft(p *Entry) {
 	}
 }
 
-func (m *Map) rotateRight(p *Entry) {
+func (m *Map[K, V]) rotateRight(p *Entry[K, V]) {
 	if p != nil {
 		var l = p.left
 		p.left = l.right
@@ -515,7 +523,7 @@ func (m *Map) rotateRight(p *Entry) {
 	}
 }
 
-func (m *Map) fixAfterInsertion(x *Entry) {
+func (m *Map[K, V]) fixAfterInsertion(x *Entry[K, V]) {
 	x.color = RED
 	for x != nil && x != m.root && x.parent.color == RED {
 		if parentOf(x) == leftOf(parentOf(parentOf(x))) {
@@ -555,7 +563,7 @@ func (m *Map) fixAfterInsertion(x *Entry) {
 	m.root.color = BLACK
 }
 
-func (m *Map) fixAfterDeletion(x *Entry) {
+func (m *Map[K, V]) fixAfterDeletion(x *Entry[K, V]) {
 	for x != m.root && colorOf(x) == BLACK {
 		if x == leftOf(parentOf(x)) {
 			var sib = rightOf(parentOf(x))
