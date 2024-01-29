@@ -81,3 +81,8 @@ func Complex128Cmp(a, b complex128) int {
 	}
 	return 1
 }
+
+func ZeroOf[T any]() T {
+	var zero T
+	return zero
+}

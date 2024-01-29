@@ -14,17 +14,27 @@ import (
 //
 // more details see links below
 // https://github.com/openjdk/jdk/blob/jdk-17+35/src/java.base/share/classes/java/util/TreeMap.java
-type Map[K, V any] struct {
+type Map[K comparable, V any] struct {
 	root       *Entry[K, V]
 	comparator util.Comparator[K]
 	size       int // The number of entries in the tree
 	version    int // The number of structural modifications to the tree.
 }
 
-func New[K, V any](comparator util.Comparator[K]) *Map[K, V] {
+func New[K comparable, V any](comparator util.Comparator[K]) *Map[K, V] {
 	return &Map[K, V]{
 		comparator: comparator,
 	}
+}
+
+func NewFrom[K comparable, V any](comparator util.Comparator[K], unordered map[K]V) *Map[K, V] {
+	var m = &Map[K, V]{
+		comparator: comparator,
+	}
+	for k, v := range unordered {
+		m.Put(k, v)
+	}
+	return m
 }
 
 // Size returns the number of key-value mappings in this map.
@@ -48,7 +58,7 @@ func (m *Map[K, V]) Get(key K) (V, bool) {
 	if p != nil {
 		return p.value, true
 	}
-	return zeroOf[V](), false
+	return util.ZeroOf[V](), false
 }
 
 // GetOrDefault returns the value to which the specified key is mapped,
@@ -95,7 +105,7 @@ func (m *Map[K, V]) FloorKey(key K) (K, bool) {
 	if entry != nil {
 		return entry.key, true
 	}
-	return zeroOf[K](), false
+	return util.ZeroOf[K](), false
 }
 
 // CeilingEntry gets the entry corresponding to the specified key;
@@ -110,7 +120,7 @@ func (m *Map[K, V]) CeilingKey(key K) (K, bool) {
 	if entry != nil {
 		return entry.key, true
 	}
-	return zeroOf[K](), false
+	return util.ZeroOf[K](), false
 }
 
 // HigherEntry gets the entry for the least key greater than the specified key
@@ -124,7 +134,7 @@ func (m *Map[K, V]) HigherKey(key K) (K, bool) {
 	if entry != nil {
 		return entry.key, true
 	}
-	return zeroOf[K](), false
+	return util.ZeroOf[K](), false
 }
 
 // Foreach performs the given action for each entry in this map until all entries
@@ -155,6 +165,14 @@ func (m *Map[K, V]) Values() []V {
 		values = append(values, e.value)
 	}
 	return values
+}
+
+func (m *Map[K, V]) ToUnordered() map[K]V {
+	var unordered = make(map[K]V, m.size)
+	for e := m.getFirstEntry(); e != nil; e = successor(e) {
+		unordered[e.key] = e.value
+	}
+	return unordered
 }
 
 func (m *Map[K, V]) Iterator() util.Iterator[*Entry[K, V]] {
@@ -370,7 +388,7 @@ func (m *Map[K, V]) getLowerEntry(key K) *Entry[K, V] {
 }
 
 func (m *Map[K, V]) put(key K, value V, replaceOld bool) V {
-	var zero = zeroOf[V]()
+	var zero = util.ZeroOf[V]()
 	var t = m.root
 	if t == nil {
 		m.addEntryToEmptyMap(key, value)

@@ -6,44 +6,36 @@
 
 package zset
 
-// Comparable 丐版java.lang.Comparable
-// 内部实现要符合结合律:  (a.CompareTo(b) > 0 && b.CompareTo(c) > 0) implies a.CompareTo(c) > 0
-type Comparable interface {
-	// CompareTo returns an integer comparing two Comparables
-	// a.CompareTo(b) < 0 implies a < b
-	// a.CompareTo(b) > 0 implies a > b
-	// a.CompareTo(b) == 0 implies a == b
-	CompareTo(Comparable) int
-}
-
-type KeyType = Comparable
+import (
+	"gopkg.in/svrkit.v1/collections/util"
+)
 
 // SortedSet 跳表实现的有序字典
-type SortedSet struct {
-	dict map[KeyType]int64 // value and score
-	zsl  *ZSkipList        // indexed linked list
+type SortedSet[K comparable] struct {
+	dict map[K]int64   // value and score
+	zsl  *ZSkipList[K] // indexed linked list
 }
 
-func NewSortedSet() *SortedSet {
-	return &SortedSet{
-		dict: make(map[KeyType]int64),
-		zsl:  NewZSkipList(),
+func NewSortedSet[K comparable](comparator util.Comparator[K]) *SortedSet[K] {
+	return &SortedSet[K]{
+		dict: make(map[K]int64),
+		zsl:  NewZSkipList[K](comparator),
 	}
 }
 
-func (s *SortedSet) Len() int {
+func (s *SortedSet[K]) Len() int {
 	return s.zsl.Len()
 }
 
 // Add 添加或者更新一个元素的score
-func (s *SortedSet) Add(ele KeyType, score int64) bool {
+func (s *SortedSet[K]) Add(ele K, score int64) bool {
 	curscore, found := s.dict[ele]
 	if found {
 		// Remove and re-insert when score changes.
 		if curscore != score {
 			var znode = s.zsl.Delete(curscore, ele)
 			s.zsl.Insert(score, znode.Ele)
-			znode.Ele = nil
+			znode.Ele = util.ZeroOf[K]()
 			s.dict[ele] = score
 		}
 	} else {
@@ -54,7 +46,7 @@ func (s *SortedSet) Add(ele KeyType, score int64) bool {
 }
 
 // Remove 删除一个元素
-func (s *SortedSet) Remove(ele KeyType) bool {
+func (s *SortedSet[K]) Remove(ele K) bool {
 	score, found := s.dict[ele]
 	if found {
 		delete(s.dict, ele)
@@ -65,7 +57,7 @@ func (s *SortedSet) Remove(ele KeyType) bool {
 }
 
 // RemoveRangeByScore 删除score区间[min, max]的元素
-func (s *SortedSet) RemoveRangeByScore(min, max int64) int {
+func (s *SortedSet[K]) RemoveRangeByScore(min, max int64) int {
 	if min > max {
 		return 0
 	}
@@ -73,7 +65,7 @@ func (s *SortedSet) RemoveRangeByScore(min, max int64) int {
 }
 
 // RemoveRangeByRank 删除排名在[start, end]之间的元素，排名从1开始
-func (s *SortedSet) RemoveRangeByRank(start, end int) int {
+func (s *SortedSet[K]) RemoveRangeByRank(start, end int) int {
 	var llen = s.zsl.length
 	if start < 0 {
 		start = llen + start
@@ -94,7 +86,7 @@ func (s *SortedSet) RemoveRangeByRank(start, end int) int {
 }
 
 // Count score在[min, max]之间的元素数量
-func (s *SortedSet) Count(min, max int64) int {
+func (s *SortedSet[K]) Count(min, max int64) int {
 	if min > max {
 		return 0
 	}
@@ -120,7 +112,7 @@ func (s *SortedSet) Count(min, max int64) int {
 }
 
 // GetRank 返回元素的排名，排名从0开始，如果元素不在zset里，返回-1
-func (s *SortedSet) GetRank(ele KeyType, reverse bool) int {
+func (s *SortedSet[K]) GetRank(ele K, reverse bool) int {
 	score, found := s.dict[ele]
 	if found {
 		var llen = s.zsl.Len()
@@ -135,7 +127,7 @@ func (s *SortedSet) GetRank(ele KeyType, reverse bool) int {
 }
 
 // GetScore 获取元素的score
-func (s *SortedSet) GetScore(ele KeyType) int64 {
+func (s *SortedSet[K]) GetScore(ele K) int64 {
 	if score, found := s.dict[ele]; found {
 		return score
 	}
@@ -143,7 +135,7 @@ func (s *SortedSet) GetScore(ele KeyType) int64 {
 }
 
 // GetRange 返回排名在[start, end]之间的所有元素
-func (s *SortedSet) GetRange(start, end int, reverse bool) []KeyType {
+func (s *SortedSet[K]) GetRange(start, end int, reverse bool) []K {
 	var llen = s.zsl.length
 	if start < 0 {
 		start = llen + start
@@ -161,7 +153,7 @@ func (s *SortedSet) GetRange(start, end int, reverse bool) []KeyType {
 		end = llen - 1
 	}
 	var rangeLen = end - start + 1
-	var node *ZSkipListNode
+	var node *ZSkipListNode[K]
 	// Check if starting point is trivial, before doing log(N) lookup.
 	if reverse {
 		node = s.zsl.tail
@@ -174,7 +166,7 @@ func (s *SortedSet) GetRange(start, end int, reverse bool) []KeyType {
 			node = s.zsl.GetElementByRank(start + 1)
 		}
 	}
-	var result = make([]KeyType, 0, rangeLen)
+	var result = make([]K, 0, rangeLen)
 	for rangeLen > 0 {
 		result = append(result, node.Ele)
 		if reverse {
@@ -188,11 +180,11 @@ func (s *SortedSet) GetRange(start, end int, reverse bool) []KeyType {
 }
 
 // GetRangeByScore 获取score在[min, max]之间的所有元素
-func (s *SortedSet) GetRangeByScore(min, max int64, reverse bool) []KeyType {
+func (s *SortedSet[K]) GetRangeByScore(min, max int64, reverse bool) []K {
 	if min > max {
 		return nil
 	}
-	var node *ZSkipListNode
+	var node *ZSkipListNode[K]
 	// If reversed, get the last node in range as starting point
 	if reverse {
 		node = s.zsl.LastInRange(min, max)
@@ -202,7 +194,7 @@ func (s *SortedSet) GetRangeByScore(min, max int64, reverse bool) []KeyType {
 	if node == nil {
 		return nil
 	}
-	var result []KeyType
+	var result []K
 	for node != nil {
 		// Abort when the node is no longer in range
 		if reverse {

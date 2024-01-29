@@ -3,6 +3,10 @@
 
 package treemap
 
+import (
+	"gopkg.in/svrkit.v1/collections/util"
+)
+
 // Color Red-black mechanics
 type Color uint8
 
@@ -22,14 +26,14 @@ func (c Color) String() string {
 	}
 }
 
-type Entry[K, V any] struct {
+type Entry[K comparable, V any] struct {
 	left, right, parent *Entry[K, V]
 	color               Color
 	key                 K
 	value               V
 }
 
-func NewEntry[K, V any](key K, val V, parent *Entry[K, V]) *Entry[K, V] {
+func NewEntry[K comparable, V any](key K, val V, parent *Entry[K, V]) *Entry[K, V] {
 	return &Entry[K, V]{
 		key:    key,
 		value:  val,
@@ -59,46 +63,41 @@ func (e *Entry[K, V]) SetValue(val V) V {
 //	return e.key == other.key && e.value == other.value
 //}
 
-func zeroOf[K any]() K {
-	var zero K
-	return zero
-}
-
-func keyOf[K, V any](e *Entry[K, V]) (K, bool) {
+func keyOf[K comparable, V any](e *Entry[K, V]) (K, bool) {
 	if e != nil {
 		return e.key, true
 	}
-	return zeroOf[K](), false
+	return util.ZeroOf[K](), false
 }
 
-func colorOf[K, V any](p *Entry[K, V]) Color {
+func colorOf[K comparable, V any](p *Entry[K, V]) Color {
 	if p != nil {
 		return p.color
 	}
 	return BLACK
 }
 
-func parentOf[K, V any](p *Entry[K, V]) *Entry[K, V] {
+func parentOf[K comparable, V any](p *Entry[K, V]) *Entry[K, V] {
 	if p != nil {
 		return p.parent
 	}
 	return nil
 }
 
-func setColor[K, V any](p *Entry[K, V], color Color) {
+func setColor[K comparable, V any](p *Entry[K, V], color Color) {
 	if p != nil {
 		p.color = color
 	}
 }
 
-func leftOf[K, V any](p *Entry[K, V]) *Entry[K, V] {
+func leftOf[K comparable, V any](p *Entry[K, V]) *Entry[K, V] {
 	if p != nil {
 		return p.left
 	}
 	return nil
 }
 
-func rightOf[K, V any](p *Entry[K, V]) *Entry[K, V] {
+func rightOf[K comparable, V any](p *Entry[K, V]) *Entry[K, V] {
 	if p != nil {
 		return p.right
 	}
@@ -106,7 +105,7 @@ func rightOf[K, V any](p *Entry[K, V]) *Entry[K, V] {
 }
 
 // Returns the successor of the specified Entry, or null if no such.
-func successor[K, V any](t *Entry[K, V]) *Entry[K, V] {
+func successor[K comparable, V any](t *Entry[K, V]) *Entry[K, V] {
 	if t == nil {
 		return nil
 	} else if t.right != nil {
@@ -127,7 +126,7 @@ func successor[K, V any](t *Entry[K, V]) *Entry[K, V] {
 }
 
 // Returns the predecessor of the specified Entry, or null if no such.
-func predecessor[K, V any](t *Entry[K, V]) *Entry[K, V] {
+func predecessor[K comparable, V any](t *Entry[K, V]) *Entry[K, V] {
 	if t == nil {
 		return nil
 	} else if t.left != nil {

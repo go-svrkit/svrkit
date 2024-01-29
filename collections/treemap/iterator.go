@@ -3,14 +3,14 @@
 
 package treemap
 
-type EntryIterator[K, V any] struct {
+type EntryIterator[K comparable, V any] struct {
 	owner           *Map[K, V]
 	next            *Entry[K, V]
 	lastReturned    *Entry[K, V]
 	expectedVersion int
 }
 
-func NewEntryIterator[K, V any](m *Map[K, V], first *Entry[K, V]) *EntryIterator[K, V] {
+func NewEntryIterator[K comparable, V any](m *Map[K, V], first *Entry[K, V]) *EntryIterator[K, V] {
 	return &EntryIterator[K, V]{
 		owner:           m,
 		next:            first,
@@ -68,11 +68,11 @@ func (it *EntryIterator[K, V]) Remove() {
 	it.lastReturned = nil
 }
 
-type DescendingEntryIterator[K, V any] struct {
+type DescendingEntryIterator[K comparable, V any] struct {
 	EntryIterator[K, V]
 }
 
-func NewKeyDescendingEntryIterator[K, V any](m *Map[K, V], first *Entry[K, V]) *DescendingEntryIterator[K, V] {
+func NewKeyDescendingEntryIterator[K comparable, V any](m *Map[K, V], first *Entry[K, V]) *DescendingEntryIterator[K, V] {
 	return &DescendingEntryIterator[K, V]{
 		EntryIterator: EntryIterator[K, V]{
 			owner:           m,
@@ -86,11 +86,11 @@ func (it *DescendingEntryIterator[K, V]) Next() *Entry[K, V] {
 	return it.prevEntry()
 }
 
-type KeyIterator[K, V any] struct {
+type KeyIterator[K comparable, V any] struct {
 	EntryIterator[K, V]
 }
 
-func NewKeyIterator[K, V any](m *Map[K, V], first *Entry[K, V]) *KeyIterator[K, V] {
+func NewKeyIterator[K comparable, V any](m *Map[K, V], first *Entry[K, V]) *KeyIterator[K, V] {
 	return &KeyIterator[K, V]{
 		EntryIterator: EntryIterator[K, V]{
 			owner:           m,
@@ -104,11 +104,11 @@ func (it *KeyIterator[K, V]) Next() K {
 	return it.nextEntry().key
 }
 
-type DescendingKeyIterator[K, V any] struct {
+type DescendingKeyIterator[K comparable, V any] struct {
 	EntryIterator[K, V]
 }
 
-func NewDescendingKeyIterator[K, V any](m *Map[K, V], first *Entry[K, V]) *DescendingKeyIterator[K, V] {
+func NewDescendingKeyIterator[K comparable, V any](m *Map[K, V], first *Entry[K, V]) *DescendingKeyIterator[K, V] {
 	return &DescendingKeyIterator[K, V]{
 		EntryIterator: EntryIterator[K, V]{
 			owner:           m,
@@ -134,11 +134,11 @@ func (it *DescendingKeyIterator[K, V]) Remove() {
 	it.expectedVersion = it.owner.version
 }
 
-type ValueIterator[K, V any] struct {
+type ValueIterator[K comparable, V any] struct {
 	EntryIterator[K, V]
 }
 
-func NewValueIterator[K, V any](m *Map[K, V], first *Entry[K, V]) *ValueIterator[K, V] {
+func NewValueIterator[K comparable, V any](m *Map[K, V], first *Entry[K, V]) *ValueIterator[K, V] {
 	return &ValueIterator[K, V]{
 		EntryIterator: EntryIterator[K, V]{
 			owner:           m,
