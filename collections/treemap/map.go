@@ -8,11 +8,11 @@ import (
 )
 
 // Map is a Red-Black tree based map implementation.
-// The map is sorted according to the Comparable natural ordering of its keys
+// The map is sorted by a comparator passed to its constructor.
 // This implementation provides guaranteed log(n) time cost for the
 // ContainsKey(), Get(), Put() and Remove() operations.
 //
-// more details see links below
+// detail code taken from JDK, see links below
 // https://github.com/openjdk/jdk/blob/jdk-17+35/src/java.base/share/classes/java/util/TreeMap.java
 type Map[K comparable, V any] struct {
 	root       *Entry[K, V]

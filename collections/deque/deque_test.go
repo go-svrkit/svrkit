@@ -1,4 +1,4 @@
-package queue
+package deque
 
 import "testing"
 
@@ -203,7 +203,7 @@ func TestDequeueBack(t *testing.T) {
 
 func TestDequeueNew(t *testing.T) {
 	minCap := 64
-	q := NewDeque[string](0, minCap)
+	q := New[string](0, minCap)
 	if q.Cap() != 0 {
 		t.Fatal("should not have allowcated mem yet")
 	}
@@ -217,7 +217,7 @@ func TestDequeueNew(t *testing.T) {
 	}
 
 	curCap := 128
-	q = NewDeque[string](curCap, minCap)
+	q = New[string](curCap, minCap)
 	if q.Cap() != curCap {
 		t.Fatalf("Cap() should return %d, got %d", curCap, q.Cap())
 	}

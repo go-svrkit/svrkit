@@ -56,13 +56,6 @@ func (e *Entry[K, V]) SetValue(val V) V {
 	return old
 }
 
-//func (e *Entry[K, V]) Equals(other *Entry[K, V]) bool {
-//	if e == other {
-//		return true
-//	}
-//	return e.key == other.key && e.value == other.value
-//}
-
 func keyOf[K comparable, V any](e *Entry[K, V]) (K, bool) {
 	if e != nil {
 		return e.key, true

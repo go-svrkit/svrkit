@@ -1,4 +1,4 @@
-package queue
+package deque
 
 // Deque generalizes a queue and a stack, to efficiently add and remove items at
 // either end with O(1) performance.  Queue (FIFO) operations are supported using
@@ -44,7 +44,7 @@ type Deque[T any] struct {
 	minCap int
 }
 
-// NewDeque creates a new Deque, optionally setting the current and minimum capacity
+// New creates a new Deque, optionally setting the current and minimum capacity
 // when non-zero values are given for these.
 //
 // To create a Deque with capacity to store 2048 items without resizing, and
@@ -58,7 +58,7 @@ type Deque[T any] struct {
 //	d := deque.New(0, 64)
 //
 // Note that interface{} values supplied here are rounded up to the nearest power of 2.
-func NewDeque[T any](size ...int) *Deque[T] {
+func New[T any](size ...int) *Deque[T] {
 	var capacity, minimum int
 	if len(size) >= 1 {
 		capacity = size[0]
@@ -95,6 +95,10 @@ func (q *Deque[T]) Cap() int {
 // Len returns the number of elements currently stored in the queue.
 func (q *Deque[T]) Len() int {
 	return q.count
+}
+
+func (q *Deque[T]) IsEmpty() bool {
+	return q.count == 0
 }
 
 // PushBack appends an element to the back of the queue.  Implements FIFO when
