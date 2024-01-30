@@ -4,21 +4,19 @@
 package consistent
 
 import (
-	"sort"
-
-	"gopkg.in/svrkit.v1/collections/slice"
+	"slices"
 )
 
 const (
-	ReplicaCount = 20 // 虚拟节点数量
+	ReplicaCount = 20 // 固定大小的虚拟节点数量
 )
 
 // Consistent 一致性hash
 // code inspired by github.com/stathat/consistent
 type Consistent struct {
-	circle     map[uint32]int32 // hash环
+	circle     map[uint32]int32 // <hash, 节点ID>
 	nodes      map[int32]bool   // 所有节点
-	sortedHash []uint32         // 环hash排序
+	sortedHash []uint32         //
 }
 
 func New() *Consistent {
@@ -28,24 +26,39 @@ func New() *Consistent {
 	}
 }
 
-// AddNode 添加一个节点
-func (c *Consistent) AddNode(node int32) {
-	var hi = int64(node) << 32
-	for i := 0; i < ReplicaCount; i++ {
-		var hash = hashIntKey(hi | int64(i+1))
-		c.circle[hash] = node
+func (c *Consistent) Len() int {
+	return len(c.nodes)
+}
+
+// eltKey generates a string key for an element with an index.
+func (c *Consistent) eltKey(elt int32, idx int) int64 {
+	return int64(elt)<<32 + int64(idx)
+}
+
+// Add inserts an int32 node in the consistent hash.
+func (c *Consistent) Add(nodes ...int32) {
+	if len(nodes) == 0 {
+		return
 	}
-	c.nodes[node] = true
+	for _, node := range nodes {
+		for i := 0; i < ReplicaCount; i++ {
+			var key = c.eltKey(node, i)
+			c.circle[hashIntKey(key)] = node
+		}
+		c.nodes[node] = true
+	}
 	c.updateSortedHash()
 }
 
-func (c *Consistent) RemoveNode(node int32) {
-	var hi = int64(node) << 32
-	for i := 0; i < ReplicaCount; i++ {
-		var hash = hashIntKey(hi | int64(i+1))
-		delete(c.circle, hash)
+// Remove removes an int32 node from the hash.
+func (c *Consistent) Remove(nodes ...int32) {
+	for _, node := range nodes {
+		for i := 0; i < ReplicaCount; i++ {
+			var key = c.eltKey(node, i)
+			delete(c.circle, hashIntKey(key))
+		}
+		delete(c.nodes, node)
 	}
-	delete(c.nodes, node)
 	c.updateSortedHash()
 }
 
@@ -57,29 +70,29 @@ func (c *Consistent) Clear() {
 
 func (c *Consistent) Members() []int32 {
 	var nodes = make([]int32, len(c.nodes))
-	for node, _ := range c.nodes {
-		nodes = append(nodes, node)
+	for elem, _ := range c.nodes {
+		nodes = append(nodes, elem)
 	}
 	return nodes
 }
 
-// GetNode 获取一个节点
-func (c *Consistent) GetNode(key int64) int32 {
+// Get returns an element close to where name hashes to in the circle.
+func (c *Consistent) Get(name string) int32 {
 	if len(c.circle) == 0 {
 		return 0
 	}
-	var i = c.search(hashIntKey(key))
+	var i = c.search(hashKey(name))
 	var hash = c.sortedHash[i]
 	return c.circle[hash]
 }
 
-func (c *Consistent) GetNodeBy(key string) int32 {
+// GetBy returns an element close to where name hashes to in the circle.
+func (c *Consistent) GetBy(key int64) int32 {
 	if len(c.circle) == 0 {
 		return 0
 	}
-	var i = c.search(hashStrKey(key))
-	var hash = c.sortedHash[i]
-	return c.circle[hash]
+	var i = c.search(hashIntKey(key))
+	return c.circle[c.sortedHash[i]]
 }
 
 // fnv hash
@@ -96,7 +109,7 @@ func hashIntKey(key int64) uint32 {
 }
 
 // fnv hash
-func hashStrKey(key string) uint32 {
+func hashKey(key string) uint32 {
 	// see src/hash/fnv.go sum32a.Write
 	var hash = uint32(2166136261)
 	for i := 0; i < len(key); i++ {
@@ -107,13 +120,10 @@ func hashStrKey(key string) uint32 {
 	return hash
 }
 
-// 找到第一个大于等于`hash`的节点
 func (c *Consistent) search(hash uint32) int {
-	var i = sort.Search(len(c.sortedHash), func(x int) bool {
-		return c.sortedHash[x] > hash
-	})
+	i, _ := slices.BinarySearch(c.sortedHash, hash)
 	if i >= len(c.sortedHash) {
-		i = 0
+		i = 0 // fallback to first node
 	}
 	return i
 }
@@ -126,6 +136,6 @@ func (c *Consistent) updateSortedHash() {
 	for k, _ := range c.circle {
 		hashes = append(hashes, k)
 	}
-	sort.Sort(slice.Uint32Slice(hashes))
+	slices.Sort(hashes)
 	c.sortedHash = hashes
 }
