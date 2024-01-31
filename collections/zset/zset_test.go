@@ -1,350 +1,176 @@
-// Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
-// See accompanying files LICENSE.txt
-
 package zset
 
 import (
 	"fmt"
-	"log"
-	"math/rand"
-	"os"
-	"sort"
+	"strconv"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"gopkg.in/svrkit.v1/collections/util"
 )
 
-var _ = os.Open
-
-type testPlayer struct {
-	Uid   int64
-	Point int64
-	Level int16
+func TestSortedSet_Add(t *testing.T) {
+	var st = NewSortedSet(util.OrderedCmp[string])
+	assert.Equal(t, 0, st.Len())
+	st.Add("key", 10)
+	st.Add("key", 20)
+	st.Add("key", 30)
+	assert.Equal(t, 1, st.Len())
+	assert.Equal(t, int64(30), st.GetScore("key"))
 }
 
-func (p *testPlayer) CompareTo(other KeyType) int {
-	var rhs = other.(*testPlayer)
-	if p.Uid > rhs.Uid {
-		return 1
-	} else if p.Uid < rhs.Uid {
-		return -1
+func TestSortedSet_Remove(t *testing.T) {
+	var st = NewSortedSet(util.OrderedCmp[string])
+	assert.False(t, st.Remove("key"))
+	assert.Equal(t, 0, st.Len())
+	st.Add("key", 10)
+	assert.Equal(t, 1, st.Len())
+	assert.True(t, st.Remove("key"))
+	assert.Equal(t, 0, st.Len())
+
+	for i := 1; i <= 100; i++ {
+		var key = fmt.Sprintf("test%d", i)
+		st.Add(key, int64(i))
 	}
-	return 0
-}
+	assert.Equal(t, 100, st.Len())
 
-func ExampleZSkipList() {
-	var playerMap = make(map[int64]*testPlayer)
-	var zset = NewSortedSet()
-
-	//简单的测试角色数据
-	var p1 = &testPlayer{Uid: 1001, Level: 12, Point: 2012}
-	var p2 = &testPlayer{Uid: 1002, Level: 13, Point: 2015}
-	var p3 = &testPlayer{Uid: 1003, Level: 14, Point: 2014}
-	var p4 = &testPlayer{Uid: 1004, Level: 11, Point: 2014}
-	var p5 = &testPlayer{Uid: 1005, Level: 14, Point: 2011}
-	playerMap[p1.Uid] = p1
-	playerMap[p2.Uid] = p2
-	playerMap[p3.Uid] = p3
-	playerMap[p4.Uid] = p4
-	playerMap[p5.Uid] = p5
-
-	//插入角色数据到zskiplist
-	for _, v := range playerMap {
-		zset.Add(v, v.Point)
+	for i := 100; i > 0; i-- {
+		var key = fmt.Sprintf("test%d", i)
+		assert.True(t, st.Remove(key))
 	}
-
-	//打印调试信息
-	// fmt.Printf("%v\n", zset.zsl)
-
-	//获取角色的排行信息
-	var rank = zset.GetRank(p1, false) // in ascend order
-	var myRank = zset.Len() - rank + 1 // get descend rank
-	fmt.Printf("rank of %d: %d\n", p1.Uid, myRank)
-
-	//根据排行获取角色信息
-	//var node = zset.GetRank(rank)
-	//var player = playerMap[node.Obj.Uuid()]
-	//fmt.Printf("rank at %d is: %s\n", rank, player.name)
-	//
-	////遍历整个zskiplist
-	//zsl.Walk(true, func(rank int, v RankInterface) bool {
-	//	fmt.Printf("rank %d: %v", rank, v)
-	//	return true
-	//})
-	//
-	////从zset中删除p1
-	//if !zset.Remove(p1) {
-	//	// error handling
-	//}
-	//
-	//p1.score += 10
-	//if zset.Insert(p1.score, p1) == nil {
-	//	// error handling
-	//}
+	assert.Equal(t, 0, st.Len())
 }
 
-func makeTestPlayers(count, maxScore int, dupScore bool) map[int64]*testPlayer {
-	var set = make(map[int64]*testPlayer, count)
-	var nextID int64 = 100000000
-	for i := 0; i < count; i++ {
-		nextID++
-		obj := &testPlayer{
-			Uid:   nextID,
-			Level: int16(rand.Int() % 60),
-		}
-		if dupScore {
-			obj.Point = int64(rand.Int()%maxScore) + 1
-		} else {
-			obj.Point = int64(maxScore)
-			maxScore--
-		}
-		set[obj.Uid] = obj
+func TestSortedSet_Count(t *testing.T) {
+	var st = NewSortedSet(util.OrderedCmp[string])
+	for i := 1; i <= 100; i++ {
+		var key = fmt.Sprintf("test%d", i)
+		st.Add(key, int64(i))
 	}
-	return set
-}
+	assert.Equal(t, 100, st.Len())
 
-func dumpToFile(zsl *ZSkipList, filename string) {
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		log.Fatalf("OpenFile: %v", err)
+	tests := []struct {
+		min      int64
+		max      int64
+		expected int
+	}{
+		{0, 1000, 100},
+		{1, 100, 100},
+		{2, 100, 99},
+		{100, 100, 1},
+		{101, 100, 0},
+		{101, 200, 0},
+		{0, 0, 0},
+		{0, -1, 0},
+		{-100, -1, 0},
+		{101, 0, 0},
+		{101, -1, 0},
 	}
-	zsl.Dump(f)
-}
-
-func dumpSliceToFile(players []*testPlayer, filename string) {
-	f, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
-	if err != nil {
-		log.Fatalf("OpenFile: %v", err)
-	}
-
-	fmt.Fprint(f, "    uid    rank    score    level\n")
-	var count = 0
-	for i := 0; i < len(players); i++ {
-		var item = players[i]
-		count++
-		fmt.Fprintf(f, "%8d, %5d %5d, %4d\n", item.Uid, count, item.Point, item.Level)
-	}
-	f.Close()
-}
-
-func mapToSlice(set map[int64]*testPlayer) []*testPlayer {
-	var slice = make([]*testPlayer, 0, len(set))
-	for _, v := range set {
-		slice = append(slice, v)
-	}
-	return slice
-}
-
-type tester interface {
-	Fatalf(format string, args ...interface{})
-}
-
-// Update score(zskiplist insert and delete) in many times
-func manyUpdate(t tester, zset *SortedSet, set map[int64]*testPlayer, count int) {
-	for _, v := range set {
-		var oldScore = v.Point
-		if !zset.Remove(v) {
-			t.Fatalf("manyUpdate: delete old item[%d-%d] fail", v.Uid, v.Point)
-			break
-		}
-		v.Point += int64(rand.Uint32()%100) + 1
-		if !zset.Add(v, v.Point) {
-			t.Fatalf("manyUpdate: insert new item[%d-%d] fail, old score: %d", v.Uid, v.Point, oldScore)
-			break
-		}
-		count--
-		if count == 0 {
-			break
-		}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, st.Count(tc.min, tc.max))
 	}
 }
 
-func TestZSkipListInsertRemove(t *testing.T) {
-	const units = 20000
-	var set = makeTestPlayers(units, 1000, true)
-	var zset = NewSortedSet()
-	var maxTurn = 10
-	for i := 0; i < maxTurn; i++ {
-		// First insert all player to zskiplist
-		for _, v := range set {
-			if !zset.Add(v, v.Point) {
-				t.Fatalf("insert item[%d-%d] failed", v.Point, v.Uid)
-			}
-		}
-		if zset.Len() != units {
-			t.Fatalf("unexpected skiplist element count, %d != %d", zset.Len(), units)
-		}
+func TestSortedSet_GetRank(t *testing.T) {
+	var st = NewSortedSet(util.OrderedCmp[string])
+	for i := 100; i > 0; i-- {
+		var key = fmt.Sprintf("test%d", i)
+		st.Add(key, int64(i))
+	}
+	assert.Equal(t, 100, st.Len())
 
-		// Second remove all players in zskiplist
-		for _, v := range set {
-			if !zset.Remove(v) {
-				t.Fatalf("delete item[%d-%d] failed", v.Point, v.Uid)
-			}
-		}
-
-		if zset.Len() != 0 {
-			t.Fatalf("skiplist not empty")
-		}
+	tests := []struct {
+		input    string
+		reverse  bool
+		expected int // 排名从0开始
+	}{
+		{"test100", false, 99},
+		{"test100", true, 0},
+		{"test1", false, 0},
+		{"test1", true, 99},
+		{"test50", false, 49},
+		{"test1234", false, -1},
+		{"test1234", true, -1},
+	}
+	for _, tc := range tests {
+		assert.Equal(t, tc.expected, st.GetRank(tc.input, tc.reverse))
 	}
 }
 
-func TestZSkipListChangedInsert(t *testing.T) {
-	const units = 20000
-	var set = makeTestPlayers(units, 1000, true)
-	var zset = NewSortedSet()
-
-	// Insert all player to zskiplist
-	for _, v := range set {
-		if !zset.Add(v, v.Point) {
-			t.Fatalf("insert item[%d-%d] failed", v.Point, v.Uid)
-		}
+func TestSortedSet_GetScore(t *testing.T) {
+	var st = NewSortedSet(util.OrderedCmp[string])
+	for i := 100; i > 0; i-- {
+		var key = fmt.Sprintf("test%d", i)
+		st.Add(key, int64(i))
 	}
+	assert.Equal(t, 100, st.Len())
 
-	// Update half elements
-	manyUpdate(t, zset, set, units/2)
-
-	if zset.Len() != units {
-		t.Fatalf("unexpected skiplist element count")
-	}
-
-	// Delete all elements
-	for _, v := range set {
-		if !zset.Remove(v) {
-			t.Fatalf("delete set item[%d-%d] failed", v.Point, v.Uid)
-		}
-	}
-	if zset.Len() != 0 {
-		t.Fatalf("skiplist expected empty, but got size: %d", zset.Len())
+	for i := 1; i <= 100; i++ {
+		var key = fmt.Sprintf("test%d", i)
+		assert.Equal(t, int64(i), st.GetScore(key))
 	}
 }
 
-func TestZSkipListGetRank(t *testing.T) {
-	const units = 20000
-	var set = makeTestPlayers(units, units, false)
-	var zset = NewSortedSet()
-	for _, v := range set {
-		if !zset.Add(v, v.Point) {
-			t.Fatalf("insert item[%d-%d] failed", v.Point, v.Uid)
-		}
+func TestSortedSet_GetRange(t *testing.T) {
+	var st = NewSortedSet(util.OrderedCmp[string])
+	for i := 1; i <= 20; i++ {
+		st.Add(strconv.Itoa(i), int64(i))
 	}
+	assert.Equal(t, 20, st.Len())
 
-	// rank by sort package
-	var ranks = mapToSlice(set)
-	sort.SliceStable(ranks, func(i, j int) bool {
-		return ranks[i].Point < ranks[j].Point
-	})
-
-	for i := len(ranks); i > 0; i-- {
-		var v = ranks[i-1]
-		var thisRank = len(ranks) - i + 1
-		var rank = zset.Len() - zset.GetRank(v, false)
-		if rank != thisRank {
-			t.Fatalf("%v not equal at rank, %d != %d", v, rank, thisRank)
-			break
-		}
+	// 排名从0开始
+	tests := []struct {
+		start    int
+		end      int
+		reverse  bool
+		expected string
+	}{
+		{1, 10, false, "2,3,4,5,6,7,8,9,10,11"},
+		{1, 10, true, "19,18,17,16,15,14,13,12,11,10"},
+		{0, 0, false, "1"},
+		{0, 0, true, "20"},
+		{0, 1, false, "1,2"},
+		{0, 1, true, "20,19"},
+		{0, 2, false, "1,2,3"},
+		{0, 2, true, "20,19,18"},
+		{0, 3, false, "1,2,3,4"},
+		{0, 3, true, "20,19,18,17"},
+		{0, 4, false, "1,2,3,4,5"},
+		{0, 4, true, "20,19,18,17,16"},
 	}
-}
-
-func TestZSkipListUpdateGetRank(t *testing.T) {
-	const units = 20000
-	var set = makeTestPlayers(units, units, false)
-	var zset = NewSortedSet()
-	for _, v := range set {
-		if !zset.Add(v, v.Point) {
-			t.Fatalf("insert item[%d-%d] failed", v.Point, v.Uid)
-		}
-	}
-
-	var maxTurn = 10
-	for i := 0; i < maxTurn; i++ {
-		manyUpdate(t, zset, set, units/2)
-
-		// rank by sort package
-		var ranks = mapToSlice(set)
-		sort.SliceStable(ranks, func(i, j int) bool {
-			return ranks[i].Point < ranks[j].Point
-		})
-
-		for i := len(ranks); i > 0; i-- {
-			var v = ranks[i-1]
-			var rank = zset.GetRank(v, false)
-			var myRank = zset.Len() - rank + 1
-			var thisRank = len(ranks) - i + 1
-			if myRank != thisRank {
-				var nodes = zset.GetRange(rank, rank, false)
-				if len(nodes) == 0 {
-					t.Fatalf("%v GetElementByRank return nil: %d", v, rank)
-					break
-				}
-			}
-		}
+	for _, tc := range tests {
+		var list = st.GetRange(tc.start, tc.end, tc.reverse)
+		var output = strings.Join(list, ",")
+		assert.Equal(t, tc.expected, output)
 	}
 }
 
-func BenchmarkZSkipListInsert(b *testing.B) {
-	b.StopTimer()
-	var zset = NewSortedSet()
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		obj := &testPlayer{
-			Uid:   int64(i),
-			Level: int16(i),
-			Point: int64(i),
-		}
-		if !zset.Add(obj, obj.Point) {
-			b.Fatalf("insert item[%d-%d] failed", obj.Point, obj.Uid)
-		}
+func TestSortedSet_GetRangeByScore(t *testing.T) {
+	var st = NewSortedSet(util.OrderedCmp[string])
+	for i := 1; i <= 20; i++ {
+		st.Add(strconv.Itoa(i), int64(i))
 	}
-}
+	assert.Equal(t, 20, st.Len())
 
-func BenchmarkZSkipListUpdate(b *testing.B) {
-	b.StopTimer()
-	const units = 20000
-	var set = makeTestPlayers(units, units, true)
-	var zset = NewSortedSet()
-	for _, v := range set {
-		if !zset.Add(v, v.Point) {
-			b.Fatalf("insert item[%d-%d] failed", v.Point, v.Uid)
-		}
+	// 排名从0开始
+	tests := []struct {
+		min      int64
+		max      int64
+		reverse  bool
+		expected string
+	}{
+		{1, 10, false, "1,2,3,4,5,6,7,8,9,10"},
+		{1, 10, true, "10,9,8,7,6,5,4,3,2,1"},
+		{0, 0, false, ""},
+		{0, 0, true, ""},
+		{0, 1, false, "1"},
+		{18, 20, false, "18,19,20"},
+		{18, 20, true, "20,19,18"},
 	}
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		manyUpdate(b, zset, set, units/2)
-	}
-}
-
-func BenchmarkZSkipListGetRank(b *testing.B) {
-	b.StopTimer()
-	const units = 20000
-	var set = makeTestPlayers(units, units, false)
-	var zset = NewSortedSet()
-	for _, v := range set {
-		if !zset.Add(v, v.Point) {
-			b.Fatalf("insert item[%d-%d] failed", v.Point, v.Uid)
-		}
-	}
-	b.StartTimer()
-	for i := 1; i < b.N; i++ {
-		var obj *testPlayer
-		for _, v := range set {
-			obj = v
-			break
-		}
-		zset.GetRank(obj, false)
-	}
-}
-
-func BenchmarkZSkipListGetElementByRank(b *testing.B) {
-	b.StopTimer()
-	const units = 20000
-	var set = makeTestPlayers(units, units, false)
-	var zset = NewSortedSet()
-	for _, v := range set {
-		if !zset.Add(v, v.Point) {
-			b.Fatalf("insert item[%d-%d] failed", v.Point, v.Uid)
-		}
-	}
-	b.StartTimer()
-	for i := 0; i < b.N; i++ {
-		var rank = (i % units) + 1
-		zset.GetRange(rank, rank, false)
+	for _, tc := range tests {
+		var list = st.GetRangeByScore(tc.min, tc.max, tc.reverse)
+		var output = strings.Join(list, ",")
+		assert.Equal(t, tc.expected, output)
 	}
 }

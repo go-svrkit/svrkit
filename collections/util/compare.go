@@ -40,6 +40,10 @@ func OrderedCmp[T cmp.Ordered](a, b T) int {
 	return cmp.Compare(a, b)
 }
 
+func ReverseOrderedCmp[T cmp.Ordered](a, b T) int {
+	return -cmp.Compare(a, b)
+}
+
 func Reversed[T any](cmp Comparator[T]) Comparator[T] {
 	return func(a, b T) int {
 		return -cmp(a, b)

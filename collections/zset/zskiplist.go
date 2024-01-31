@@ -7,70 +7,71 @@
 // pointers being only at "level 1". This allows to traverse the list
 // from tail to head.
 //
-// https://github.com/redis/redis/blob/6.2/src/t_zset.c
+// https://github.com/redis/redis/blob/6.2.14/src/t_zset.c
 // https://en.wikipedia.org/wiki/Skip_list
 
 package zset
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"math/rand"
+	"strings"
 
 	"gopkg.in/svrkit.v1/collections/util"
 )
 
 const (
-	ZSKIPLIST_MAXLEVEL = 32   // Should be enough
+	ZSKIPLIST_MAXLEVEL = 32   // Should be enough for 2^64 elements
 	ZSKIPLIST_P        = 0.25 // Skiplist P = 1/4
 )
 
 // each level of list node
-type zskipListLevel[K comparable] struct {
-	forward *ZSkipListNode[K] // link to next node
+type zskipListLevel[T comparable] struct {
+	forward *ZSkipListNode[T] // link to next node
 	span    int               // node # between this and forward link
 }
 
 // ZSkipListNode
-type ZSkipListNode[K comparable] struct {
-	Ele      K
+type ZSkipListNode[T comparable] struct {
+	Ele      T
 	Score    int64
-	backward *ZSkipListNode[K]
-	level    []zskipListLevel[K]
+	backward *ZSkipListNode[T]
+	level    []zskipListLevel[T]
 }
 
-func newZSkipListNode[K comparable](level int, score int64, element K) *ZSkipListNode[K] {
-	return &ZSkipListNode[K]{
-		Ele:   element,
+func newZSkipListNode[T comparable](level int, score int64, elem T) *ZSkipListNode[T] {
+	return &ZSkipListNode[T]{
+		Ele:   elem,
 		Score: score,
-		level: make([]zskipListLevel[K], level),
+		level: make([]zskipListLevel[T], level),
 	}
 }
 
-func (n *ZSkipListNode[K]) Before() *ZSkipListNode[K] {
+func (n *ZSkipListNode[T]) Before() *ZSkipListNode[T] {
 	return n.backward
 }
 
 // Next return next forward pointer
-func (n *ZSkipListNode[K]) Next() *ZSkipListNode[K] {
+func (n *ZSkipListNode[T]) Next() *ZSkipListNode[T] {
 	return n.level[0].forward
 }
 
 // ZSkipList 带索引的排序链表
-type ZSkipList[K comparable] struct {
-	head       *ZSkipListNode[K]  // 头结点
-	tail       *ZSkipListNode[K]  // 尾节点（最大值节点）
-	comparator util.Comparator[K] //
+type ZSkipList[T comparable] struct {
+	head       *ZSkipListNode[T]  // 头结点
+	tail       *ZSkipListNode[T]  // 尾节点（最大值节点）
+	comparator util.Comparator[T] //
 	length     int                // 节点数
 	level      int                // 层级
 }
 
-func NewZSkipList[K comparable](comparator util.Comparator[K]) *ZSkipList[K] {
-	return &ZSkipList[K]{
+func NewZSkipList[T comparable](comparator util.Comparator[T]) *ZSkipList[T] {
+	var zero = util.ZeroOf[T]()
+	return &ZSkipList[T]{
 		level:      1,
 		comparator: comparator,
-		head:       newZSkipListNode[K](ZSKIPLIST_MAXLEVEL, 0, nil),
+		head:       newZSkipListNode[T](ZSKIPLIST_MAXLEVEL, 0, zero),
 	}
 }
 
@@ -86,40 +87,50 @@ func zslRandLevel() int {
 		}
 	}
 	if level > ZSKIPLIST_MAXLEVEL {
-		level = ZSKIPLIST_MAXLEVEL
+		return ZSKIPLIST_MAXLEVEL
 	}
 	return level
 }
 
-// Len 链表的节点数量
-func (zsl *ZSkipList[K]) Len() int {
+func (zsl *ZSkipList[T]) Len() int {
 	return zsl.length
 }
 
-// Height 链表的层级
-func (zsl *ZSkipList[K]) Height() int {
+func (zsl *ZSkipList[T]) Height() int {
 	return zsl.level
 }
 
-// HeadNode 头结点
-func (zsl *ZSkipList[K]) HeadNode() *ZSkipListNode[K] {
+func (zsl *ZSkipList[T]) HeadNode() *ZSkipListNode[T] {
 	return zsl.head.level[0].forward
 }
 
-// TailNode 尾节点
-func (zsl *ZSkipList[K]) TailNode() *ZSkipListNode[K] {
+func (zsl *ZSkipList[T]) TailNode() *ZSkipListNode[T] {
 	return zsl.tail
 }
 
+func (zsl *ZSkipList[T]) Range(action func(score int64, elem T)) {
+	var node = zsl.head.level[0].forward
+	for node != nil {
+		action(node.Score, node.Ele)
+		if len(node.level) > 0 {
+			node = node.level[0].forward
+		} else {
+			node = nil
+		}
+	}
+}
+
 // Insert 插入一个不存在的节点
-func (zsl *ZSkipList[K]) Insert(score int64, ele K) *ZSkipListNode[K] {
-	var update [ZSKIPLIST_MAXLEVEL]*ZSkipListNode[K]
+func (zsl *ZSkipList[T]) Insert(score int64, ele T) *ZSkipListNode[T] {
+	var update [ZSKIPLIST_MAXLEVEL]*ZSkipListNode[T]
 	var rank [ZSKIPLIST_MAXLEVEL]int
 
 	var x = zsl.head
 	for i := zsl.level - 1; i >= 0; i-- {
 		// store rank that is crossed to reach the insert position
-		if i != zsl.level-1 {
+		if i == zsl.level-1 {
+			rank[i] = 0
+		} else {
 			rank[i] = rank[i+1]
 		}
 		for x.level[i].forward != nil &&
@@ -157,10 +168,10 @@ func (zsl *ZSkipList[K]) Insert(score int64, ele K) *ZSkipListNode[K] {
 	for i := level; i < zsl.level; i++ {
 		update[i].level[i].span++
 	}
-	if update[0] != zsl.head {
-		x.backward = update[0]
-	} else {
+	if update[0] == zsl.head {
 		x.backward = nil
+	} else {
+		x.backward = update[0]
 	}
 	if x.level[0].forward != nil {
 		x.level[0].forward.backward = x
@@ -172,7 +183,7 @@ func (zsl *ZSkipList[K]) Insert(score int64, ele K) *ZSkipListNode[K] {
 }
 
 // 删除一个节点
-func (zsl *ZSkipList[K]) deleteNode(x *ZSkipListNode[K], update []*ZSkipListNode[K]) {
+func (zsl *ZSkipList[T]) deleteNode(x *ZSkipListNode[T], update []*ZSkipListNode[T]) {
 	for i := 0; i < zsl.level; i++ {
 		if update[i].level[i].forward == x {
 			update[i].level[i].span += x.level[i].span - 1
@@ -193,8 +204,8 @@ func (zsl *ZSkipList[K]) deleteNode(x *ZSkipListNode[K], update []*ZSkipListNode
 }
 
 // Delete 删除对应score的节点
-func (zsl *ZSkipList[K]) Delete(score int64, ele K) *ZSkipListNode[K] {
-	var update [ZSKIPLIST_MAXLEVEL]*ZSkipListNode[K]
+func (zsl *ZSkipList[T]) Delete(score int64, ele T) *ZSkipListNode[T] {
+	var update [ZSKIPLIST_MAXLEVEL]*ZSkipListNode[T]
 	var x = zsl.head
 	for i := zsl.level - 1; i >= 0; i-- {
 		for x.level[i].forward != nil &&
@@ -214,17 +225,17 @@ func (zsl *ZSkipList[K]) Delete(score int64, ele K) *ZSkipListNode[K] {
 			zsl.deleteNode(x, update[:])
 			return x
 		}
-		// log.Printf("zskiplist need delete %v, but found %v\n", ele, x.Ele)
 	}
 	return nil // not found
 }
 
 // UpdateScore 更新分数
-func (zsl *ZSkipList[K]) UpdateScore(ele K, curScore, newScore int64) *ZSkipListNode[K] {
-	var update [ZSKIPLIST_MAXLEVEL]*ZSkipListNode[K]
-	var x = zsl.head
+func (zsl *ZSkipList[T]) UpdateScore(ele T, curScore, newScore int64) *ZSkipListNode[T] {
+	var update [ZSKIPLIST_MAXLEVEL]*ZSkipListNode[T]
+
 	// We need to seek to element to update to start: this is useful anyway,
 	// we'll have to update or remove it.
+	var x = zsl.head
 	for i := zsl.level - 1; i >= 0; i-- {
 		for x.level[i].forward != nil &&
 			(x.level[i].forward.Score < curScore ||
@@ -250,13 +261,13 @@ func (zsl *ZSkipList[K]) UpdateScore(ele K, curScore, newScore int64) *ZSkipList
 	// one at a different place.
 	zsl.deleteNode(x, update[:])
 	var newNode = zsl.Insert(newScore, x.Ele)
-	x.Ele = util.ZeroOf[K]() // free the node now since zsl.Insert created a new one.
+	x.Ele = util.ZeroOf[T]()
 	return newNode
 }
 
-// DeleteRangeByRank 删除排名在[start-end]之间的节点，排名从1开始
-func (zsl *ZSkipList[K]) DeleteRangeByRank(start, end int, dict map[K]int64) int {
-	var update [ZSKIPLIST_MAXLEVEL]*ZSkipListNode[K]
+// DeleteRangeByRank delete nodes with rank [rank >= start && rank <= end]
+func (zsl *ZSkipList[T]) DeleteRangeByRank(start, end int, dict map[T]int64) int {
+	var update [ZSKIPLIST_MAXLEVEL]*ZSkipListNode[T]
 	var traversed, removed int
 	var x = zsl.head
 	for i := zsl.level - 1; i >= 0; i-- {
@@ -279,13 +290,13 @@ func (zsl *ZSkipList[K]) DeleteRangeByRank(start, end int, dict map[K]int64) int
 	return removed
 }
 
-// DeleteRangeByScore 删除score在[min-max]之间的节点
-func (zsl *ZSkipList[K]) DeleteRangeByScore(min, max int64, dict map[K]int64) int {
-	var update [ZSKIPLIST_MAXLEVEL]*ZSkipListNode[K]
+// DeleteRangeByScore delete nodes with [score >= min && score <= max]
+func (zsl *ZSkipList[T]) DeleteRangeByScore(min, max int64, dict map[T]int64) int {
+	var update [ZSKIPLIST_MAXLEVEL]*ZSkipListNode[T]
 	var removed int
 	var x = zsl.head
 	for i := zsl.level - 1; i >= 0; i-- {
-		for x.level[i].forward != nil && x.level[i].forward.Score <= min {
+		for x.level[i].forward != nil && x.level[i].forward.Score < min {
 			x = x.level[i].forward
 		}
 		update[i] = x
@@ -306,7 +317,7 @@ func (zsl *ZSkipList[K]) DeleteRangeByScore(min, max int64, dict map[K]int64) in
 }
 
 // GetRank 获取score所在的排名，排名从1开始
-func (zsl *ZSkipList[K]) GetRank(score int64, ele K) int {
+func (zsl *ZSkipList[T]) GetRank(score int64, ele T) int {
 	var rank = 0
 	var x = zsl.head
 	for i := zsl.level - 1; i >= 0; i-- {
@@ -319,7 +330,7 @@ func (zsl *ZSkipList[K]) GetRank(score int64, ele K) int {
 		}
 
 		// x might be equal to zsl->header, so test if obj is non-nil
-		if x.Ele != nil && zsl.comparator(x.Ele, ele) == 0 {
+		if zsl.comparator(x.Ele, ele) == 0 {
 			return rank
 		}
 	}
@@ -327,7 +338,7 @@ func (zsl *ZSkipList[K]) GetRank(score int64, ele K) int {
 }
 
 // GetElementByRank 根据排名获得节点，排名从1开始
-func (zsl *ZSkipList[K]) GetElementByRank(rank int) *ZSkipListNode[K] {
+func (zsl *ZSkipList[T]) GetElementByRank(rank int) *ZSkipListNode[T] {
 	var tranversed = 0
 	var x = zsl.head
 	for i := zsl.level - 1; i >= 0; i-- {
@@ -343,7 +354,7 @@ func (zsl *ZSkipList[K]) GetElementByRank(rank int) *ZSkipListNode[K] {
 }
 
 // IsInRange Returns if there is a part of the zset is in range.
-func (zsl *ZSkipList[K]) IsInRange(min, max int64) bool {
+func (zsl *ZSkipList[T]) IsInRange(min, max int64) bool {
 	if min > max {
 		return false
 	}
@@ -358,8 +369,7 @@ func (zsl *ZSkipList[K]) IsInRange(min, max int64) bool {
 	return true
 }
 
-// FirstInRange
-// Find the first node that is contained in the specified range.
+// FirstInRange find the first node that is contained in the specified range.
 // Returns NULL when no element is contained in the range.
 func (zsl *ZSkipList[K]) FirstInRange(min, max int64) *ZSkipListNode[K] {
 	if !zsl.IsInRange(min, max) {
@@ -380,8 +390,7 @@ func (zsl *ZSkipList[K]) FirstInRange(min, max int64) *ZSkipListNode[K] {
 	return x
 }
 
-// LastInRange
-// Find the last node that is contained in the specified range.
+// LastInRange find the last node that is contained in the specified range.
 // Returns NULL when no element is contained in the range.
 func (zsl *ZSkipList[K]) LastInRange(min, max int64) *ZSkipListNode[K] {
 	if !zsl.IsInRange(min, max) {
@@ -401,97 +410,28 @@ func (zsl *ZSkipList[K]) LastInRange(min, max int64) *ZSkipListNode[K] {
 	return x
 }
 
-func (zsl *ZSkipList[K]) String() string {
-	var buf bytes.Buffer
-	zsl.Dump(&buf)
-	return buf.String()
+func (zsl *ZSkipList[T]) Clear() {
+	zsl.level = 1
+	zsl.head = newZSkipListNode[T](ZSKIPLIST_MAXLEVEL, 0, util.ZeroOf[T]())
+	zsl.tail = nil
 }
 
-// Dump whole list to w, mostly for debugging
-func (zsl *ZSkipList[K]) Dump(w io.Writer) {
-	var x = zsl.head
-	// dump header
-	var line bytes.Buffer
-	n, _ := fmt.Fprintf(w, "<             head> ")
-	prePadding(&line, n)
-	for i := 0; i < zsl.level; i++ {
-		if i < len(x.level) {
-			if x.level[i].forward != nil {
-				fmt.Fprintf(w, "[%2d] ", x.level[i].span)
-				line.WriteString("  |  ")
-			}
-		}
-	}
-	fmt.Fprint(w, "\n")
-	line.WriteByte('\n')
-	line.WriteTo(w)
-
-	// dump list
-	var count = 0
-	x = x.level[0].forward
-	for x != nil {
-		count++
-		zsl.dumpNode(w, x, count)
-		if len(x.level) > 0 {
-			x = x.level[0].forward
-		}
-	}
-
-	// dump tail end
-	fmt.Fprintf(w, "<             end> ")
-	for i := 0; i < zsl.level; i++ {
-		fmt.Fprintf(w, "  _  ")
-	}
-	fmt.Fprintf(w, "\n")
+func (zsl *ZSkipList[T]) ToMap() map[T]int64 {
+	var dict = make(map[T]int64, zsl.Len())
+	zsl.Range(func(score int64, elem T) {
+		dict[elem] = score
+	})
+	return dict
 }
 
-func (zsl *ZSkipList[K]) dumpNode(w io.Writer, node *ZSkipListNode[K], count int) {
-	var line bytes.Buffer
-	var ss = fmt.Sprintf("%v", node.Ele)
-	n, _ := fmt.Fprintf(w, "<%6d %4d, %s> ", node.Score, count, ss)
-	prePadding(&line, n)
-	for i := 0; i < zsl.level; i++ {
-		if i < len(node.level) {
-			fmt.Fprintf(w, "[%2d] ", node.level[i].span)
-			line.WriteString("  |  ")
-		} else {
-			if shouldLinkVertical(zsl.head, node, i) {
-				fmt.Fprintf(w, "  |  ")
-				line.WriteString("  |  ")
-			}
-		}
-	}
-	fmt.Fprint(w, "\n")
-	line.WriteByte('\n')
-	line.WriteTo(w)
+func (zsl *ZSkipList[T]) Dump(w io.Writer) {
+	zsl.Range(func(score int64, elem T) {
+		fmt.Fprintf(w, "%v=%d,", elem, score)
+	})
 }
 
-func shouldLinkVertical[K comparable](head, node *ZSkipListNode[K], level int) bool {
-	if node.backward == nil { // first element
-		return head.level[level].span >= 1
-	}
-	var tranversed = 0
-	var prev *ZSkipListNode[K]
-	var x = node.backward
-	for x != nil {
-		if level >= len(x.level) {
-			return true
-		}
-		if x.level[level].span > tranversed {
-			return true
-		}
-		tranversed++
-		prev = x
-		x = x.backward
-	}
-	if prev != nil && level < len(prev.level) {
-		return prev.level[level].span >= tranversed
-	}
-	return false
-}
-
-func prePadding(line *bytes.Buffer, n int) {
-	for i := 0; i < n; i++ {
-		line.WriteByte(' ')
-	}
+func (zsl *ZSkipList[T]) String() string {
+	var sb strings.Builder
+	zsl.Dump(&sb)
+	return sb.String()
 }
