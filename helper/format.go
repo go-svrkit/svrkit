@@ -16,6 +16,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"gopkg.in/svrkit.v1/slog"
+	"gopkg.in/svrkit.v1/strutil"
 )
 
 const (
@@ -57,7 +58,7 @@ func JSONStringify(v any) string {
 		slog.Errorf("JSONStringify %T: %v", v, err)
 		return ""
 	}
-	return BytesAsStr(data)
+	return strutil.BytesAsStr(data)
 }
 
 // Proto2JSON 序列化proto消息为json格式

@@ -108,8 +108,8 @@ func (c *EtcdClient) IsNodeExist(ctx context.Context, name string) (bool, error)
 	return resp.Count > 0, nil
 }
 
-// GetKeyValue 获取key的值
-func (c *EtcdClient) GetKeyValue(ctx context.Context, name string) ([]byte, error) {
+// GetKey 获取key的值
+func (c *EtcdClient) GetKey(ctx context.Context, name string) ([]byte, error) {
 	var key = c.FormatKey(name)
 	resp, err := c.client.Get(ctx, key)
 	if err != nil {

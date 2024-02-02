@@ -5,6 +5,7 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"gopkg.in/svrkit.v1/qnet"
@@ -30,7 +31,7 @@ var (
 func Register(service IService) {
 	var serviceType = service.ServiceType()
 	if dup := serviceRegistry[serviceType]; dup != nil {
-		panic("duplicate service type registration")
+		panic(fmt.Sprintf("duplicate registration of service type %d", serviceType))
 	}
 	serviceRegistry[serviceType] = reflect.TypeOf(service).Elem()
 }
@@ -38,9 +39,9 @@ func Register(service IService) {
 // CreateService 创建服务
 func CreateService(serviceType uint16) IService {
 	rtype, found := serviceRegistry[serviceType]
-	if !found {
-		return nil
+	if found {
+		var rval = reflect.New(rtype)
+		return rval.Interface().(IService)
 	}
-	var rval = reflect.New(rtype)
-	return rval.Interface().(IService)
+	return nil
 }
