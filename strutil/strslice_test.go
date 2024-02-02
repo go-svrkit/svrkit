@@ -1,13 +1,11 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
-package helper
+package strutil
 
 import (
 	"bytes"
 	"testing"
-
-	"gopkg.in/svrkit.v1/strutil"
 )
 
 func checkStrEqual(t *testing.T, s1, s2 string) {
@@ -23,20 +21,20 @@ func checkBytesEqual(t *testing.T, b1, b2 []byte) {
 }
 
 func TestBytesAsString(t *testing.T) {
-	var rawbytes = strutil.RandBytes(1024)
+	var rawbytes = RandBytes(1024)
 	var s = BytesAsStr(rawbytes)
 	checkStrEqual(t, string(rawbytes), s)
 }
 
 func TestStringAsBytes(t *testing.T) {
-	var text = strutil.RandString(1024)
+	var text = RandString(1024)
 	var b = StrAsBytes(text)
 	checkBytesEqual(t, []byte(text), b)
 }
 
 func BenchmarkBytesToString(b *testing.B) {
 	b.StopTimer()
-	var rawbytes = strutil.RandBytes(2048)
+	var rawbytes = RandBytes(2048)
 	b.StartTimer()
 	var text string
 	for i := 0; i < 100000; i++ {
@@ -47,7 +45,7 @@ func BenchmarkBytesToString(b *testing.B) {
 
 func BenchmarkBytesAsString(b *testing.B) {
 	b.StopTimer()
-	var rawbytes = strutil.RandBytes(2048)
+	var rawbytes = RandBytes(2048)
 	b.StartTimer()
 	var text string
 	for i := 0; i < 100000; i++ {
@@ -58,7 +56,7 @@ func BenchmarkBytesAsString(b *testing.B) {
 
 func BenchmarkStringToBytes(b *testing.B) {
 	b.StopTimer()
-	var text = strutil.RandString(2048)
+	var text = RandString(2048)
 	b.StartTimer()
 	var rawbytes []byte
 	for i := 0; i < 100000; i++ {
@@ -69,7 +67,7 @@ func BenchmarkStringToBytes(b *testing.B) {
 
 func BenchmarkStringAsBytes(b *testing.B) {
 	b.StopTimer()
-	var text = strutil.RandString(2048)
+	var text = RandString(2048)
 	b.StartTimer()
 	var rawbytes []byte
 	for i := 0; i < 100000; i++ {
