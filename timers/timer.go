@@ -23,55 +23,87 @@ const (
 	ActionExecRunner = 2
 )
 
-var (
-	guard       sync.Mutex
-	running     atomic.Bool
-	timeouts    = make(map[int64]*TimeoutMsg, DefaultQueueCapacity)
-	timeoutChan = make(chan *TimeoutMsg, DefaultTimeoutCapacity)
-	defTimer    = NewDefaultTimerQueue()
-)
+type TimeoutMsg struct {
+	Owner    int64 // 定时器归属
+	Deadline int64 //
+	Arg      int64 // 此参数会落地
+	Action   int32 //
+	Data     any   // 此参数不会落地
+}
 
 // TimerScheduler 定时器
 type TimerScheduler interface {
-	Start() error
-	Shutdown()
-
 	Size() int
-	IsPending(timerId int64) bool
+	IsPending(tid int64) bool
 
 	TimedOutChan() <-chan int64
+	Range(func(id, deadline int64))
 
-	AddTimer(delayMs int64) int64
-	AddTimerAt(deadline int64) int64
-	CancelTimer(timerId int64) bool
+	AddTimeout(tid int64, delayMs int64)
+	AddTimeoutAt(tid int64, deadline int64)
+	CancelTimeout(tid int64) bool
+
+	Start() error
+	Shutdown()
 }
 
-type TimeoutMsg struct {
-	Owner  int64 // 定时器归属
-	Action int32 //
-	Param  int32 //
-	Data   any   //
+var (
+	gLock        sync.Mutex
+	gRunning     atomic.Bool
+	gTid         atomic.Int64
+	gTimer       TimerScheduler
+	gTimeouts    = make(map[int64]*TimeoutMsg, 1024)
+	gTimeoutChan = make(chan *TimeoutMsg, DefaultTimeoutCapacity)
+)
+
+func init() {
+	gTimer = NewTimerQueue()
 }
 
 func currentUnixNano() int64 {
 	return datetime.NowNano()
 }
 
-func AddTimerAt(deadline int64, msg *TimeoutMsg) int64 {
-	if running.CompareAndSwap(false, true) {
-		defTimer.Start()
-		go timeoutWorker()
-	}
-	var tid = defTimer.AddTimerAt(deadline)
-	guard.Lock()
-	timeouts[tid] = msg
-	guard.Unlock()
-	return tid
+func SetDefault(timer TimerScheduler) {
+	gLock.Lock()
+	gTimer = timer
+	gLock.Unlock()
 }
 
-func AddTimer(owner, duration int64, action, param int32, data any) int64 {
+func IsPending(timerId int64) bool {
+	gLock.Lock()
+	msg, found := gTimeouts[timerId]
+	gLock.Unlock()
+	return found && msg != nil
+}
+
+func TimedOutChan() <-chan *TimeoutMsg {
+	return gTimeoutChan
+}
+
+func Cancel(timerId int64) {
+	gLock.Lock()
+	delete(gTimeouts, timerId)
+	gLock.Unlock()
+	gTimer.CancelTimeout(timerId)
+}
+
+func AddTimerAt(deadline int64, msg *TimeoutMsg) int64 {
+	if gRunning.CompareAndSwap(false, true) {
+		gTimer.Start()
+		go gTimerWorker()
+	}
+	gLock.Lock()
+	var id = gTid.Add(1)
+	gTimer.AddTimeoutAt(id, deadline)
+	gTimeouts[id] = msg
+	gLock.Unlock()
+	return id
+}
+
+func AddTimer(owner, duration int64, action int32, arg int64, data any) int64 {
 	var deadline = currentUnixNano() + duration*int64(time.Millisecond)
-	var msg = &TimeoutMsg{Owner: owner, Action: action, Param: param, Data: data}
+	var msg = &TimeoutMsg{Owner: owner, Deadline: deadline, Action: action, Arg: arg, Data: data}
 	return AddTimerAt(deadline, msg)
 }
 
@@ -100,42 +132,33 @@ func Schedule(duration int64, runnable sched.IRunner) int64 {
 	return ScheduleAt(deadline, runnable)
 }
 
-func IsPending(timerId int64) bool {
-	guard.Lock()
-	msg, found := timeouts[timerId]
-	guard.Unlock()
-	return found && msg != nil
-}
+func gTimerWorker() {
+	defer slog.Infof("timer worker exit")
 
-func Cancel(timerId int64) {
-	guard.Lock()
-	delete(timeouts, timerId)
-	guard.Unlock()
-	defTimer.CancelTimer(timerId)
-}
-
-func TimedOutChan() <-chan *TimeoutMsg {
-	return timeoutChan
+	for gRunning.Load() {
+		select {
+		case tid := <-gTimer.TimedOutChan():
+			gLock.Lock()
+			var msg = gTimeouts[tid]
+			delete(gTimeouts, tid)
+			gLock.Unlock()
+			gTimeoutChan <- msg
+		}
+	}
 }
 
 func Shutdown() {
-	defTimer.Shutdown()
-	defTimer = nil
-}
-
-func timeoutWorker() {
-	defer slog.Infof("timer worker exit")
-
-	for running.Load() {
-		select {
-		case id := <-defTimer.TimedOutChan():
-			guard.Lock()
-			var msg = timeouts[id]
-			delete(timeouts, id)
-			guard.Unlock()
-			timeoutChan <- msg
-		}
+	if !gRunning.CompareAndSwap(true, false) {
+		return
 	}
+	gTimer.Shutdown()
+
+	gLock.Lock()
+	defer gLock.Unlock()
+
+	gTimer = nil
+	close(gTimeoutChan)
+	gTimeoutChan = nil
 }
 
 func Preprocess(msg *TimeoutMsg) bool {

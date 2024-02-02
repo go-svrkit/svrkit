@@ -9,41 +9,21 @@ import (
 	"github.com/vmihailenco/msgpack/v5"
 )
 
-type TimerInfo struct {
+type TimerData struct {
 	Id       int64 `json:"id"`
 	Deadline int64 `json:"deadline"`
 	Owner    int64 `json:"owner"`
 	Action   int32 `json:"action"`
-	Param    int32 `json:"param,omitempty"`
+	Arg      int64 `json:"arg,omitempty"`
 }
 
-type AllTimersInfo struct {
-	Timers []TimerInfo `json:"timers"`
+type AllTimersData struct {
+	Timers []TimerData `json:"timers"`
 	NextId int64       `json:"next_id"`
 }
 
-func DumpTimers() ([]byte, error) {
-	guard.Lock()
-	defer guard.Unlock()
-
-	var info = &AllTimersInfo{
-		NextId: defTimer.NextID(),
-	}
-	info.Timers = make([]TimerInfo, 0, defTimer.Size())
-	defTimer.RangeTimers(func(node *timerNode) {
-		var msg = timeouts[node.id]
-		if msg != nil && msg.Owner > 0 {
-			var ti = TimerInfo{
-				Id:       node.id,
-				Deadline: node.deadline,
-				Owner:    msg.Owner,
-				Action:   msg.Action,
-				Param:    msg.Param,
-			}
-			info.Timers = append(info.Timers, ti)
-		}
-	})
-	// use MsgPack format (https://msgpack.org/) to encode timer data
+// MarshalTimers use msgpack format (https://msgpack.org/) to encode timer data
+func MarshalTimers(info *AllTimersData) ([]byte, error) {
 	var buf bytes.Buffer
 	var enc = msgpack.NewEncoder(&buf)
 	enc.SetOmitEmpty(true)
@@ -54,25 +34,48 @@ func DumpTimers() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func LoadTimers(data []byte) error {
-	var info AllTimersInfo
+func UnmarshalTimers(data []byte, info *AllTimersData) error {
 	var dec = msgpack.NewDecoder(bytes.NewReader(data))
 	dec.SetCustomStructTag("json")
 	if err := dec.Decode(&info); err != nil {
 		return err
 	}
+	return nil
+}
 
-	guard.Lock()
-	defTimer.nextId.Store(info.NextId)
-	guard.Unlock()
+func DumpTimers() *AllTimersData {
+	gLock.Lock()
+	defer gLock.Unlock()
+
+	var info = &AllTimersData{}
+	info.NextId = gTid.Add(1)
+	info.Timers = make([]TimerData, 0, len(gTimeouts))
+	for id, timeout := range gTimeouts {
+		if timeout != nil && timeout.Owner > 0 {
+			var ti = TimerData{
+				Id:       id,
+				Deadline: timeout.Deadline,
+				Owner:    timeout.Owner,
+				Action:   timeout.Action,
+				Arg:      timeout.Arg,
+			}
+			info.Timers = append(info.Timers, ti)
+		}
+	}
+	return info
+}
+
+func RestoreTimers(info *AllTimersData) {
+	gLock.Lock()
+	gTid.Store(info.NextId)
+	gLock.Unlock()
 
 	for _, ti := range info.Timers {
 		var msg = &TimeoutMsg{
 			Owner:  ti.Owner,
 			Action: ti.Action,
-			Param:  ti.Param,
+			Arg:    ti.Arg,
 		}
 		AddTimerAt(ti.Deadline, msg)
 	}
-	return nil
 }
