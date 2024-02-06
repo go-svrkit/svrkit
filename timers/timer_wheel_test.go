@@ -4,11 +4,17 @@
 package timers
 
 import (
+	"log"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func init() {
+	var logger = log.Default()
+	logger.SetFlags(logger.Flags() | log.Lmicroseconds | log.Lshortfile)
+}
 
 func TestTimerWheel_Start(t *testing.T) {
 	var timer = NewTimerWheel()
@@ -23,19 +29,19 @@ func TestTimerWheel_Start(t *testing.T) {
 
 func TestTimerWheel_IsPending(t *testing.T) {
 	var timer = NewTimerWheel()
+
 	defer timer.Shutdown()
 
 	timer.AddTimeout(1, 0)
-	timer.AddTimeout(2, 50)
-	timer.AddTimeout(3, 500)
+	timer.AddTimeout(2, 150)
+	timer.AddTimeout(3, 200)
 	assert.Equal(t, 3, timer.Size())
 
 	assert.True(t, timer.IsPending(3))
 	assert.False(t, timer.IsPending(4))
 
 	timer.Start()
-
-	<-time.NewTimer(400 * time.Millisecond).C
+	<-time.NewTimer(20000 * time.Millisecond).C
 
 	assert.False(t, timer.IsPending(1))
 	assert.False(t, timer.IsPending(2))
@@ -51,14 +57,14 @@ func TestTimerWheel_AddTimeoutAt(t *testing.T) {
 
 	var now = currentUnixNano()
 	timer.AddTimeoutAt(1, now)
-	timer.AddTimeoutAt(2, now+int64(50*time.Millisecond))
+	timer.AddTimeoutAt(2, now+int64(150*time.Millisecond))
 	timer.AddTimeoutAt(3, now+int64(500*time.Millisecond))
 	assert.True(t, timer.IsPending(1))
 	assert.True(t, timer.IsPending(2))
 	assert.True(t, timer.IsPending(3))
 	assert.Equal(t, 3, timer.Size())
 
-	<-time.NewTimer(10 * time.Millisecond).C
+	<-time.NewTimer(100 * time.Millisecond).C
 	var timeouts = pollExpiredTimeouts(timer)
 	assert.Equal(t, 1, len(timeouts))
 	assert.Equal(t, int64(1), timeouts[0])
@@ -86,7 +92,7 @@ func TestTimerWheel_CancelTimeout(t *testing.T) {
 	defer timer.Shutdown()
 
 	timer.AddTimeout(1, 0)
-	timer.AddTimeout(2, 50)
+	timer.AddTimeout(2, 150)
 	timer.AddTimeout(3, 500)
 	assert.True(t, timer.IsPending(1))
 	assert.True(t, timer.IsPending(2))
@@ -98,7 +104,7 @@ func TestTimerWheel_CancelTimeout(t *testing.T) {
 	assert.Equal(t, 2, timer.Size())
 	assert.Equal(t, 0, len(timeouts))
 
-	<-time.NewTimer(20 * time.Millisecond).C
+	<-time.NewTimer(100 * time.Millisecond).C
 	assert.True(t, timer.IsPending(3))
 	assert.False(t, timer.CancelTimeout(2))
 	assert.True(t, timer.CancelTimeout(3))
@@ -110,7 +116,7 @@ func TestTimerWheel_Range(t *testing.T) {
 	var now = currentUnixNano()
 	var d = map[int64]int64{
 		1: now,
-		2: now + 50,
+		2: now + 150,
 		3: now + 500,
 	}
 	for tid, delay := range d {

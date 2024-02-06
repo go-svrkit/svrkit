@@ -9,7 +9,7 @@ import (
 
 const (
 	DateLayout      = "2006-01-02T15:04:05"
-	TimestampLayout = "2006-01-02T15:04:05.999"
+	TimestampLayout = "2006-01-02T15:04:05.000"
 
 	MsPerSecond = 1000
 	MsPerMinute = 60 * MsPerSecond
@@ -32,7 +32,11 @@ func FormatTime(t time.Time) string {
 }
 
 func FormatMsTime(ms int64) string {
-	return FormatTime(Ms2Time(ms))
+	return Ms2Time(ms).Format(TimestampLayout)
+}
+
+func FormatNanoTime(nano int64) string {
+	return time.Unix(0, nano).Format(TimestampLayout)
 }
 
 func Ms2Time(ms int64) time.Time {

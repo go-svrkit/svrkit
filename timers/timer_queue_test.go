@@ -37,7 +37,7 @@ func TestTimerQueue_IsPending(t *testing.T) {
 	defer timer.Shutdown()
 
 	timer.AddTimeout(1, 0)
-	timer.AddTimeout(2, 50)
+	timer.AddTimeout(2, 150)
 	timer.AddTimeout(3, 500)
 	assert.Equal(t, 3, timer.Size())
 
@@ -62,17 +62,18 @@ func TestTimerQueue_AddTimeoutAt(t *testing.T) {
 
 	var now = currentUnixNano()
 	timer.AddTimeoutAt(1, now)
-	timer.AddTimeoutAt(2, now+int64(50*time.Millisecond))
+	timer.AddTimeoutAt(2, now+int64(150*time.Millisecond))
 	timer.AddTimeoutAt(3, now+int64(500*time.Millisecond))
 	assert.True(t, timer.IsPending(1))
 	assert.True(t, timer.IsPending(2))
 	assert.True(t, timer.IsPending(3))
 	assert.Equal(t, 3, timer.Size())
 
-	<-time.NewTimer(10 * time.Millisecond).C
-	var timeouts = pollExpiredTimeouts(timer)
-	assert.Equal(t, 1, len(timeouts))
-	assert.Equal(t, int64(1), timeouts[0])
+	<-time.NewTimer(50 * time.Millisecond).C
+	var timedOut = pollExpiredTimeouts(timer)
+	assert.Equal(t, 1, len(timedOut))
+	assert.Equal(t, 1, len(timedOut))
+	assert.Equal(t, int64(1), timedOut[0])
 
 	assert.Equal(t, 2, timer.Size())
 	assert.False(t, timer.IsPending(1))
@@ -80,10 +81,10 @@ func TestTimerQueue_AddTimeoutAt(t *testing.T) {
 	assert.True(t, timer.IsPending(3))
 
 	<-time.NewTimer(500 * time.Millisecond).C
-	timeouts = pollExpiredTimeouts(timer)
-	assert.Equal(t, 2, len(timeouts))
-	assert.Equal(t, int64(2), timeouts[0])
-	assert.Equal(t, int64(3), timeouts[1])
+	timedOut = pollExpiredTimeouts(timer)
+	assert.Equal(t, 2, len(timedOut))
+	assert.Equal(t, int64(2), timedOut[0])
+	assert.Equal(t, int64(3), timedOut[1])
 
 	assert.Equal(t, 0, timer.Size())
 	assert.False(t, timer.IsPending(1))
@@ -97,7 +98,7 @@ func TestTimerQueue_CancelTimeout(t *testing.T) {
 	defer timer.Shutdown()
 
 	timer.AddTimeout(1, 0)
-	timer.AddTimeout(2, 50)
+	timer.AddTimeout(2, 150)
 	timer.AddTimeout(3, 500)
 	assert.True(t, timer.IsPending(1))
 	assert.True(t, timer.IsPending(2))
@@ -109,10 +110,11 @@ func TestTimerQueue_CancelTimeout(t *testing.T) {
 	assert.Equal(t, 2, timer.Size())
 	assert.Equal(t, 0, len(timeouts))
 
-	<-time.NewTimer(20 * time.Millisecond).C
+	<-time.NewTimer(50 * time.Millisecond).C
 	assert.True(t, timer.IsPending(3))
 	assert.False(t, timer.CancelTimeout(2))
 	assert.True(t, timer.CancelTimeout(3))
+	assert.Equal(t, 0, timer.Size())
 }
 
 func TestTimerQueue_Range(t *testing.T) {
@@ -121,7 +123,7 @@ func TestTimerQueue_Range(t *testing.T) {
 	var now = currentUnixNano()
 	var d = map[int64]int64{
 		1: now,
-		2: now + 50,
+		2: now + 150,
 		3: now + 500,
 	}
 	for tid, delay := range d {

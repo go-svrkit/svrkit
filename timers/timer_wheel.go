@@ -5,28 +5,33 @@ package timers
 
 import (
 	"log"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"gopkg.in/svrkit.v1/datetime"
 )
 
 const (
-	WHEEL_SIZE    = 512
-	TICK_DURATION = 10
-	TIME_UNIT     = 10
+	WHEEL_SIZE    = 512                    // the size of the wheel
+	TICK_DURATION = 100 * time.Millisecond // the duration between tick
 )
 
 // A hashed wheel timer inspired by [Netty HashedWheelTimer]
 // see https://github.com/netty/netty/blob/netty-4.1.106.Final/common/src/main/java/io/netty/util/HashedWheelTimer.java
 
 type TimerWheel struct {
-	done      chan struct{}
-	wg        sync.WaitGroup //
-	running   atomic.Int32
-	guard     sync.Mutex              // 多线程
-	ref       map[int64]*WheelTimeout //
-	wheels    []WheelBucket           //
-	C         chan int64              // 到期的定时器
+	done         chan struct{}
+	wg           sync.WaitGroup //
+	running      atomic.Int32
+	tickDuration time.Duration
+
+	guard  sync.Mutex              // 多线程
+	ref    map[int64]*WheelTimeout //
+	wheels []*WheelBucket          //
+	C      chan int64              // 到期的定时器
+
 	startedAt int64
 	lastTime  int64
 	ticks     int64
@@ -35,18 +40,24 @@ type TimerWheel struct {
 var _ TimerScheduler = (*TimerWheel)(nil)
 
 func NewTimerWheel() *TimerWheel {
-	return new(TimerWheel).Init(DefaultTimeoutCapacity)
+	return new(TimerWheel).Init(DefaultTimeoutCapacity, TICK_DURATION)
 }
 
-func (w *TimerWheel) Init(capacity int) *TimerWheel {
+func (w *TimerWheel) Init(capacity int, tickDuration time.Duration) *TimerWheel {
+	if tickDuration < time.Millisecond {
+		tickDuration = time.Millisecond
+	}
+	w.tickDuration = tickDuration
 	w.done = make(chan struct{})
-	w.wheels = make([]WheelBucket, WHEEL_SIZE)
-	w.ref = make(map[int64]*WheelTimeout, 1024)
 	w.C = make(chan int64, capacity)
-
-	var curMilliSec = currentUnixNano() / int64(time.Millisecond)
-	w.startedAt = curMilliSec
-	w.lastTime = curMilliSec
+	w.ref = make(map[int64]*WheelTimeout, 1024)
+	w.wheels = make([]*WheelBucket, WHEEL_SIZE)
+	for i := 0; i < len(w.wheels); i++ {
+		w.wheels[i] = &WheelBucket{timers: w, level: i + 1}
+	}
+	var nowNano = currentUnixNano()
+	w.startedAt = nowNano
+	w.lastTime = nowNano
 	return w
 }
 
@@ -82,7 +93,9 @@ func (w *TimerWheel) Start() error {
 		return nil
 	}
 	w.wg.Add(1)
-	go w.worker()
+	var ready = make(chan struct{})
+	go w.worker(ready)
+	<-ready
 	return nil
 }
 
@@ -92,17 +105,22 @@ func (w *TimerWheel) AddTimeoutAt(tid int64, deadline int64) {
 
 	var timeout = NewWheelTimeout(tid, deadline)
 	var calculated = (timeout.deadline - w.startedAt) / int64(TICK_DURATION)
-	timeout.remainRounds = int(calculated-w.ticks) / WHEEL_SIZE
-	var idx = w.ticks & (WHEEL_SIZE - 1)
-	w.wheels[idx].AddTimeout(timeout)
+	timeout.remainRounds = (calculated - w.ticks) / WHEEL_SIZE
+	var ticks = calculated
+	if ticks < w.ticks {
+		ticks = w.ticks
+	}
+	var idx = ticks & (WHEEL_SIZE - 1)
+	var bucket = w.wheels[idx]
+	bucket.AddTimeout(timeout)
 	w.ref[tid] = timeout
 }
 
 func (w *TimerWheel) AddTimeout(tid int64, delayMs int64) {
-	if delayMs < 0 {
-		delayMs = 0
+	var deadline = currentUnixNano() + delayMs*int64(time.Millisecond)
+	if delayMs > 0 && deadline < 0 {
+		deadline = math.MaxInt64 // guard against overflow
 	}
-	var deadline = currentUnixNano()/int64(time.Millisecond) + delayMs*int64(time.Millisecond)
 	w.AddTimeoutAt(tid, deadline)
 }
 
@@ -112,7 +130,7 @@ func (w *TimerWheel) CancelTimeout(tid int64) bool {
 
 	if timeout, found := w.ref[tid]; found {
 		if timeout != nil {
-			timeout.bucket.RemoveTimeout(timeout)
+			timeout.bucket.Remove(timeout)
 			timeout.bucket = nil
 			timeout.prev = nil
 			timeout.next = nil
@@ -140,6 +158,10 @@ func (w *TimerWheel) Clear() {
 		bucket.head = nil
 		bucket.tail = nil
 	}
+	close(w.C)
+	clear(w.ref)
+	w.ref = nil
+	w.wheels = nil
 }
 
 func (w *TimerWheel) Shutdown() {
@@ -152,33 +174,37 @@ func (w *TimerWheel) Shutdown() {
 }
 
 func (w *TimerWheel) tick() {
+	w.guard.Lock()
+	defer w.guard.Unlock()
+
 	var deadline = w.startedAt + int64(TICK_DURATION)*(w.ticks+1)
 	var idx = w.ticks % (WHEEL_SIZE - 1)
 	var bucket = w.wheels[idx]
-	var expired = bucket.ExpireTimeouts(deadline)
-	for _, timeout := range expired {
-		delete(w.ref, timeout.id)
-		w.C <- timeout.id
-	}
+	log.Printf("tick %d update bucket=%d size=%d deadline=%s", w.ticks, idx, bucket.SlowSize(), datetime.FormatNanoTime(deadline))
+	bucket.ExpireTimeouts(deadline)
 	w.ticks++
 }
 
-func (w *TimerWheel) worker() {
+func (w *TimerWheel) update() {
+	var nowNano = currentUnixNano()
+	for w.lastTime+int64(TICK_DURATION) <= nowNano {
+		w.lastTime += int64(TICK_DURATION)
+		w.tick()
+	}
+}
+
+func (w *TimerWheel) worker(ready chan struct{}) {
 	defer w.wg.Done()
 
-	var ticker = time.NewTicker(TICK_DURATION)
+	var ticker = time.NewTicker(w.tickDuration)
 	defer ticker.Stop()
 
-	for {
+	ready <- struct{}{}
+
+	for w.running.Load() > 0 {
 		select {
-		case now := <-ticker.C:
-			var ticks = (now.UnixNano() - w.lastTime) / int64(TIME_UNIT)
-			if ticks > 0 {
-				w.lastTime = now.UnixNano()
-				for i := int64(0); i < ticks; i++ {
-					w.tick()
-				}
-			}
+		case <-ticker.C:
+			w.update()
 
 		case <-w.done:
 			return
@@ -187,11 +213,11 @@ func (w *TimerWheel) worker() {
 }
 
 type WheelTimeout struct {
-	prev, next   *WheelTimeout
-	bucket       *WheelBucket
+	prev, next   *WheelTimeout // This will be used to chain timeouts in WheelBucket via a double-linked-list.
+	bucket       *WheelBucket  // The bucket to which the timeout was added
 	id           int64
-	deadline     int64
-	remainRounds int
+	deadline     int64 // expired time in nanoseconds
+	remainRounds int64
 }
 
 func NewWheelTimeout(id int64, deadline int64) *WheelTimeout {
@@ -200,6 +226,8 @@ func NewWheelTimeout(id int64, deadline int64) *WheelTimeout {
 
 type WheelBucket struct {
 	head, tail *WheelTimeout
+	timers     *TimerWheel
+	level      int
 }
 
 // AddTimeout add `timeout` to this bucket
@@ -215,9 +243,20 @@ func (b *WheelBucket) AddTimeout(timeout *WheelTimeout) {
 	}
 }
 
-// RemoveTimeout remove `timeout` from linked list and return next linked one
-func (b *WheelBucket) RemoveTimeout(timeout *WheelTimeout) *WheelTimeout {
+func (b *WheelBucket) SlowSize() int {
+	var count = 0
+	var t = b.head
+	for t != nil {
+		count++
+		t = t.next
+	}
+	return count
+}
+
+// Remove removes `timeout` from linked list and return next linked one
+func (b *WheelBucket) Remove(timeout *WheelTimeout) *WheelTimeout {
 	var next = timeout.next
+	// remove timeout that was either processed or cancelled by updating the linked-list
 	if timeout.prev != nil {
 		timeout.prev.next = next
 	}
@@ -236,24 +275,37 @@ func (b *WheelBucket) RemoveTimeout(timeout *WheelTimeout) *WheelTimeout {
 		// if the timeout is the tail modify the tail to be the prev node.
 		b.tail = timeout.prev
 	}
+	// unchain from this bucket to allow for GC.
+	timeout.prev = nil
+	timeout.next = nil
+	timeout.bucket = nil
 	return next
 }
 
-func (b *WheelBucket) ExpireTimeouts(deadline int64) []*WheelTimeout {
-	var expired []*WheelTimeout
+// ExpireTimeouts expire all timeouts for the given deadline.
+func (b *WheelBucket) ExpireTimeouts(deadline int64) int {
+	var count = 0
 	var timeout = b.head
+
+	// process all timeouts
 	for timeout != nil {
 		var next = timeout.next
 		if timeout.remainRounds <= 0 {
-			next = b.RemoveTimeout(timeout)
-			if timeout.deadline > deadline {
+			delete(b.timers.ref, timeout.id)
+			next = b.Remove(timeout)
+			if timeout.deadline <= deadline {
+				count++
+				b.timers.C <- timeout.id
+				log.Printf("timeout %d expired deadline=%s\n", timeout.id, datetime.FormatNanoTime(timeout.deadline))
+			} else {
 				// The timeout was placed into a wrong slot. This should never happen.
-				log.Printf("timeout.deadline > now %d/%d\n", timeout.deadline, deadline)
+				log.Printf("timeout %d deadline greater than now %d > %d\n", timeout.id, timeout.deadline, deadline)
 			}
 		} else {
 			timeout.remainRounds--
 		}
 		timeout = next
 	}
-	return expired
+
+	return count
 }

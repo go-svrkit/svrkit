@@ -5,21 +5,23 @@ package timers
 
 import (
 	"container/heap"
+	"math"
 	"sync"
 	"sync/atomic"
 	"time"
 )
 
 const (
-	TickInterval = 5 * time.Millisecond // 5ms
+	TickInterval = 10 * time.Millisecond // 5ms
 )
 
 // TimerQueue 最小堆实现的定时器
 // 注意：对相同过期时间的多个Timer，TimerQueue不保证FIFO触发
 type TimerQueue struct {
-	done    chan struct{}
-	wg      sync.WaitGroup //
-	running atomic.Int32
+	done         chan struct{}
+	wg           sync.WaitGroup //
+	running      atomic.Int32
+	tickInterval time.Duration
 
 	guard  sync.Mutex          // 多线程
 	refer  map[int64]*heapNode // O(1)查找
@@ -30,10 +32,14 @@ type TimerQueue struct {
 var _ TimerScheduler = (*TimerQueue)(nil)
 
 func NewTimerQueue() *TimerQueue {
-	return new(TimerQueue).Init(DefaultTimeoutCapacity)
+	return new(TimerQueue).Init(DefaultTimeoutCapacity, TickInterval)
 }
 
-func (s *TimerQueue) Init(capacity int) *TimerQueue {
+func (s *TimerQueue) Init(capacity int, tickInterval time.Duration) *TimerQueue {
+	if tickInterval < time.Millisecond {
+		tickInterval = time.Millisecond
+	}
+	s.tickInterval = tickInterval
 	s.done = make(chan struct{})
 	s.timers = make(timerHeap, 0, 1024)
 	s.refer = make(map[int64]*heapNode, 1024)
@@ -66,7 +72,9 @@ func (s *TimerQueue) Start() error {
 		return nil
 	}
 	s.wg.Add(1)
-	go s.worker()
+	var ready = make(chan struct{})
+	go s.worker(ready)
+	<-ready
 	return nil
 }
 
@@ -98,10 +106,10 @@ func (s *TimerQueue) AddTimeoutAt(tid int64, deadline int64) {
 
 // AddTimeout 创建一个定时器，在`delayMs`毫秒后过期
 func (s *TimerQueue) AddTimeout(tid int64, delayMs int64) {
-	if delayMs < 0 {
-		delayMs = 0
-	}
 	var deadline = currentUnixNano() + delayMs*int64(time.Millisecond)
+	if delayMs > 0 && deadline < 0 {
+		deadline = math.MaxInt64 // guard against overflow
+	}
 	s.AddTimeoutAt(tid, deadline)
 }
 
@@ -127,16 +135,18 @@ func (s *TimerQueue) Range(action func(id, deadline int64)) {
 	}
 }
 
-func (s *TimerQueue) worker() {
+func (s *TimerQueue) worker(ready chan struct{}) {
 	defer s.wg.Done()
 
-	var ticker = time.NewTicker(TickInterval)
+	var ticker = time.NewTicker(s.tickInterval)
 	defer ticker.Stop()
+
+	ready <- struct{}{}
 
 	for {
 		select {
-		case now := <-ticker.C:
-			s.expireTimeouts(now.UnixNano())
+		case <-ticker.C:
+			s.update(currentUnixNano())
 
 		case <-s.done:
 			return
@@ -145,19 +155,20 @@ func (s *TimerQueue) worker() {
 }
 
 // 返回触发的timer列表
-func (s *TimerQueue) expireTimeouts(now int64) {
+func (s *TimerQueue) update(nowNano int64) {
 	s.guard.Lock()
 	defer s.guard.Unlock()
 
 	for len(s.timers) > 0 {
 		var node = s.timers[0] // peek first item of heap
-		if now < node.deadline {
+		if nowNano < node.deadline {
 			break // no new timer expired
 		}
 
 		heap.Pop(&s.timers)
 		delete(s.refer, node.id)
 		s.C <- node.id
+		//log.Printf("timer %d expired deadline=%s\n", node.id, time.Unix(0, node.deadline).Format(datetime.TimestampLayout))
 	}
 }
 
