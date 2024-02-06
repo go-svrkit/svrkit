@@ -9,7 +9,8 @@ import (
 
 const (
 	DateLayout      = "2006-01-02T15:04:05"
-	TimestampLayout = "2006-01-02T15:04:05.000"
+	MsTimeLayout    = "2006-01-02T15:04:05.000"
+	MicroTimeLayout = "2006-01-02T15:04:05.000000"
 
 	MsPerSecond = 1000
 	MsPerMinute = 60 * MsPerSecond
@@ -28,15 +29,27 @@ var (
 )
 
 func FormatTime(t time.Time) string {
-	return t.Format(TimestampLayout)
+	return t.Format(MsTimeLayout)
+}
+
+func FormatTimeUTC(t time.Time) string {
+	return t.UTC().Format(MsTimeLayout)
 }
 
 func FormatMsTime(ms int64) string {
-	return Ms2Time(ms).Format(TimestampLayout)
+	return Ms2Time(ms).Format(MsTimeLayout)
+}
+
+func FormatMsTimeUTC(ms int64) string {
+	return Ms2TimeUTC(ms).Format(MsTimeLayout)
 }
 
 func FormatNanoTime(nano int64) string {
-	return time.Unix(0, nano).Format(TimestampLayout)
+	return time.Unix(0, nano).Format(MicroTimeLayout)
+}
+
+func FormatNanoTimeUTC(nano int64) string {
+	return time.Unix(0, nano).UTC().Format(MicroTimeLayout)
 }
 
 func Ms2Time(ms int64) time.Time {
@@ -44,9 +57,12 @@ func Ms2Time(ms int64) time.Time {
 	if ms == 0 {
 		return t
 	}
-	var sec = ms / MsPerSecond
-	var nsec = (ms % MsPerSecond) * int64(time.Millisecond)
-	return time.Unix(sec, nsec).UTC()
+	var nano = ms * int64(time.Millisecond)
+	return time.Unix(0, nano)
+}
+
+func Ms2TimeUTC(ms int64) time.Time {
+	return Ms2Time(ms).UTC()
 }
 
 // IsLeapYear 是否闰年
