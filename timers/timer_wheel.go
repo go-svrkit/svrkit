@@ -9,18 +9,15 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"gopkg.in/svrkit.v1/datetime"
 )
 
 const (
-	WHEEL_SIZE    = 512                    // the size of the wheel
-	TICK_DURATION = 100 * time.Millisecond // the duration between tick
+	WHEEL_SIZE    = 512                   // the size of the wheel
+	TICK_DURATION = 50 * time.Millisecond // the duration between tick
 )
 
-// A hashed wheel timer inspired by [Netty HashedWheelTimer]
+// TimerWheel A hashed wheel timer inspired by [Netty HashedWheelTimer]
 // see https://github.com/netty/netty/blob/netty-4.1.106.Final/common/src/main/java/io/netty/util/HashedWheelTimer.java
-
 type TimerWheel struct {
 	done         chan struct{}
 	wg           sync.WaitGroup //
@@ -39,8 +36,8 @@ type TimerWheel struct {
 
 var _ TimerScheduler = (*TimerWheel)(nil)
 
-func NewTimerWheel() *TimerWheel {
-	return new(TimerWheel).Init(DefaultTimeoutCapacity, TICK_DURATION)
+func NewTimerWheel(capacity int) *TimerWheel {
+	return new(TimerWheel).Init(capacity, TICK_DURATION/2)
 }
 
 func (w *TimerWheel) Init(capacity int, tickDuration time.Duration) *TimerWheel {
@@ -58,6 +55,7 @@ func (w *TimerWheel) Init(capacity int, tickDuration time.Duration) *TimerWheel 
 	var nowNano = currentUnixNano()
 	w.startedAt = nowNano
 	w.lastTime = nowNano
+	//log.Printf("timer wheel start at %s\n", datetime.FormatNanoTime(nowNano))
 	return w
 }
 
@@ -180,7 +178,7 @@ func (w *TimerWheel) tick() {
 	var deadline = w.startedAt + int64(TICK_DURATION)*(w.ticks+1)
 	var idx = w.ticks % (WHEEL_SIZE - 1)
 	var bucket = w.wheels[idx]
-	log.Printf("tick %d update bucket=%d size=%d deadline=%s", w.ticks, idx, bucket.SlowSize(), datetime.FormatNanoTime(deadline))
+	//log.Printf("tick %d update bucket=%d size=%d deadline=%s", w.ticks, idx, bucket.SlowSize(), datetime.FormatNanoTime(deadline))
 	bucket.ExpireTimeouts(deadline)
 	w.ticks++
 }
@@ -296,7 +294,7 @@ func (b *WheelBucket) ExpireTimeouts(deadline int64) int {
 			if timeout.deadline <= deadline {
 				count++
 				b.timers.C <- timeout.id
-				log.Printf("timeout %d expired deadline=%s\n", timeout.id, datetime.FormatNanoTime(timeout.deadline))
+				//log.Printf("timeout %d expired deadline=%s\n", timeout.id, datetime.FormatNanoTime(timeout.deadline))
 			} else {
 				// The timeout was placed into a wrong slot. This should never happen.
 				log.Printf("timeout %d deadline greater than now %d > %d\n", timeout.id, timeout.deadline, deadline)

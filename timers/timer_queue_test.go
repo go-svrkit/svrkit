@@ -22,7 +22,7 @@ func pollExpiredTimeouts(timer TimerScheduler) (expired []int64) {
 }
 
 func TestTimerQueue_Start(t *testing.T) {
-	var timer = NewTimerQueue()
+	var timer = NewTimerQueue(64)
 	defer timer.Shutdown()
 
 	assert.True(t, timer.running.Load() == 0)
@@ -33,7 +33,7 @@ func TestTimerQueue_Start(t *testing.T) {
 }
 
 func TestTimerQueue_IsPending(t *testing.T) {
-	var timer = NewTimerQueue()
+	var timer = NewTimerQueue(64)
 	defer timer.Shutdown()
 
 	timer.AddTimeout(1, 0)
@@ -56,7 +56,7 @@ func TestTimerQueue_IsPending(t *testing.T) {
 }
 
 func TestTimerQueue_AddTimeoutAt(t *testing.T) {
-	var timer = NewTimerQueue()
+	var timer = NewTimerQueue(64)
 	timer.Start()
 	defer timer.Shutdown()
 
@@ -93,7 +93,7 @@ func TestTimerQueue_AddTimeoutAt(t *testing.T) {
 }
 
 func TestTimerQueue_CancelTimeout(t *testing.T) {
-	var timer = NewTimerQueue()
+	var timer = NewTimerQueue(64)
 	timer.Start()
 	defer timer.Shutdown()
 
@@ -118,7 +118,7 @@ func TestTimerQueue_CancelTimeout(t *testing.T) {
 }
 
 func TestTimerQueue_Range(t *testing.T) {
-	var timer = NewTimerQueue()
+	var timer = NewTimerQueue(64)
 
 	var now = currentUnixNano()
 	var d = map[int64]int64{

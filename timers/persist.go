@@ -13,7 +13,7 @@ type TimerData struct {
 	Id       int64 `json:"id"`
 	Deadline int64 `json:"deadline"`
 	Owner    int64 `json:"owner"`
-	Action   int32 `json:"action"`
+	Action   int   `json:"action"`
 	Arg      int64 `json:"arg,omitempty"`
 }
 

@@ -16,7 +16,7 @@ func randTimerData() TimerData {
 	return TimerData{
 		Id:       randVal % 1000,
 		Owner:    randVal % 10000,
-		Action:   int32(randVal % 100),
+		Action:   int(randVal % 100),
 		Deadline: rand.Int63(),
 		Arg:      randVal % 0xFFFFF,
 	}
@@ -43,7 +43,7 @@ func TestDumpTimers(t *testing.T) {
 	td := []struct {
 		owner    int64
 		duration int64
-		action   int32
+		action   int
 		arg      int64
 		data     any
 	}{

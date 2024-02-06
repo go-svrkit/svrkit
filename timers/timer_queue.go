@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	TickInterval = 10 * time.Millisecond // 5ms
+	TickInterval = 10 * time.Millisecond
 )
 
 // TimerQueue 最小堆实现的定时器
@@ -31,8 +31,8 @@ type TimerQueue struct {
 
 var _ TimerScheduler = (*TimerQueue)(nil)
 
-func NewTimerQueue() *TimerQueue {
-	return new(TimerQueue).Init(DefaultTimeoutCapacity, TickInterval)
+func NewTimerQueue(capacity int) *TimerQueue {
+	return new(TimerQueue).Init(capacity, TickInterval)
 }
 
 func (s *TimerQueue) Init(capacity int, tickInterval time.Duration) *TimerQueue {
