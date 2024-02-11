@@ -10,19 +10,39 @@ on:
     branches: [ "main" ]
 
 jobs:
-
-  build:
+  container-job:
     runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
+    container: golang:1.21-bullseye
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+      mongo:
+        image: mongo:6.0
+        ports:
+          - "27027:27017"
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: password
+      etcd:
+        image: bitnami/etcd:3.5
+        ports:
+          - 2379:2379
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21'
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: go mod tidy
 
     - name: Build
       run: go build -v ./...
 
     - name: Test
       run: go test -v ./...
+      env:
+        MONGO_URI: mongodb://root:password@mongo:27017/
+        REDIS_ADDR: redis:6379
+        ETCD_ADDR: etcd:2379
