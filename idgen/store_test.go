@@ -13,18 +13,13 @@ import (
 )
 
 var (
-	redisAddr = "localhost:6379"
-	mongoUri  string
+	redisAddr = os.Getenv("REDIS_ADDR")
+	mongoUri  = os.Getenv("MONGO_URI")
 )
 
-const OpTimeout = 3
-
 func init() {
-	var username = os.Getenv("MONGODB_USER")
-	var passwd = os.Getenv("MONGODB_PASSWORD")
-	mongoUri = fmt.Sprintf("mongodb://%s:%s@127.0.0.1:27017/?connect=direct", username, passwd)
-	println("mongo user:", username)
-	println("mongo password:", passwd)
+	println("redis addr is", redisAddr)
+	println("mongo uri is", mongoUri)
 }
 
 func createCounterStorage(storeTye string, label string) CounterStore {

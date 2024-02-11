@@ -7,25 +7,25 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"os"
 	"strconv"
 	"testing"
 	"time"
 )
 
 var (
-	etcdHostAddr = "127.0.0.1:2379"
+	etcdHostAddr = os.Getenv("ETCD_ADDR")
 	etcdKeyspace = "/choyd"
-	etcdUsername = ""
-	etcdPassword = ""
 	nodeId       string
 )
 
 func init() {
 	nodeId = strconv.Itoa(rand.Int() % 100000)
+	println("etcd addr is", etcdHostAddr)
 }
 
 func connectClient(t *testing.T) *EtcdClient {
-	var client = NewEtcdClient(etcdHostAddr, etcdKeyspace, etcdUsername, etcdPassword)
+	var client = NewEtcdClient(etcdHostAddr, etcdKeyspace, "", "")
 	client.verbose = VerboseLv2
 	if err := client.Init(context.Background()); err != nil {
 		t.Fatalf("connect server: %v", err)
