@@ -14,13 +14,10 @@ import (
 
 type (
 	MessageHandlerV1 func(proto.Message) error
-	MessageHandlerV2 func(proto.Message) proto.Message
-	MessageHandlerV3 func(proto.Message) (proto.Message, error)
-	MessageHandlerV4 func(context.Context, proto.Message) error
-	MessageHandlerV5 func(context.Context, proto.Message) proto.Message
-	MessageHandlerV6 func(context.Context, proto.Message) (proto.Message, error)
-	MessageHandlerV7 func(*qnet.NetMessage) error
-	MessageHandlerV8 func(context.Context, *qnet.NetMessage) error
+	MessageHandlerV2 func(proto.Message) (proto.Message, error)
+	MessageHandlerV3 func(context.Context, proto.Message) error
+	MessageHandlerV4 func(context.Context, proto.Message) (proto.Message, error)
+	MessageHandlerV5 func(context.Context, *qnet.NetMessage) error
 
 	PreHookFunc  func(context.Context, *qnet.NetMessage) bool
 	PostHookFunc func(context.Context, *qnet.NetMessage)
@@ -45,7 +42,7 @@ func Deregister(cmd uint32) any {
 	return old
 }
 
-func RegisterPreHook(h PreHookFunc, prepend bool) {
+func RegisterPreHook(prepend bool, h PreHookFunc) {
 	if prepend {
 		preHooks = append([]PreHookFunc{h}, preHooks...)
 	} else {
@@ -53,7 +50,7 @@ func RegisterPreHook(h PreHookFunc, prepend bool) {
 	}
 }
 
-func RegisterPostHook(h PostHookFunc, prepend bool) {
+func RegisterPostHook(prepend bool, h PostHookFunc) {
 	if prepend {
 		postHooks = append([]PostHookFunc{h}, postHooks...)
 	} else {
@@ -97,27 +94,6 @@ func RegisterV5(cmd uint32, action MessageHandlerV5) {
 	handlers[cmd] = action
 }
 
-func RegisterV6(cmd uint32, action MessageHandlerV6) {
-	if HasRegistered(cmd) {
-		slog.Warnf("duplicate handler registration of message %v", cmd)
-	}
-	handlers[cmd] = action
-}
-
-func RegisterV7(cmd uint32, action MessageHandlerV7) {
-	if HasRegistered(cmd) {
-		slog.Warnf("duplicate handler registration of message %v", cmd)
-	}
-	handlers[cmd] = action
-}
-
-func RegisterV8(cmd uint32, action MessageHandlerV8) {
-	if HasRegistered(cmd) {
-		slog.Warnf("duplicate handler registration of message %v", cmd)
-	}
-	handlers[cmd] = action
-}
-
 func Handle(ctx context.Context, message *qnet.NetMessage) (proto.Message, error) {
 	var cmd = message.Command
 	action, found := handlers[cmd]
@@ -153,18 +129,12 @@ func dispatch(ctx context.Context, action any, msg *qnet.NetMessage) (resp proto
 	case MessageHandlerV1:
 		err = h(msg.Body)
 	case MessageHandlerV2:
-		resp = h(msg.Body)
-	case MessageHandlerV3:
 		resp, err = h(msg.Body)
-	case MessageHandlerV4:
+	case MessageHandlerV3:
 		err = h(ctx, msg.Body)
-	case MessageHandlerV5:
-		resp = h(ctx, msg.Body)
-	case MessageHandlerV6:
+	case MessageHandlerV4:
 		resp, err = h(ctx, msg.Body)
-	case MessageHandlerV7:
-		err = h(msg)
-	case MessageHandlerV8:
+	case MessageHandlerV5:
 		err = h(ctx, msg)
 	default:
 		err = fmt.Errorf("unexpected handler type %T", h)
