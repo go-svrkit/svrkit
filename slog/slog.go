@@ -26,7 +26,7 @@ func SetLogger(log *zap.Logger) {
 	_sugar = log.Sugar()
 }
 
-func SetLoggerrWith(core zapcore.Core, callerSkip int) {
+func SetLoggerWith(core zapcore.Core, callerSkip int) {
 	SetLogger(zap.New(core,
 		zap.AddCallerSkip(callerSkip),
 		zap.AddCaller(),

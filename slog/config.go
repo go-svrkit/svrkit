@@ -12,9 +12,9 @@ import (
 
 // Config 配置参数
 type Config struct {
-	LocalTime  bool   `json:"localtime"`   // use local or UTC time
 	Level      string `json:"level"`       // DEBUG, INFO, WARN, DPANIC, PANIC, FATAL
 	Encoding   string `json:"encoding"`    // "json" or "console"
+	TimeLayout string `json:"time-layout"` // layout to encoding time
 	Filename   string `json:"filename"`    //
 	MaxSize    int    `json:"max_size"`    // defaults to 100 MB
 	MaxBackups int    `json:"max_backups"` // maximum number of old log files to retain
@@ -25,25 +25,25 @@ func NewConfig() *Config {
 	return &Config{
 		Level:      "debug",
 		Encoding:   "console",
-		MaxSize:    200,
+		TimeLayout: "2006-01-02T15:04:05.000Z0700", // ISO-8601
+		MaxSize:    100,
 		MaxBackups: 10,
-		LocalTime:  true,
 		CallerSkip: 1,
 	}
 }
 
 func (c *Config) Build() *zap.Logger {
-	var core = CreateZapCoreBy(c)
+	var core = CreateZapCore(c)
 	return zap.New(core,
 		zap.AddCallerSkip(c.CallerSkip),
 		zap.AddCaller(),
 		zap.AddStacktrace(zapcore.PanicLevel))
 }
 
-// CreateZapCoreBy 根据配置创建zapcore.Core
-func CreateZapCoreBy(c *Config) zapcore.Core {
+// CreateZapCore 根据配置创建zapcore.Core
+func CreateZapCore(c *Config) zapcore.Core {
 	var encoderConfig = zapcore.EncoderConfig{
-		TimeKey:        "ts",
+		TimeKey:        "time",
 		LevelKey:       "level",
 		NameKey:        "logger",
 		CallerKey:      "caller",
@@ -52,7 +52,7 @@ func CreateZapCoreBy(c *Config) zapcore.Core {
 		StacktraceKey:  "stacktrace",
 		LineEnding:     zapcore.DefaultLineEnding,
 		EncodeLevel:    zapcore.CapitalLevelEncoder,
-		EncodeTime:     zapcore.ISO8601TimeEncoder,
+		EncodeTime:     zapcore.TimeEncoderOfLayout(c.TimeLayout),
 		EncodeDuration: zapcore.MillisDurationEncoder,
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
@@ -68,7 +68,7 @@ func CreateZapCoreBy(c *Config) zapcore.Core {
 	var level = atomicLevel(c.Level)
 
 	// application should redirect stderr to stdout first
-	var w = NewWriter(c.Filename, "stdout", c.MaxSize, c.MaxBackups, c.LocalTime)
+	var w = NewWriter(c.Filename, "stdout", c.MaxSize, c.MaxBackups)
 	var sink = zapcore.AddSync(w)
 	return zapcore.NewCore(enc, sink, zap.NewAtomicLevelAt(level))
 }
