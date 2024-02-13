@@ -6,8 +6,6 @@ package pool
 import (
 	"bytes"
 	"sync"
-
-	"github.com/vmihailenco/msgpack/v5"
 )
 
 func createObjPool[T any]() *sync.Pool {
@@ -53,9 +51,6 @@ func (a *ObjectPool[T]) Free(p *T) {
 var (
 	bufferPool = NewObjectPool[bytes.Buffer]()
 	readerPool = NewObjectPool[bytes.Reader]()
-
-	encoderPool = NewObjectPoolWith[msgpack.Encoder](createMPEncoder)
-	decoderPool = NewObjectPoolWith[msgpack.Decoder](createMPDecoder)
 )
 
 func AllocBytesBuffer() *bytes.Buffer {
@@ -63,7 +58,6 @@ func AllocBytesBuffer() *bytes.Buffer {
 }
 
 func FreeBytesBuffer(buf *bytes.Buffer) {
-	// 太大的buffer应该直接交给GC，不要再回收了
 	// See https://github.com/golang/go/issues/23199
 	if buf.Cap() > 64<<10 {
 		return
@@ -79,35 +73,4 @@ func AllocBytesReader() *bytes.Reader {
 func FreeBytesReader(rd *bytes.Reader) {
 	rd.Reset(nil)
 	readerPool.Free(rd)
-}
-
-func createMPEncoder() *msgpack.Encoder {
-	var enc = msgpack.NewEncoder(nil)
-	enc.SetCustomStructTag("json")
-	enc.SetOmitEmpty(true)
-	return enc
-}
-
-func createMPDecoder() *msgpack.Decoder {
-	var dec = msgpack.NewDecoder(nil)
-	dec.SetCustomStructTag("json")
-	return dec
-}
-
-func AllocMPEncoder() *msgpack.Encoder {
-	return encoderPool.Alloc()
-}
-
-func FreeMPEncoder(enc *msgpack.Encoder) {
-	enc.Reset(nil)
-	encoderPool.Free(enc)
-}
-
-func AllocMPDecoder() *msgpack.Decoder {
-	return decoderPool.Alloc()
-}
-
-func FreeMPDecoder(dec *msgpack.Decoder) {
-	dec.Reset(nil)
-	decoderPool.Free(dec)
 }

@@ -7,23 +7,23 @@ import (
 	"sync"
 )
 
-// ArenaAllocator
+// ArenaPool
 // 一次申请一个block（N个元素的数组），然后从block数组里再逐个按需分配，
 // block分配完了就丢掉（交给GC)，再申请另一个block；
 // 这样对runtime来说每次malloc都是以N个元素大小的单位，可以减缓GC的压力
-type ArenaAllocator[T any] struct {
+type ArenaPool[T any] struct {
 	guard sync.Mutex
 	idx   int
 	block []T
 }
 
-func NewArenaAllocator[T any](blockSize int) *ArenaAllocator[T] {
-	return &ArenaAllocator[T]{
+func NewArenaPool[T any](blockSize int) *ArenaPool[T] {
+	return &ArenaPool[T]{
 		block: make([]T, blockSize),
 	}
 }
 
-func (a *ArenaAllocator[T]) Alloc() *T {
+func (a *ArenaPool[T]) Alloc() *T {
 	a.guard.Lock()
 	var size = len(a.block)
 	var ret = &a.block[a.idx]
@@ -36,6 +36,6 @@ func (a *ArenaAllocator[T]) Alloc() *T {
 	return ret
 }
 
-func (a *ArenaAllocator[T]) Free(*T) {
+func (a *ArenaPool[T]) Free(*T) {
 	// do nothing
 }
