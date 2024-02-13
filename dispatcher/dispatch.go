@@ -42,6 +42,12 @@ func Deregister(cmd uint32) any {
 	return old
 }
 
+func Clear() {
+	handlers = make(map[uint32]any)
+	preHooks = nil
+	postHooks = nil
+}
+
 func RegisterPreHook(prepend bool, h PreHookFunc) {
 	if prepend {
 		preHooks = append([]PreHookFunc{h}, preHooks...)

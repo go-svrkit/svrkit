@@ -14,18 +14,21 @@ func nowNano() int64 {
 }
 
 func TestRegister(t *testing.T) {
+	defer Clear()
 	assert.False(t, HasRegistered(1234))
 	RegisterV1(1234, func(proto.Message) error { return nil })
 	assert.True(t, HasRegistered(1234))
 }
 
 func TestDeregister(t *testing.T) {
+	defer Clear()
 	assert.Nil(t, Deregister(1234))
 	RegisterV1(1234, func(proto.Message) error { return nil })
 	assert.NotNil(t, Deregister(1234))
 }
 
 func TestHandle(t *testing.T) {
+	defer Clear()
 	var triggerAt = make(map[int]int64)
 	RegisterV1(101, func(proto.Message) error {
 		triggerAt[1] = nowNano()
@@ -53,11 +56,12 @@ func TestHandle(t *testing.T) {
 		resp, err := Handle(context.Background(), msg)
 		assert.Nil(t, resp)
 		assert.Nil(t, err)
-		assert.Greater(t, triggerAt[i+1], 0)
+		assert.Greater(t, triggerAt[i+1], int64(0))
 	}
 }
 
 func TestPreHook(t *testing.T) {
+	defer Clear()
 	var t1, t2, t3 int64
 	RegisterV1(101, func(proto.Message) error {
 		t1 = nowNano()
@@ -80,6 +84,7 @@ func TestPreHook(t *testing.T) {
 }
 
 func TestPostHook(t *testing.T) {
+	defer Clear()
 	var t1, t2, t3 int64
 	RegisterV1(101, func(proto.Message) error {
 		t1 = nowNano()

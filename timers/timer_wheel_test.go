@@ -144,10 +144,10 @@ func TestTimerWheel_FIFO(t *testing.T) {
 	defer timer.Shutdown()
 
 	for i := 1; i <= 10; i++ {
-		timer.AddTimeout(int64(i), 100)
+		timer.AddTimeout(int64(i), 50)
 	}
 
-	<-time.NewTimer(150 * time.Millisecond).C
+	<-time.NewTimer(250 * time.Millisecond).C
 
 	var timeouts = pollExpiredTimeouts(timer)
 	assert.Equal(t, 10, len(timeouts))

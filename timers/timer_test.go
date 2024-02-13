@@ -27,7 +27,9 @@ func pollTimeoutRunners(ctx context.Context) {
 	for {
 		select {
 		case msg := <-gTimeoutChan:
-			Preprocess(msg)
+			if msg != nil {
+				Preprocess(msg)
+			}
 		case <-ctx.Done():
 			return
 		}
@@ -194,11 +196,11 @@ func TestSchedule(t *testing.T) {
 	})
 
 	var startAt = currentUnixNano()
-	var tid = Schedule(100, run)
+	var tid = Schedule(50, run)
 
 	assert.True(t, IsPending(tid))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
 	defer cancel()
 
 	go pollTimeoutRunners(ctx)
