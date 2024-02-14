@@ -4,6 +4,7 @@
 package factory
 
 import (
+	"fmt"
 	"hash/crc32"
 	"log"
 	"reflect"
@@ -38,14 +39,22 @@ func HasValidSuffix(name string) bool {
 	return false
 }
 
+func IsRequestMessage(name string) bool {
+	return strings.HasSuffix(name, "Req")
+}
+
+func IsAckMessage(name string) bool {
+	return strings.HasSuffix(name, "Ack")
+}
+
 func isWellKnown(name string) bool {
 	return strings.HasPrefix(name, "google/") ||
 		strings.HasPrefix(name, "github.com/") ||
 		strings.HasPrefix(name, "grpc/")
 }
 
-// CalcMsgHash 计算字符串的hash值
-func CalcMsgHash(name string) uint32 {
+// NameHash 计算字符串的hash值
+func NameHash(name string) uint32 {
 	var h = crc32.NewIEEE()
 	h.Write([]byte(name))
 	return h.Sum32()
@@ -64,21 +73,16 @@ func registerByNameHash(fd protoreflect.FileDescriptor) bool {
 			continue
 		}
 		var name = string(descriptor.Name())
-		var hash = CalcMsgHash(name)
 		var rtype = proto.MessageType(fullname)
 		if rtype == nil {
-			log.Printf("message %s cannot be reflected", fullname)
+			log.Printf("message %s cannot be reflected\n", fullname)
 			continue
 		}
-		if old, found := id2type[hash]; found {
-			log.Printf("duplicate message %s(%d) with %s", name, hash, old)
-			continue
+		if _, found := name2id[name]; !found {
+			if err := Register(rtype); err != nil {
+				log.Printf("register msg %s: %v\n", name, err)
+			}
 		}
-		//log.Printf("register %s with hash %d", name, hash)
-		name2id[name] = hash
-		id2type[hash] = rtype
-		id2name[hash] = name
-		type2id[rtype] = hash
 	}
 	return true
 }
@@ -88,6 +92,27 @@ func registerByNameHash(fd protoreflect.FileDescriptor) bool {
 func RegisterAllMessages() {
 	protoregistry.GlobalFiles.RangeFiles(registerByNameHash)
 	log.Printf("%d proto message registered", len(id2type))
+}
+
+func Register(rType reflect.Type) error {
+	if kind := rType.Kind(); kind != reflect.Ptr {
+		return fmt.Errorf("unexpected type %s", rType.String())
+	}
+	var name = rType.Elem().Name()
+	var hash = NameHash(name)
+	// 不能重复注册
+	if _, ok := name2id[name]; ok {
+		return fmt.Errorf("duplicate registration of %s", name)
+	}
+	// 不同的名字如果生成了相同的hash，需要更改新名字
+	if old, found := id2name[hash]; found {
+		return fmt.Errorf("duplicate hash of %s -> %s", old, name)
+	}
+	name2id[name] = hash
+	id2type[hash] = rType
+	id2name[hash] = name
+	type2id[rType] = hash
+	return nil
 }
 
 // GetMessageName 根据消息ID获取消息名称
@@ -121,14 +146,6 @@ func CreateMessageByName(name string) proto.Message {
 func GetMessageIDOf(msg proto.Message) uint32 {
 	var rtype = reflect.TypeOf(msg)
 	return type2id[rtype]
-}
-
-func IsRequestMessage(name string) bool {
-	return strings.HasSuffix(name, "Req")
-}
-
-func IsAckMessage(name string) bool {
-	return strings.HasSuffix(name, "Ack")
 }
 
 // GetPairingAckID 根据Req消息的ID，返回其对应的Ack消息ID

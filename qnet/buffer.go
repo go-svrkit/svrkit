@@ -6,11 +6,26 @@ package qnet
 import (
 	"bytes"
 	"encoding/binary"
+	"io"
+	"log"
 	"math"
+	"unsafe"
 )
 
 type Buffer struct {
-	bytes.Buffer
+	*bytes.Buffer
+}
+
+func NewBuffer(b []byte) *Buffer {
+	return &Buffer{
+		Buffer: bytes.NewBuffer(b),
+	}
+}
+
+func (b *Buffer) linit() {
+	if b.Buffer == nil {
+		b.Buffer = new(bytes.Buffer)
+	}
 }
 
 func (b *Buffer) WriteBool(v bool) {
@@ -18,18 +33,22 @@ func (b *Buffer) WriteBool(v bool) {
 	if v {
 		c = 1
 	}
+	b.linit()
 	b.WriteByte(c)
 }
 
-func (b *Buffer) WriteUInt8(n uint8) {
-	b.WriteByte(n)
-}
-
 func (b *Buffer) WriteInt8(n int8) {
+	b.linit()
 	b.WriteByte(byte(n))
 }
 
+func (b *Buffer) WriteUint8(n uint8) {
+	b.linit()
+	b.WriteByte(n)
+}
+
 func (b *Buffer) WriteUint16(n uint16) {
+	b.linit()
 	var tmp [2]byte
 	binary.LittleEndian.PutUint16(tmp[:], n)
 	b.Write(tmp[:])
@@ -42,6 +61,7 @@ func (b *Buffer) WriteInt16(n int16) {
 func (b *Buffer) WriteUint32(n uint32) {
 	var tmp [4]byte
 	binary.LittleEndian.PutUint32(tmp[:], n)
+	b.linit()
 	b.Write(tmp[:])
 }
 
@@ -52,6 +72,7 @@ func (b *Buffer) WriteInt32(n int32) {
 func (b *Buffer) WriteUint64(n uint64) {
 	var tmp [8]byte
 	binary.LittleEndian.PutUint64(tmp[:], n)
+	b.linit()
 	b.Write(tmp[:])
 }
 
@@ -69,130 +90,259 @@ func (b *Buffer) WriteFloat64(f float64) {
 	b.WriteUint64(n)
 }
 
-func (b *Buffer) ReadBool() bool {
-	return b.ReadInt8() != 0
+func (b *Buffer) ReadBool() (bool, error) {
+	var c, err = b.ReadUint8()
+	return c != 0, err
 }
 
-func (b *Buffer) ReadUint8() uint8 {
-	c, err := b.ReadByte()
+func (b *Buffer) MustReadBool() bool {
+	v, err := b.ReadBool()
 	if err != nil {
-		panic(err)
+		log.Panicf("MustReadBool: %v", err)
 	}
-	return c
+	return v
 }
 
-func (b *Buffer) ReadInt8() int8 {
-	var c = b.ReadUint8()
-	return int8(c)
+func (b *Buffer) ReadUint8() (uint8, error) {
+	return b.ReadByte()
 }
 
-func (b *Buffer) ReadUint16() uint16 {
-	var tmp [2]byte
-	if _, err := b.Read(tmp[:]); err != nil {
-		panic(err)
+func (b *Buffer) MustReadUint8() uint8 {
+	v, err := b.ReadUint8()
+	if err != nil {
+		log.Panicf("MustReadUint8: %v", err)
 	}
-	return binary.LittleEndian.Uint16(tmp[:])
+	return v
 }
 
-func (b *Buffer) ReadInt16() int16 {
-	var n = b.ReadUint16()
-	return int16(n)
+func (b *Buffer) ReadInt8() (int8, error) {
+	var c, err = b.ReadUint8()
+	return int8(c), err
 }
 
-func (b *Buffer) ReadUint32() uint32 {
+func (b *Buffer) MustReadInt8() int8 {
+	v, err := b.ReadInt8()
+	if err != nil {
+		log.Panicf("MustReadInt8: %v", err)
+	}
+	return v
+}
+
+func (b *Buffer) ReadUint16() (uint16, error) {
+	lo, err := b.ReadUint8()
+	if err != nil {
+		return 0, err
+	}
+	hi, err := b.ReadUint8()
+	if err != nil {
+		return 0, err
+	}
+	return uint16(lo) | uint16(hi)<<8, nil
+}
+
+func (b *Buffer) MustReadUint16() uint16 {
+	v, err := b.ReadUint16()
+	if err != nil {
+		log.Panicf("MustReadUint16: %v", err)
+	}
+	return v
+}
+
+func (b *Buffer) ReadInt16() (int16, error) {
+	var n, err = b.ReadUint16()
+	return int16(n), err
+}
+
+func (b *Buffer) MustReadInt16() int16 {
+	v, err := b.ReadInt16()
+	if err != nil {
+		log.Panicf("MustReadInt16: %v", err)
+	}
+	return v
+}
+
+func (b *Buffer) ReadUint32() (n uint32, err error) {
 	var tmp [4]byte
-	if _, err := b.Read(tmp[:]); err != nil {
-		panic(err)
+	if _, err = b.Read(tmp[:]); err != nil {
+		return
 	}
-	return binary.LittleEndian.Uint32(tmp[:])
+	n = binary.LittleEndian.Uint32(tmp[:])
+	return
 }
 
-func (b *Buffer) ReadInt32() int32 {
-	var n = b.ReadUint32()
-	return int32(n)
+func (b *Buffer) MustReadUint32() uint32 {
+	v, err := b.ReadUint32()
+	if err != nil {
+		log.Panicf("MustReadUint32: %v", err)
+	}
+	return v
 }
 
-func (b *Buffer) ReadUint64() uint64 {
+func (b *Buffer) ReadInt32() (int32, error) {
+	var n, err = b.ReadUint32()
+	return int32(n), err
+}
+
+func (b *Buffer) MustReadInt32() int32 {
+	v, err := b.ReadInt32()
+	if err != nil {
+		log.Panicf("MustReadInt32: %v", err)
+	}
+	return v
+}
+
+func (b *Buffer) ReadUint64() (n uint64, err error) {
 	var tmp [8]byte
-	if _, err := b.Read(tmp[:]); err != nil {
-		panic(err)
+	if _, err = b.Read(tmp[:]); err != nil {
+		return
 	}
-	return binary.LittleEndian.Uint64(tmp[:])
+	n = binary.LittleEndian.Uint64(tmp[:])
+	return
 }
 
-func (b *Buffer) ReadInt64() int64 {
-	var n = b.ReadUint64()
-	return int64(n)
+func (b *Buffer) MustReadUint64() uint64 {
+	v, err := b.ReadUint64()
+	if err != nil {
+		log.Panicf("MustReadUint64: %v", err)
+	}
+	return v
 }
 
-func (b *Buffer) ReadFloat32() float32 {
-	var n = b.ReadUint32()
-	return math.Float32frombits(n)
+func (b *Buffer) ReadInt64() (int64, error) {
+	var n, err = b.ReadUint64()
+	return int64(n), err
 }
 
-func (b *Buffer) ReadFloat64() float64 {
-	var n = b.ReadUint64()
-	return math.Float64frombits(n)
+func (b *Buffer) MustReadInt64() int64 {
+	v, err := b.ReadInt64()
+	if err != nil {
+		log.Panicf("MustReadInt64: %v", err)
+	}
+	return v
 }
 
-func (b *Buffer) PeekBool() bool {
-	return b.PeekInt8() != 0
+func (b *Buffer) ReadFloat32() (float32, error) {
+	var n, err = b.ReadUint32()
+	if err != nil {
+		return 0, err
+	}
+	return math.Float32frombits(n), nil
 }
 
-func (b *Buffer) PeekUint8() uint8 {
+func (b *Buffer) MustReadFloat32() float32 {
+	v, err := b.ReadFloat32()
+	if err != nil {
+		log.Panicf("MustReadFloat32: %v", err)
+	}
+	return v
+}
+
+func (b *Buffer) ReadFloat64() (float64, error) {
+	var n, err = b.ReadUint64()
+	if err != nil {
+		return 0, err
+	}
+	return math.Float64frombits(n), nil
+}
+
+func (b *Buffer) MustReadFloat64() float64 {
+	v, err := b.ReadFloat64()
+	if err != nil {
+		log.Panicf("MustReadFloat64: %v", err)
+	}
+	return v
+}
+
+func (b *Buffer) ReadNBytes(n int) (r []byte, err error) {
 	var data = b.Bytes()
-	if len(data) < 1 {
-		panic(ErrBufferOutOfRange)
+	if n > 0 && len(data) >= n {
+		r = make([]byte, n)
+		_, err = b.Read(r)
+		return
 	}
-	return data[0]
+	return nil, io.EOF
 }
 
-func (b *Buffer) PeekInt8() int8 {
-	return int8(b.PeekUint8())
+func (b *Buffer) ReadNString(n int) (string, error) {
+	buf, err := b.ReadNBytes(n)
+	if err == nil {
+		return *(*string)(unsafe.Pointer(&buf)), nil
+	}
+	return "", err
 }
 
-func (b *Buffer) PeekUint16() uint16 {
+func (b *Buffer) PeekBool() (bool, error) {
+	n, err := b.PeekUint8()
+	return n > 0, err
+}
+
+func (b *Buffer) PeekUint8() (uint8, error) {
 	var data = b.Bytes()
-	if len(data) < 2 {
-		panic(ErrBufferOutOfRange)
+	if len(data) >= 1 {
+		return data[0], nil
 	}
-	return binary.LittleEndian.Uint16(data[:2])
+	return 0, io.EOF
 }
 
-func (b *Buffer) PeekInt16() int16 {
-	return int16(b.PeekUint16())
+func (b *Buffer) PeekInt8() (int8, error) {
+	n, err := b.PeekUint8()
+	return int8(n), err
 }
 
-func (b *Buffer) PeekUint32() uint32 {
+func (b *Buffer) PeekUint16() (uint16, error) {
 	var data = b.Bytes()
-	if len(data) < 4 {
-		panic(ErrBufferOutOfRange)
+	if len(data) >= 2 {
+		n := binary.LittleEndian.Uint16(data[:2])
+		return n, nil
 	}
-	return binary.LittleEndian.Uint32(data[:4])
+	return 0, io.EOF
 }
 
-func (b *Buffer) PeekInt32() int32 {
-	return int32(b.PeekUint32())
+func (b *Buffer) PeekInt16() (int16, error) {
+	n, err := b.PeekUint16()
+	return int16(n), err
 }
 
-func (b *Buffer) PeekUint64() uint64 {
+func (b *Buffer) PeekUint32() (uint32, error) {
 	var data = b.Bytes()
-	if len(data) < 8 {
-		panic(ErrBufferOutOfRange)
+	if len(data) >= 4 {
+		n := binary.LittleEndian.Uint32(data[:4])
+		return n, nil
 	}
-	return binary.LittleEndian.Uint64(data[:8])
+	return 0, io.EOF
 }
 
-func (b *Buffer) PeekInt64() int64 {
-	return int64(b.PeekUint64())
+func (b *Buffer) PeekInt32() (int32, error) {
+	n, er := b.PeekUint32()
+	return int32(n), er
 }
 
-func (b *Buffer) PeekFloat32() float32 {
-	var n = b.PeekUint32()
-	return math.Float32frombits(n)
+func (b *Buffer) PeekUint64() (uint64, error) {
+	var data = b.Bytes()
+	if len(data) >= 8 {
+		n := binary.LittleEndian.Uint64(data[:8])
+		return n, nil
+	}
+	return 0, io.EOF
 }
 
-func (b *Buffer) PeekFloat64() float64 {
-	var n = b.PeekUint64()
-	return math.Float64frombits(n)
+func (b *Buffer) PeekInt64() (int64, error) {
+	n, ok := b.PeekUint64()
+	return int64(n), ok
+}
+
+func (b *Buffer) PeekFloat32() (float32, error) {
+	n, err := b.PeekUint32()
+	if err == nil {
+		return math.Float32frombits(n), nil
+	}
+	return 0, err
+}
+
+func (b *Buffer) PeekFloat64() (float64, error) {
+	n, err := b.PeekUint64()
+	if err == nil {
+		return math.Float64frombits(n), nil
+	}
+	return 0, err
 }

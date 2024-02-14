@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
-	"sync"
 
 	"gopkg.in/svrkit.v1/slog"
 )
@@ -90,12 +89,12 @@ func (h NetV1Header) CalcCRC(body []byte) uint32 {
 	return crc.Sum32()
 }
 
-func (h NetV1Header) Pack(size uint32, flag MsgFlag, netMsg *NetMessage) {
+func (h NetV1Header) Pack(size uint32, flag MsgFlag, seq, cmd uint32) {
 	intToBytes(size, h[:3])
 	// h[3:7] = checksum // set after
 	h[7] = uint8(flag)
-	binary.LittleEndian.PutUint32(h[8:], netMsg.Seq)
-	binary.LittleEndian.PutUint32(h[12:], netMsg.Command)
+	binary.LittleEndian.PutUint32(h[8:], seq)
+	binary.LittleEndian.PutUint32(h[12:], cmd)
 }
 
 // ReadHeadBody @maxSize should less than MaxPacketSize
@@ -147,9 +146,7 @@ func ProcessHeaderFlags(flags MsgFlag, body []byte, decrypt Encryptor) ([]byte, 
 
 // DecodeMsgFrom decode message from reader
 func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetMessage) error {
-	var head = AllocNetHeader()
-	defer FreeNetHeader(head)
-
+	var head = NewNetV1Header()
 	body, err := ReadHeadBody(rd, head, maxSize)
 	if err != nil {
 		return err
@@ -210,7 +207,7 @@ func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 	}
 
 	var head = NewNetV1Header()
-	head.Pack(uint32(bodySize+V1HeaderLength), flags, netMsg)
+	head.Pack(uint32(bodySize+V1HeaderLength), flags, netMsg.Seq, netMsg.Command)
 	var checksum = head.CalcCRC(body)
 	head.SetCRC(checksum)
 
@@ -268,18 +265,4 @@ func intToBytes(v uint32, b []byte) {
 	b[0] = byte(v)
 	b[1] = byte(v >> 8)
 	b[2] = byte(v >> 16)
-}
-
-var headPool = &sync.Pool{
-	New: func() interface{} {
-		return NewNetV1Header()
-	},
-}
-
-func AllocNetHeader() NetV1Header {
-	return headPool.Get().(NetV1Header)
-}
-
-func FreeNetHeader(head NetV1Header) {
-	headPool.Put(head)
 }
