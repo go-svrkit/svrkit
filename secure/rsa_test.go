@@ -8,14 +8,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	mathrand "math/rand"
 	"testing"
-	"time"
 )
-
-func init() {
-	mathrand.Seed(time.Now().UnixNano())
-}
 
 var RSATestPublicKey = []byte(`-----BEGIN PUBLIC KEY-----
 MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC0wugAtwSpvDgiYKi6GC5390KY

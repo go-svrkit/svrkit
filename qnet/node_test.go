@@ -43,5 +43,16 @@ func TestMakeGateSession(t *testing.T) {
 }
 
 func TestNodeID_String(t *testing.T) {
-
+	tests := []struct {
+		service  uint16
+		instance uint32
+		expected string
+	}{
+		{1, 1, "01#1"},
+		{math.MaxUint8, math.MaxUint32, "FF#4294967295"},
+	}
+	for _, tt := range tests {
+		var node = MakeBackendNode(tt.service, tt.instance)
+		assert.Equal(t, node.String(), tt.expected)
+	}
 }

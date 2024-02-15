@@ -129,8 +129,6 @@ func (m *EndpointMap) Remove(node NodeID) {
 
 func (m *EndpointMap) Clear() {
 	m.guard.Lock()
-	for k := range m.endpoints {
-		delete(m.endpoints, k)
-	}
+	clear(m.endpoints)
 	m.guard.Unlock()
 }

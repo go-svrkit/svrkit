@@ -4,6 +4,8 @@ import (
 	"context"
 	"net"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type FakeSession struct {
@@ -18,18 +20,6 @@ func NewFakeSession(queue chan *NetMessage) *FakeSession {
 			SendQueue: queue,
 		},
 	}
-}
-
-func (s *FakeSession) GetNode() NodeID {
-	return 0
-}
-
-func (s *FakeSession) SetNode(NodeID) {
-
-}
-
-func (s *FakeSession) GetRemoteAddr() string {
-	return ""
 }
 
 func (s *FakeSession) UnderlyingConn() net.Conn {
@@ -49,4 +39,22 @@ func (s *FakeSession) ForceClose(error) {
 }
 
 func TestEndpointMap_Size(t *testing.T) {
+	var m = NewEndpointMap()
+	assert.Equal(t, m.Size(), 0)
+	m.Put(1, &FakeSession{})
+	assert.Equal(t, m.Size(), 1)
+}
+
+func TestEndpointMap_IsEmpty(t *testing.T) {
+	var m = NewEndpointMap()
+	assert.True(t, m.IsEmpty())
+	m.Put(1, &FakeSession{})
+	assert.False(t, m.IsEmpty())
+}
+
+func TestEndpointMap_Has(t *testing.T) {
+	var m = NewEndpointMap()
+	assert.False(t, m.Has(1))
+	m.Put(1, &FakeSession{})
+	assert.True(t, m.Has(1))
 }

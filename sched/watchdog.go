@@ -12,23 +12,22 @@ import (
 	"time"
 
 	"gopkg.in/svrkit.v1/debug"
-	"gopkg.in/svrkit.v1/qnet"
 	"gopkg.in/svrkit.v1/slog"
 )
 
-const WatchAliveTTL = 100 // 100s
-
 type WatchDog struct {
-	node       qnet.NodeID
+	path       string
 	wg         sync.WaitGroup
 	running    atomic.Bool
 	lastUpdate int64
+	ttl        int64
 	ticker     *time.Ticker
 }
 
-func NewWatchDog(node qnet.NodeID) *WatchDog {
+func NewWatchDog(path string, ttl int64) *WatchDog {
 	return &WatchDog{
-		node:       node,
+		path:       path,
+		ttl:        ttl,
 		lastUpdate: time.Now().Unix(),
 	}
 }
@@ -43,7 +42,9 @@ func (wd *WatchDog) KeepAlive() {
 }
 
 func (wd *WatchDog) Stop() {
-	wd.running.Store(false)
+	if !wd.running.CompareAndSwap(true, false) {
+		return
+	}
 	if wd.ticker != nil {
 		wd.ticker.Stop()
 	}
@@ -61,13 +62,13 @@ func (wd *WatchDog) worker() {
 	}()
 
 	wd.running.Store(true)
-	wd.ticker = time.NewTicker(time.Second * WatchAliveTTL / 2)
+	wd.ticker = time.NewTicker(time.Second * time.Duration(wd.ttl) / 2)
 	defer wd.ticker.Stop()
 
 	for wd.running.Load() {
 		select {
 		case now := <-wd.ticker.C:
-			if now.Unix()-wd.lastUpdate > WatchAliveTTL {
+			if now.Unix()-wd.lastUpdate > wd.ttl {
 				go wd.dumpCPU()
 				wd.dumpGoroutines()
 				return
@@ -78,7 +79,7 @@ func (wd *WatchDog) worker() {
 
 func (wd *WatchDog) genPprofFileName(name string) string {
 	var now = time.Now()
-	var filename = fmt.Sprintf("%v_%d-%d-%d_%d-%d-%d_%s.pprof", wd.node, now.Year(), now.Month(), now.Day(),
+	var filename = fmt.Sprintf("%s_%d%02d%02d_%02d%02d%02d_%s.pprof", wd.path, now.Year(), now.Month(), now.Day(),
 		now.Hour(), now.Minute(), now.Second(), name)
 	return filename
 }

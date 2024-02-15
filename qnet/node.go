@@ -51,7 +51,7 @@ func (n NodeID) Instance() uint32 {
 
 // GateID client会话的网关ID
 func (n NodeID) GateID() uint16 {
-	return uint16((n >> NodeInstanceShift) & 0xFF)
+	return uint16(n >> NodeInstanceShift)
 }
 
 func (n NodeID) Session() uint32 {
@@ -62,7 +62,7 @@ func (n NodeID) String() string {
 	if n.IsSession() {
 		return fmt.Sprintf("G%d#%d", n.GateID(), n.Session())
 	}
-	return fmt.Sprintf("%02x#%d", n.Service(), n.Instance())
+	return fmt.Sprintf("%02X#%d", n.Service(), n.Instance())
 }
 
 // NodeIDSet 没有重复ID的有序集合

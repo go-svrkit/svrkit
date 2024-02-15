@@ -4,9 +4,11 @@
 package qnet
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/svrkit.v1/strutil"
 )
 
 func TestMsgFlag_Has(t *testing.T) {
@@ -42,18 +44,85 @@ func TestNetV1Header_Pack(t *testing.T) {
 	assert.Equal(t, head.CRC(), uint32(12345678))
 }
 
-func TestReadHeadBody(t *testing.T) {
-
-}
-
-func TestProcessHeaderFlags(t *testing.T) {
-
-}
-
-func TestEncodeMsgTo(t *testing.T) {
-
+func TestCompress(t *testing.T) {
+	tests := []struct {
+		input string
+	}{
+		{""},
+		{"hell world"},
+		{"aaabbbcccdddeeefffggg"},
+		{"a quick brown fox jumps over the lazy dog"},
+		{"It was the best of times, it was the worst of times, it was the age of wisdom, it was the age of foolishness, it was the epoch of belief, it was the epoch of incredulity, it was the season of Light, it was the season of Darkness, it was the spring of hope, it was the winter of despair, we had everything before us, we had nothing before us, we were all going direct to Heaven, we were all going direct the other way—in short, the period was so far like the present period, that some of its noisiest authorities insisted on its being received, for good or for evil, in the superlative degree of comparison only."},
+	}
+	for i, tc := range tests {
+		var encoded bytes.Buffer
+		if err := compress([]byte(tc.input), &encoded); err != nil {
+			t.Fatalf("compress: %v", err)
+		}
+		var decoded bytes.Buffer
+		if err := uncompress(encoded.Bytes(), &decoded); err != nil {
+			t.Fatalf("uncompress: %v", err)
+		}
+		var out = string(decoded.Bytes())
+		if out != tc.input {
+			t.Logf("case %d: compress %s -> %s", i+1, tc.input, out)
+		}
+	}
 }
 
 func TestDecodeMsgFrom(t *testing.T) {
+	var buf bytes.Buffer
+	var msg = CreateNetMessageWith(&PrebuildReq{PosX: 11, PosZ: 22})
+	assert.Nil(t, EncodeMsgTo(msg, nil, &buf))
+	var netMsg = AllocNetMessage()
+	assert.Nil(t, DecodeMsgFrom(&buf, MaxPayloadSize, nil, netMsg))
+	assert.True(t, len(netMsg.Data) > 0)
+	var req PrebuildReq
+	assert.Nil(t, netMsg.DecodeTo(&req))
+	assert.Equal(t, req.PosX, int32(11))
+	assert.Equal(t, req.PosZ, int32(22))
+}
 
+func isMsgEqual(t *testing.T, a, b *NetMessage) bool {
+	if !(a.Command == b.Command && a.Seq == b.Seq) {
+		return false
+	}
+	if err := a.Encode(); err != nil {
+		t.Fatalf("encode %v", err)
+	}
+	data1, data2 := a.Data, b.Data
+	if len(data1) > 0 && len(data2) > 0 {
+		return bytes.Equal(data1, data2)
+	}
+	return a.Body == nil && b.Body == nil
+}
+
+func testEncode(t *testing.T, size int) {
+	var netMsg = AllocNetMessage()
+	netMsg.Command = 1001
+	netMsg.Seq = 1
+
+	if size > 0 {
+		netMsg.Data = strutil.RandBytes(size)
+	}
+
+	var buf bytes.Buffer
+	if err := EncodeMsgTo(netMsg, nil, &buf); err != nil {
+		t.Fatalf("%v", err)
+	}
+	var msg2 = AllocNetMessage()
+	if err := DecodeMsgFrom(&buf, MaxPayloadSize, nil, msg2); err != nil {
+		t.Fatalf("%v", err)
+	}
+	if !isMsgEqual(t, netMsg, msg2) {
+		t.Fatalf("size %d not equal", size)
+	}
+}
+
+func TestCodecEncode(t *testing.T) {
+	testEncode(t, 0)
+	testEncode(t, 64)
+	testEncode(t, DefaultCompressThreshold)
+	testEncode(t, MaxPayloadSize-MaxPayloadSize/1000)
+	//testEncode(t, MaxPayloadSize)
 }
