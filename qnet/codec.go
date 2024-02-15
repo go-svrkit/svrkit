@@ -158,25 +158,13 @@ func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetM
 	}
 	netMsg.Seq = head.Seq()
 	netMsg.Command = head.Command()
-
-	if flags.Has(FlagError) {
-		n, i := binary.Uvarint(body)
-		if i <= 0 {
-			return fmt.Errorf("decode msg %d errno negative %d", netMsg.Command, i)
-		}
-		netMsg.Errno = uint32(n)
-	} else {
-		netMsg.Data = body
-	}
+	netMsg.Data = body
 	return nil
 }
 
 // EncodeMsgTo encode message to writer
 func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 	var flags MsgFlag
-	if netMsg.Errno != 0 {
-		flags |= FlagError
-	}
 	if err := netMsg.Encode(); err != nil {
 		return err
 	}

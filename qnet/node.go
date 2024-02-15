@@ -24,8 +24,9 @@ func MakeBackendNode(service uint16, instance uint32) NodeID {
 	return NodeBackendTypeMask | NodeID((uint64(service)<<NodeInstanceShift)|uint64(instance))
 }
 
-func MakeGateSession(service uint16, session uint32) NodeID {
-	return NodeID((uint64(service) << NodeInstanceShift) | uint64(session))
+// MakeGateSession `instance`指GATE的实例编号，限定为16位
+func MakeGateSession(instance uint16, session uint32) NodeID {
+	return NodeID((uint64(instance) << NodeInstanceShift) | uint64(session))
 }
 
 // IsBackend 是否backend节点
@@ -40,12 +41,7 @@ func (n NodeID) IsSession() bool {
 
 // Service 服务型
 func (n NodeID) Service() uint16 {
-	return uint16((n >> NodeInstanceShift) & 0xFF)
-}
-
-// GateID client会话的网关ID
-func (n NodeID) GateID() uint16 {
-	return uint16((n >> NodeInstanceShift) & 0xFF)
+	return uint16(n >> NodeInstanceShift)
 }
 
 // Instance service节点的实例编号
@@ -53,9 +49,18 @@ func (n NodeID) Instance() uint32 {
 	return uint32(n)
 }
 
+// GateID client会话的网关ID
+func (n NodeID) GateID() uint16 {
+	return uint16((n >> NodeInstanceShift) & 0xFF)
+}
+
+func (n NodeID) Session() uint32 {
+	return uint32(n)
+}
+
 func (n NodeID) String() string {
 	if n.IsSession() {
-		return fmt.Sprintf("G%d#%d", n.GateID(), n.Instance())
+		return fmt.Sprintf("G%d#%d", n.GateID(), n.Session())
 	}
 	return fmt.Sprintf("%02x#%d", n.Service(), n.Instance())
 }

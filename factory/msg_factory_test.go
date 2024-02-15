@@ -20,8 +20,8 @@ func (m *PrebuildReq) String() string { return proto.CompactTextString(m) }
 func (*PrebuildReq) ProtoMessage()    {}
 
 type PrebuildAck struct {
-	Code uint32 `protobuf:"varint,1,opt,name=Code,proto3" json:"Code,omitempty"`
-	Id   int32  `protobuf:"varint,2,opt,name=Id,proto3" json:"Id,omitempty"`
+	Code int32 `protobuf:"varint,1,opt,name=Code,proto3" json:"Code,omitempty"`
+	Id   int32 `protobuf:"varint,2,opt,name=Id,proto3" json:"Id,omitempty"`
 }
 
 func (m *PrebuildAck) Reset()         { *m = PrebuildAck{} }

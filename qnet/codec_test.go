@@ -45,3 +45,15 @@ func TestNetV1Header_Pack(t *testing.T) {
 func TestReadHeadBody(t *testing.T) {
 
 }
+
+func TestProcessHeaderFlags(t *testing.T) {
+
+}
+
+func TestEncodeMsgTo(t *testing.T) {
+
+}
+
+func TestDecodeMsgFrom(t *testing.T) {
+
+}
