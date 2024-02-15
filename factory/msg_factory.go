@@ -28,6 +28,13 @@ var (
 	type2id = make(map[reflect.Type]uint32) // reflect <-> 消息ID
 )
 
+func Clear() {
+	name2id = make(map[string]uint32)
+	id2name = make(map[uint32]string)
+	id2type = make(map[uint32]reflect.Type)
+	type2id = make(map[reflect.Type]uint32)
+}
+
 // HasValidSuffix 指定的后缀才自动注册
 func HasValidSuffix(name string) bool {
 	nameSuffix := []string{"Req", "Ack", "Ntf"}
@@ -39,12 +46,24 @@ func HasValidSuffix(name string) bool {
 	return false
 }
 
-func IsRequestMessage(name string) bool {
+func IsReqMessage(name string) bool {
 	return strings.HasSuffix(name, "Req")
 }
 
 func IsAckMessage(name string) bool {
 	return strings.HasSuffix(name, "Ack")
+}
+
+// GetPairingAckName 根据Req消息名称，返回其对应的Ack消息名称
+func GetPairingAckName(reqName string) string {
+	if len(reqName) > 3 && reqName[len(reqName)-3:] == "Req" {
+		return reqName[:len(reqName)-3] + "Ack"
+	}
+	return ""
+}
+
+func GetPairingAckNameOf(msgId uint32) string {
+	return GetPairingAckName(GetMessageFullName(msgId))
 }
 
 func isWellKnown(name string) bool {
@@ -78,7 +97,7 @@ func registerByNameHash(fd protoreflect.FileDescriptor) bool {
 			log.Printf("message %s cannot be reflected\n", fullname)
 			continue
 		}
-		if _, found := name2id[name]; !found {
+		if GetMessageId(name) == 0 {
 			if err := Register(rtype); err != nil {
 				log.Printf("register msg %s: %v\n", name, err)
 			}
@@ -95,16 +114,16 @@ func RegisterAllMessages() {
 }
 
 func Register(rType reflect.Type) error {
-	if kind := rType.Kind(); kind != reflect.Ptr {
-		return fmt.Errorf("unexpected type %s", rType.String())
+	if rType.Kind() == reflect.Ptr {
+		rType = rType.Elem()
 	}
-	var name = rType.Elem().Name()
-	var hash = NameHash(name)
 	// 不能重复注册
+	var name = rType.String()
 	if _, ok := name2id[name]; ok {
 		return fmt.Errorf("duplicate registration of %s", name)
 	}
 	// 不同的名字如果生成了相同的hash，需要更改新名字
+	var hash = NameHash(name)
 	if old, found := id2name[hash]; found {
 		return fmt.Errorf("duplicate hash of %s -> %s", old, name)
 	}
@@ -115,44 +134,47 @@ func Register(rType reflect.Type) error {
 	return nil
 }
 
-// GetMessageName 根据消息ID获取消息名称
-func GetMessageName(msgId uint32) string {
+// GetMessageFullName 根据消息ID获取消息名称
+func GetMessageFullName(msgId uint32) string {
 	return id2name[msgId]
 }
 
-// GetMessageID 根据消息名称获取消息ID
-func GetMessageID(name string) uint32 {
-	return name2id[name]
+// GetMessageId 根据消息名称获取消息ID
+func GetMessageId(fullName string) uint32 {
+	return name2id[fullName]
+}
+
+func GetMessageType(msgId uint32) reflect.Type {
+	return id2type[msgId]
+}
+
+// GetMessageIdOf 获取proto消息的ID
+func GetMessageIdOf(msg proto.Message) uint32 {
+	var rtype = reflect.TypeOf(msg)
+	return type2id[rtype.Elem()]
 }
 
 // CreateMessageByID 根据消息ID创建消息（使用反射）
 func CreateMessageByID(msgId uint32) proto.Message {
 	if rtype, found := id2type[msgId]; found {
-		var val = reflect.New(rtype.Elem()).Interface()
+		var val = reflect.New(rtype).Interface()
 		return val.(proto.Message)
 	}
 	return nil
 }
 
 // CreateMessageByName 根据消息名称创建消息（使用反射）
-func CreateMessageByName(name string) proto.Message {
-	if hash, found := name2id[name]; found {
+func CreateMessageByName(fullName string) proto.Message {
+	if hash, found := name2id[fullName]; found {
 		return CreateMessageByID(hash)
 	}
 	return nil
 }
 
-// GetMessageIDOf 获取proto消息的ID
-func GetMessageIDOf(msg proto.Message) uint32 {
-	var rtype = reflect.TypeOf(msg)
-	return type2id[rtype]
-}
-
-// GetPairingAckID 根据Req消息的ID，返回其对应的Ack消息ID
-func GetPairingAckID(reqName string) uint32 {
-	if !strings.HasSuffix(reqName, "Req") {
-		return 0
+func CreatePairingAck(reqName string) proto.Message {
+	var ackName = GetPairingAckName(reqName)
+	if ackName != "" {
+		return CreateMessageByName(ackName)
 	}
-	var ackName = reqName[:len(reqName)-3] + "Ack"
-	return name2id[ackName]
+	return nil
 }
