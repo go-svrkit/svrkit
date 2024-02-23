@@ -4,6 +4,7 @@
 package slice
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -54,6 +55,49 @@ func TestShrinkTypedSlice(t *testing.T) {
 	for i := 0; i < len(b); i++ {
 		if a[i] != b[i] {
 			t.Fatalf("a[%d] = %d, b[%d] = %d, want a[%d] == b[%d]", i, a[i], i, b[i], i, i)
+		}
+	}
+}
+
+func TestInt32Slice_InsertAt(t *testing.T) {
+	tests := []struct {
+		A        Int32Slice
+		I        int
+		N        int32
+		expected Int32Slice
+	}{
+		{[]int32{}, 0, 1, []int32{1}},
+		{[]int32{1}, -1, 2, []int32{1, 2}},
+		{[]int32{1}, 2, 2, []int32{1, 2}},
+		{[]int32{1, 3, 4}, 1, 2, []int32{1, 2, 3, 4}},
+		{[]int32{2, 3, 4}, 0, 1, []int32{1, 2, 3, 4}},
+		{[]int32{1, 2, 3}, 3, 4, []int32{1, 2, 3, 4}},
+	}
+	for i, tc := range tests {
+		var output = InsertAt(tc.A, tc.I, tc.N)
+		if !slices.Equal(output, tc.expected) {
+			t.Fatalf("test %d not equal", i+1)
+		}
+	}
+}
+
+func TestInt32Slice_RemoveAt(t *testing.T) {
+	tests := []struct {
+		A        Int32Slice
+		I        int
+		expected Int32Slice
+	}{
+		{[]int32{}, 0, []int32{}},
+		{[]int32{1}, -1, []int32{1}},
+		{[]int32{1}, 1, []int32{1}},
+		{[]int32{1, 2, 3, 4, 5}, 4, []int32{1, 2, 3, 4}},
+		{[]int32{1, 2, 3, 4, 5}, 0, []int32{5, 2, 3, 4}},
+		{[]int32{1, 2, 3, 4, 5}, 2, []int32{1, 2, 5, 4}},
+	}
+	for i, tc := range tests {
+		var output = RemoveAt(tc.A, tc.I)
+		if !slices.Equal(output, tc.expected) {
+			t.Fatalf("test %d not equal, expect %v, got %v", i+1, tc.expected, output)
 		}
 	}
 }
