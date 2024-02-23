@@ -10,21 +10,44 @@ import (
 	"log"
 	"math"
 	"unsafe"
+
+	"gopkg.in/svrkit.v1/pool"
 )
 
 type Buffer struct {
-	*bytes.Buffer
+	buf  *bytes.Buffer
+	pool *pool.ObjectPool[Buffer]
 }
 
-func NewBuffer(b []byte) *Buffer {
+func NewBuffer(b []byte, pool *pool.ObjectPool[Buffer]) *Buffer {
 	return &Buffer{
-		Buffer: bytes.NewBuffer(b),
+		buf:  bytes.NewBuffer(b),
+		pool: pool,
 	}
 }
 
+func (b *Buffer) Free() {
+	if b.pool != nil {
+		b.pool.Put(b)
+	}
+}
+
+func (b *Buffer) Reset() {
+	if b.buf != nil {
+		b.buf.Reset()
+	}
+}
+
+func (b *Buffer) Bytes() []byte {
+	if b.buf != nil {
+		return b.buf.Bytes()
+	}
+	return nil
+}
+
 func (b *Buffer) linit() {
-	if b.Buffer == nil {
-		b.Buffer = new(bytes.Buffer)
+	if b.buf == nil {
+		b.buf = new(bytes.Buffer)
 	}
 }
 
@@ -34,24 +57,24 @@ func (b *Buffer) WriteBool(v bool) {
 		c = 1
 	}
 	b.linit()
-	b.WriteByte(c)
+	b.buf.WriteByte(c)
 }
 
 func (b *Buffer) WriteInt8(n int8) {
 	b.linit()
-	b.WriteByte(byte(n))
+	b.buf.WriteByte(byte(n))
 }
 
 func (b *Buffer) WriteUint8(n uint8) {
 	b.linit()
-	b.WriteByte(n)
+	b.buf.WriteByte(n)
 }
 
 func (b *Buffer) WriteUint16(n uint16) {
 	b.linit()
 	var tmp [2]byte
 	binary.LittleEndian.PutUint16(tmp[:], n)
-	b.Write(tmp[:])
+	b.buf.Write(tmp[:])
 }
 
 func (b *Buffer) WriteInt16(n int16) {
@@ -62,7 +85,7 @@ func (b *Buffer) WriteUint32(n uint32) {
 	var tmp [4]byte
 	binary.LittleEndian.PutUint32(tmp[:], n)
 	b.linit()
-	b.Write(tmp[:])
+	b.buf.Write(tmp[:])
 }
 
 func (b *Buffer) WriteInt32(n int32) {
@@ -73,7 +96,7 @@ func (b *Buffer) WriteUint64(n uint64) {
 	var tmp [8]byte
 	binary.LittleEndian.PutUint64(tmp[:], n)
 	b.linit()
-	b.Write(tmp[:])
+	b.buf.Write(tmp[:])
 }
 
 func (b *Buffer) WriteInt64(n int64) {
@@ -90,6 +113,15 @@ func (b *Buffer) WriteFloat64(f float64) {
 	b.WriteUint64(n)
 }
 
+func (b *Buffer) WriteString(s string) {
+	b.linit()
+	b.buf.WriteString(s)
+}
+func (b *Buffer) WriteBytes(buf []byte) {
+	b.linit()
+	b.buf.Write(buf)
+}
+
 func (b *Buffer) ReadBool() (bool, error) {
 	var c, err = b.ReadUint8()
 	return c != 0, err
@@ -104,7 +136,7 @@ func (b *Buffer) MustReadBool() bool {
 }
 
 func (b *Buffer) ReadUint8() (uint8, error) {
-	return b.ReadByte()
+	return b.buf.ReadByte()
 }
 
 func (b *Buffer) MustReadUint8() uint8 {
@@ -163,7 +195,7 @@ func (b *Buffer) MustReadInt16() int16 {
 
 func (b *Buffer) ReadUint32() (n uint32, err error) {
 	var tmp [4]byte
-	if _, err = b.Read(tmp[:]); err != nil {
+	if _, err = b.buf.Read(tmp[:]); err != nil {
 		return
 	}
 	n = binary.LittleEndian.Uint32(tmp[:])
@@ -193,7 +225,7 @@ func (b *Buffer) MustReadInt32() int32 {
 
 func (b *Buffer) ReadUint64() (n uint64, err error) {
 	var tmp [8]byte
-	if _, err = b.Read(tmp[:]); err != nil {
+	if _, err = b.buf.Read(tmp[:]); err != nil {
 		return
 	}
 	n = binary.LittleEndian.Uint64(tmp[:])
@@ -254,10 +286,10 @@ func (b *Buffer) MustReadFloat64() float64 {
 }
 
 func (b *Buffer) ReadNBytes(n int) (r []byte, err error) {
-	var data = b.Bytes()
+	var data = b.buf.Bytes()
 	if n > 0 && len(data) >= n {
 		r = make([]byte, n)
-		_, err = b.Read(r)
+		_, err = b.buf.Read(r)
 		return
 	}
 	return nil, io.EOF
@@ -277,7 +309,7 @@ func (b *Buffer) PeekBool() (bool, error) {
 }
 
 func (b *Buffer) PeekUint8() (uint8, error) {
-	var data = b.Bytes()
+	var data = b.buf.Bytes()
 	if len(data) >= 1 {
 		return data[0], nil
 	}
@@ -290,7 +322,7 @@ func (b *Buffer) PeekInt8() (int8, error) {
 }
 
 func (b *Buffer) PeekUint16() (uint16, error) {
-	var data = b.Bytes()
+	var data = b.buf.Bytes()
 	if len(data) >= 2 {
 		n := binary.LittleEndian.Uint16(data[:2])
 		return n, nil
@@ -304,7 +336,7 @@ func (b *Buffer) PeekInt16() (int16, error) {
 }
 
 func (b *Buffer) PeekUint32() (uint32, error) {
-	var data = b.Bytes()
+	var data = b.buf.Bytes()
 	if len(data) >= 4 {
 		n := binary.LittleEndian.Uint32(data[:4])
 		return n, nil
@@ -318,7 +350,7 @@ func (b *Buffer) PeekInt32() (int32, error) {
 }
 
 func (b *Buffer) PeekUint64() (uint64, error) {
-	var data = b.Bytes()
+	var data = b.buf.Bytes()
 	if len(data) >= 8 {
 		n := binary.LittleEndian.Uint64(data[:8])
 		return n, nil

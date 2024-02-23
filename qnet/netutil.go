@@ -26,11 +26,11 @@ const (
 
 const PrefixLength = 2 // sizeof uint16
 
-// ReadLenPrefixData 读取长度[2字节]开头的数据
-func ReadLenPrefixData(r io.Reader, maxSize uint16) ([]byte, error) {
+// ReadLenData 读取长度[2字节]开头的数据
+func ReadLenData(r io.Reader, maxSize uint16) ([]byte, error) {
 	var tmp [PrefixLength]byte
 	if _, err := io.ReadFull(r, tmp[:]); err != nil {
-		return nil, fmt.Errorf("read len: %v", err)
+		return nil, fmt.Errorf("ReadLenPrefixData: read len: %v", err)
 	}
 	var nLen = int(binary.BigEndian.Uint16(tmp[:]))
 	if nLen < PrefixLength || nLen > int(maxSize) {
@@ -46,8 +46,8 @@ func ReadLenPrefixData(r io.Reader, maxSize uint16) ([]byte, error) {
 	return data, nil
 }
 
-// WriteLenPrefixData 写入长度[2字节]开头的数据
-func WriteLenPrefixData(w io.Writer, body []byte) error {
+// WriteLenData 写入长度[2字节]开头的数据
+func WriteLenData(w io.Writer, body []byte) error {
 	if len(body) == 0 {
 		return nil
 	}
@@ -69,7 +69,7 @@ func WriteLenPrefixData(w io.Writer, body []byte) error {
 
 func ReadProtoMessage(conn net.Conn, msg proto.Message) error {
 	conn.SetReadDeadline(time.Now().Add(time.Second * 60))
-	body, err := ReadLenPrefixData(conn, math.MaxUint16)
+	body, err := ReadLenData(conn, math.MaxUint16)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func WriteProtoMessage(w io.Writer, msg proto.Message) error {
 	if err != nil {
 		return err
 	}
-	return WriteLenPrefixData(w, body)
+	return WriteLenData(w, body)
 }
 
 // RequestProtoMessage send req and wait for ack
@@ -201,6 +201,7 @@ func GetLocalIPList() []net.IP {
 		addrs, err := inetface.Addrs()
 		if err != nil {
 			slog.Errorf("cannot fetch net address: %v", err)
+			continue
 		}
 		for _, addr := range addrs {
 			var ip net.IP

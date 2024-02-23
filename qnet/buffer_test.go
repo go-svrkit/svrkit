@@ -8,7 +8,7 @@ import (
 )
 
 func TestBuffer_WriteRead(t *testing.T) {
-	var b = NewBuffer(nil)
+	var b = NewBuffer(nil, nil)
 	b.WriteBool(true)
 	assert.True(t, b.MustReadBool())
 
@@ -60,7 +60,7 @@ func TestBuffer_WriteRead(t *testing.T) {
 }
 
 func TestBuffer_Peek(t *testing.T) {
-	var b = NewBuffer(nil)
+	var b = NewBuffer(nil, nil)
 	b.WriteBool(true)
 	b.WriteUint8(math.MaxUint8)
 	b.WriteUint16(math.MaxUint16)

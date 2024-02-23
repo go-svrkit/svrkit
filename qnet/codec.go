@@ -28,10 +28,10 @@ var (
 type MsgFlag uint8
 
 const (
-	FlagCompress MsgFlag = 0x10 // 压缩
-	FlagEncrypt  MsgFlag = 0x20 // 加密
-	FlagError    MsgFlag = 0x40 // 错误
-	FlagExtent   MsgFlag = 0x80 //
+	FlagCompress MsgFlag = 0x10
+	FlagEncrypt  MsgFlag = 0x20
+	FlagError    MsgFlag = 0x40
+	FlagExtent   MsgFlag = 0x80
 )
 
 func (g MsgFlag) Has(n MsgFlag) bool {
@@ -79,7 +79,7 @@ func (h NetV1Header) SetCRC(v uint32) {
 	binary.LittleEndian.PutUint32(h[3:], v)
 }
 
-// CalcCRC checksum = f(header[7:]) and f(body)
+// CalcCRC checksum = f(head) and f(body)
 func (h NetV1Header) CalcCRC(body []byte) uint32 {
 	var crc = crc32.NewIEEE()
 	crc.Write(h[7:])
@@ -97,7 +97,7 @@ func (h NetV1Header) Pack(size uint32, flag MsgFlag, seq, cmd uint32) {
 	binary.LittleEndian.PutUint32(h[12:], cmd)
 }
 
-// ReadHeadBody @maxSize should less than MaxPacketSize
+// ReadHeadBody read header and body less than `maxSize`
 func ReadHeadBody(rd io.Reader, head NetV1Header, maxSize uint32) ([]byte, error) {
 	if _, err := io.ReadFull(rd, head); err != nil {
 		return nil, err
@@ -210,36 +210,30 @@ func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 	return nil
 }
 
-func compress(input []byte, buf *bytes.Buffer) (err error) {
+func compress(input []byte, buf *bytes.Buffer) error {
 	if len(input) == 0 {
-		return
+		return nil
 	}
 	var w = zlib.NewWriter(buf)
-	defer func() {
-		err = w.Close()
-	}()
-	if _, err = w.Write(input); err != nil {
-		return
+	_, err := w.Write(input)
+	if er := w.Close(); er != nil {
+		err = er
 	}
-	return
+	return err
 }
 
-func uncompress(input []byte, buf *bytes.Buffer) (err error) {
+func uncompress(input []byte, buf *bytes.Buffer) error {
 	if len(input) == 0 {
-		return
+		return nil
 	}
-	var r io.ReadCloser
-	if r, err = zlib.NewReader(bytes.NewReader(input)); err != nil {
-		return
+	rd, err := zlib.NewReader(bytes.NewReader(input))
+	if err == nil {
+		_, err = io.Copy(buf, rd)
 	}
-	defer func() {
-		err = r.Close()
-	}()
-
-	if _, err = io.Copy(buf, r); err != nil {
-		return
+	if er := rd.Close(); er != nil {
+		err = er
 	}
-	return
+	return err
 }
 
 // 3-bytes little endian to uint32

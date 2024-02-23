@@ -18,42 +18,29 @@ import (
 	"gopkg.in/svrkit.v1/slog"
 )
 
-func serveListen(ln net.Listener, bus chan net.Conn) {
-	var tempDelay time.Duration // how long to sleep on accept failure
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			if ne, ok := err.(net.Error); ok && ne.Timeout() {
-				if tempDelay == 0 {
-					tempDelay = 5 * time.Millisecond
-				} else {
-					tempDelay *= 2
-				}
-				if max := time.Second; tempDelay > max {
-					tempDelay = max
-				}
-				slog.Warnf("Accept error: %v, retrying in %v", err, tempDelay)
-				time.Sleep(tempDelay)
-				continue
-			}
-			slog.Errorf("accept error: %v", err)
-			return
-		}
-		bus <- conn
-	}
-}
-
-func startBenchServer(t *testing.T, ctx context.Context, addr string, ready chan struct{}) {
-	var incoming = make(chan *NetMessage, 6000)
+func listenTestServer(t *testing.T, addr string, n int, bus chan net.Conn) {
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		t.Errorf("Listen: %s %v", addr, err)
 		return
 	}
+	for n > 0 {
+		conn, err := ln.Accept()
+		if err != nil {
+			slog.Errorf("accept error: %v", err)
+			return
+		}
+		bus <- conn
+		n--
+	}
+}
+
+func startBenchServer(t *testing.T, ctx context.Context, addr string, ready chan struct{}) {
+	var incoming = make(chan *NetMessage, 6000)
 
 	var errChan = make(chan *Error, 1024)
 	var bus = make(chan net.Conn, 1024)
-	go serveListen(ln, bus)
+	//go serveListen(ln, bus)
 
 	var autoId int32 = 1
 

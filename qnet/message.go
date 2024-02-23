@@ -130,12 +130,12 @@ func (m *NetMessage) Refuse(ec int32) error {
 var msgPool = pool.NewObjectPool[NetMessage]()
 
 func AllocNetMessage() *NetMessage {
-	return msgPool.Alloc()
+	return msgPool.Get()
 }
 
 func FreeNetMessage(netMsg *NetMessage) {
 	netMsg.Reset()
-	msgPool.Free(netMsg)
+	msgPool.Put(netMsg)
 }
 
 // DefaultMsgIDReflector get message ID by reflection
