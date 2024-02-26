@@ -34,7 +34,7 @@ func TestOrderedInsert(t *testing.T) {
 	}
 }
 
-func TestOrderedRemove(t *testing.T) {
+func TestOrderedDelete(t *testing.T) {
 	var idSet []int
 	for i := 1; i <= 100; i++ {
 		idSet = PutIfAbsent(idSet, i)
@@ -63,7 +63,7 @@ func TestOrderedRemove(t *testing.T) {
 	}
 }
 
-func TestIDSetRemove(t *testing.T) {
+func TestOrderedContains(t *testing.T) {
 	var idSet Int32Slice
 	for i := 1; i <= 100; i++ {
 		idSet = append(idSet, int32(i))

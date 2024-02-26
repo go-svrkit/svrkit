@@ -35,7 +35,7 @@ func PutIfAbsent[T cmp.Ordered](set []T, elem T) []T {
 	if i < len(set) && set[i] == elem {
 		return set
 	}
-	return slices.Insert(set, i, elem)
+	return InsertAt(set, i, elem)
 }
 
 // OrderedDelete 把`n`从有序数组中删除
