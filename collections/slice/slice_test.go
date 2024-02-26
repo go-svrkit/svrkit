@@ -59,7 +59,7 @@ func TestShrinkTypedSlice(t *testing.T) {
 	}
 }
 
-func TestInt32Slice_InsertAt(t *testing.T) {
+func TestSlice_InsertAt(t *testing.T) {
 	tests := []struct {
 		A        Int32Slice
 		I        int
@@ -81,7 +81,7 @@ func TestInt32Slice_InsertAt(t *testing.T) {
 	}
 }
 
-func TestInt32Slice_RemoveAt(t *testing.T) {
+func TestSlice_RemoveAt(t *testing.T) {
 	tests := []struct {
 		A        Int32Slice
 		I        int
