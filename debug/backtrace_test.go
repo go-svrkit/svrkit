@@ -13,7 +13,7 @@ import (
 var gStack Stack
 
 func testCall4() {
-	gStack = GetCurrentCallStack(1)
+	gStack = GetCallStack(1)
 }
 
 func testCall3() {

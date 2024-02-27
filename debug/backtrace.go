@@ -17,7 +17,7 @@ const (
 	mainPkgName     = "main.main"
 )
 
-// code taken from https://github.com/pkg/error with modification
+// code taken from https://github.com/pkg/errors with modification
 
 // Frame represents a program counter inside a stack frame.
 // For historical reasons if Frame is interpreted as a uintptr
@@ -84,10 +84,16 @@ func GetCallerStack(stack *Stack, skip int) {
 	stack.pcs = stack.pcs[0:n]
 }
 
-func GetCurrentCallStack(skip int) Stack {
+func GetCallStack(skip int) Stack {
 	var stack Stack
 	GetCallerStack(&stack, skip+1)
 	return stack
+}
+
+func GetCallStackNames(skip, limit int) []string {
+	var stack Stack
+	GetCallerStack(&stack, skip+1)
+	return stack.CallerNames(limit)
 }
 
 func Backtrace(title string, val interface{}, w io.Writer) {
