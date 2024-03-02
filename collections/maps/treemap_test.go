@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
-package treemap
+package maps
 
 import (
 	"fmt"
@@ -11,8 +11,8 @@ import (
 	"gopkg.in/svrkit.v1/collections/util"
 )
 
-func createTreeMap() *Map[int, string] {
-	var m = New[int, string](util.OrderedCmp[int])
+func createTreeMap() *TreeMap[int, string] {
+	var m = NewTreeMap[int, string](util.OrderedCmp[int])
 	m.Put(5, "e")
 	m.Put(6, "f")
 	m.Put(7, "g")
@@ -24,7 +24,7 @@ func createTreeMap() *Map[int, string] {
 	return m
 }
 
-func mapKeysText(m *Map[int, string]) string {
+func mapKeysText(m *TreeMap[int, string]) string {
 	var sb strings.Builder
 	for _, key := range m.Keys() {
 		fmt.Fprintf(&sb, "%v", key)
@@ -32,7 +32,7 @@ func mapKeysText(m *Map[int, string]) string {
 	return sb.String()
 }
 
-func mapValuesText(m *Map[int, string]) string {
+func mapValuesText(m *TreeMap[int, string]) string {
 	var sb strings.Builder
 	for _, val := range m.Values() {
 		fmt.Fprintf(&sb, "%v", val)
@@ -40,7 +40,7 @@ func mapValuesText(m *Map[int, string]) string {
 	return sb.String()
 }
 
-func checkMapKeyValue(t *testing.T, m *Map[int, string], keyS, valueS string, size int) {
+func checkMapKeyValue(t *testing.T, m *TreeMap[int, string], keyS, valueS string, size int) {
 	if actualValue := m.Size(); actualValue != size {
 		t.Errorf("Got %v expected %v", actualValue, size)
 	}
@@ -116,7 +116,7 @@ func TestTreeMapRemove(t *testing.T) {
 }
 
 func TestTreeMapFirstLast(t *testing.T) {
-	var m = New[int, string](util.OrderedCmp[int])
+	var m = NewTreeMap[int, string](util.OrderedCmp[int])
 	if actualValue, found := m.FirstKey(); found {
 		t.Errorf("Got %v expected %v", actualValue, nil)
 	}
@@ -154,7 +154,7 @@ func TestTreeMapFirstLast(t *testing.T) {
 }
 
 func TestTreeMapCeilingAndFloor(t *testing.T) {
-	var m = New[int, string](util.OrderedCmp[int])
+	var m = NewTreeMap[int, string](util.OrderedCmp[int])
 
 	if entry := m.FloorEntry(0); entry != nil {
 		t.Errorf("Got %v expected %v", entry, "<nil>")
@@ -186,8 +186,8 @@ func TestTreeMapCeilingAndFloor(t *testing.T) {
 	}
 }
 
-func createTreeMap2() *Map[int, string] {
-	var m = New[int, string](util.OrderedCmp[int])
+func createTreeMap2() *TreeMap[int, string] {
+	var m = NewTreeMap[int, string](util.OrderedCmp[int])
 	m.Put(5, "e")
 	m.Put(6, "f")
 	m.Put(7, "g")

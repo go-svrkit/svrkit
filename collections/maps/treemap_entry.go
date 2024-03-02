@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
-package treemap
+package maps
 
 import (
 	"gopkg.in/svrkit.v1/collections/util"
@@ -26,15 +26,15 @@ func (c Color) String() string {
 	}
 }
 
-type Entry[K comparable, V any] struct {
-	left, right, parent *Entry[K, V]
+type TreeEntry[K comparable, V any] struct {
+	left, right, parent *TreeEntry[K, V]
 	color               Color
 	key                 K
 	value               V
 }
 
-func NewEntry[K comparable, V any](key K, val V, parent *Entry[K, V]) *Entry[K, V] {
-	return &Entry[K, V]{
+func NewTreeEntry[K comparable, V any](key K, val V, parent *TreeEntry[K, V]) *TreeEntry[K, V] {
+	return &TreeEntry[K, V]{
 		key:    key,
 		value:  val,
 		parent: parent,
@@ -42,63 +42,63 @@ func NewEntry[K comparable, V any](key K, val V, parent *Entry[K, V]) *Entry[K, 
 	}
 }
 
-func (e *Entry[K, V]) GetKey() K {
+func (e *TreeEntry[K, V]) GetKey() K {
 	return e.key
 }
 
-func (e *Entry[K, V]) GetValue() V {
+func (e *TreeEntry[K, V]) GetValue() V {
 	return e.value
 }
 
-func (e *Entry[K, V]) SetValue(val V) V {
+func (e *TreeEntry[K, V]) SetValue(val V) V {
 	var old = e.value
 	e.value = val
 	return old
 }
 
-func keyOf[K comparable, V any](e *Entry[K, V]) (K, bool) {
+func keyOf[K comparable, V any](e *TreeEntry[K, V]) (K, bool) {
 	if e != nil {
 		return e.key, true
 	}
 	return util.ZeroOf[K](), false
 }
 
-func colorOf[K comparable, V any](p *Entry[K, V]) Color {
+func colorOf[K comparable, V any](p *TreeEntry[K, V]) Color {
 	if p != nil {
 		return p.color
 	}
 	return BLACK
 }
 
-func parentOf[K comparable, V any](p *Entry[K, V]) *Entry[K, V] {
+func parentOf[K comparable, V any](p *TreeEntry[K, V]) *TreeEntry[K, V] {
 	if p != nil {
 		return p.parent
 	}
 	return nil
 }
 
-func setColor[K comparable, V any](p *Entry[K, V], color Color) {
+func setColor[K comparable, V any](p *TreeEntry[K, V], color Color) {
 	if p != nil {
 		p.color = color
 	}
 }
 
-func leftOf[K comparable, V any](p *Entry[K, V]) *Entry[K, V] {
+func leftOf[K comparable, V any](p *TreeEntry[K, V]) *TreeEntry[K, V] {
 	if p != nil {
 		return p.left
 	}
 	return nil
 }
 
-func rightOf[K comparable, V any](p *Entry[K, V]) *Entry[K, V] {
+func rightOf[K comparable, V any](p *TreeEntry[K, V]) *TreeEntry[K, V] {
 	if p != nil {
 		return p.right
 	}
 	return nil
 }
 
-// Returns the successor of the specified Entry, or null if no such.
-func successor[K comparable, V any](t *Entry[K, V]) *Entry[K, V] {
+// Returns the successor of the specified TreeEntry, or null if no such.
+func successor[K comparable, V any](t *TreeEntry[K, V]) *TreeEntry[K, V] {
 	if t == nil {
 		return nil
 	} else if t.right != nil {
@@ -118,8 +118,8 @@ func successor[K comparable, V any](t *Entry[K, V]) *Entry[K, V] {
 	}
 }
 
-// Returns the predecessor of the specified Entry, or null if no such.
-func predecessor[K comparable, V any](t *Entry[K, V]) *Entry[K, V] {
+// Returns the predecessor of the specified TreeEntry, or null if no such.
+func predecessor[K comparable, V any](t *TreeEntry[K, V]) *TreeEntry[K, V] {
 	if t == nil {
 		return nil
 	} else if t.left != nil {
