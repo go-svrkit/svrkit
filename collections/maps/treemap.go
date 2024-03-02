@@ -83,13 +83,13 @@ func NewTreeMap[K, V comparable](comparator util.Comparator[K]) *TreeMap[K, V] {
 
 func NewOrderedTreeMap[K cmp.Ordered, V comparable]() *TreeMap[K, V] {
 	return &TreeMap[K, V]{
-		comparator: util.OrderedCmp[K],
+		comparator: cmp.Compare[K],
 	}
 }
 
 func NewTreeMapOf[K cmp.Ordered, V comparable](unordered map[K]V) *TreeMap[K, V] {
 	var m = &TreeMap[K, V]{
-		comparator: util.OrderedCmp[K],
+		comparator: cmp.Compare[K],
 	}
 	for k, v := range unordered {
 		m.Put(k, v)
