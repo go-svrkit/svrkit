@@ -342,6 +342,31 @@ func ParseSlice[T cmp.Ordered](text, sep string) []T {
 	return slice
 }
 
+// ParseKeyValues 解析字符串为K-V slice
+func ParseKeyValues[K, V cmp.Ordered](text string, sep1, sep2 string) ([]K, []V) {
+	var parts = strings.Split(text, sep2)
+	var keys = make([]K, 0, len(parts))
+	var values = make([]V, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		var pair = strings.Split(part, sep1)
+		if len(pair) == 2 {
+			var strKey = strings.TrimSpace(pair[0])
+			var strVal = strings.TrimSpace(pair[1])
+			key, err1 := ParseTo[K](strKey)
+			val, err2 := ParseTo[V](strVal)
+			if err1 == nil && err2 == nil {
+				keys = append(keys, key)
+				values = append(values, val)
+			}
+		}
+	}
+	return keys, values
+}
+
 // ParseMap 解析字符串为K-V map，
 // 示例： ParseKVPairs("x=1|y=2", SepEqualSign, SepVerticalBar) -> {"a":"x,y", "c":"z"}
 func ParseMap[K, V cmp.Ordered](text string, sep1, sep2 string) map[K]V {
@@ -354,12 +379,12 @@ func ParseMap[K, V cmp.Ordered](text string, sep1, sep2 string) map[K]V {
 		}
 		var pair = strings.Split(part, sep1)
 		if len(pair) == 2 {
-			var key = strings.TrimSpace(pair[0])
-			var value = strings.TrimSpace(pair[1])
-			k, er1 := ParseTo[K](key)
-			val, er2 := ParseTo[V](value)
-			if er1 == nil && er2 == nil {
-				dict[k] = val
+			var strKey = strings.TrimSpace(pair[0])
+			var strVal = strings.TrimSpace(pair[1])
+			key, err1 := ParseTo[K](strKey)
+			val, err2 := ParseTo[V](strVal)
+			if err1 == nil && err2 == nil {
+				dict[key] = val
 			}
 		}
 	}
