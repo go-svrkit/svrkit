@@ -9,8 +9,16 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 
 	"gopkg.in/svrkit.v1/slog"
+)
+
+const (
+	SepColon       = ":"
+	SepComma       = ","
+	SepEqualSign   = "="
+	SepVerticalBar = "|"
 )
 
 // ParseBool parse string to bool
@@ -318,4 +326,42 @@ func MustParseTo[T cmp.Ordered | bool](s string) T {
 		slog.Panicf("cannot parse %s to %T: %v", s, val, err)
 	}
 	return val
+}
+
+func ParseSlice[T cmp.Ordered](text, sep string) []T {
+	var parts = strings.Split(text, sep)
+	var slice = make([]T, 0, len(parts))
+	for _, part := range parts {
+		var s = strings.TrimSpace(part)
+		if s != "" {
+			if v, err := ParseTo[T](s); err == nil {
+				slice = append(slice, v)
+			}
+		}
+	}
+	return slice
+}
+
+// ParseMap 解析字符串为K-V map，
+// 示例： ParseKVPairs("x=1|y=2", SepEqualSign, SepVerticalBar) -> {"a":"x,y", "c":"z"}
+func ParseMap[K, V cmp.Ordered](text string, sep1, sep2 string) map[K]V {
+	var dict = make(map[K]V)
+	var parts = strings.Split(text, sep2)
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		var pair = strings.Split(part, sep1)
+		if len(pair) == 2 {
+			var key = strings.TrimSpace(pair[0])
+			var value = strings.TrimSpace(pair[1])
+			k, er1 := ParseTo[K](key)
+			val, er2 := ParseTo[V](value)
+			if er1 == nil && er2 == nil {
+				dict[k] = val
+			}
+		}
+	}
+	return dict
 }
