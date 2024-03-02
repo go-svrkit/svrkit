@@ -38,6 +38,13 @@ func MapKeyValues[M ~map[K]V, K comparable, V any](m M) ([]K, []V) {
 	return keys, values
 }
 
+// MapOrderedKeys 返回map里已排序的key列表
+func MapOrderedKeys[M ~map[K]V, K cmp.Ordered, V any](m M) []K {
+	var keys = MapKeys(m)
+	slices.Sort(keys)
+	return keys
+}
+
 // MapOrderedValues 返回map里按key排序的value列表
 func MapOrderedValues[M ~map[K]V, K cmp.Ordered, V any](m M) []V {
 	var keys = MapKeys(m)
@@ -47,6 +54,17 @@ func MapOrderedValues[M ~map[K]V, K cmp.Ordered, V any](m M) []V {
 		values = append(values, m[k])
 	}
 	return values
+}
+
+// MapOrderedKeyValues 返回map里已排序的key和value列表
+func MapOrderedKeyValues[M ~map[K]V, K cmp.Ordered, V any](m M) ([]K, []V) {
+	var keys = MapKeys(m)
+	slices.Sort(keys)
+	var values = make([]V, 0, len(m))
+	for _, k := range keys {
+		values = append(values, m[k])
+	}
+	return keys, values
 }
 
 // MapUnion 返回两个map的并集, copy of a ∪ b
