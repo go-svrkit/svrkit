@@ -2,11 +2,12 @@ package handler
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/svrkit.v1/qnet"
-	"testing"
-	"time"
 )
 
 func nowNano() int64 {
@@ -16,37 +17,37 @@ func nowNano() int64 {
 func TestRegister(t *testing.T) {
 	defer Clear()
 	assert.False(t, HasRegistered(1234))
-	RegisterV1(1234, func(proto.Message) error { return nil })
+	Register(1234, func(proto.Message) error { return nil })
 	assert.True(t, HasRegistered(1234))
 }
 
 func TestDeregister(t *testing.T) {
 	defer Clear()
 	assert.Nil(t, Deregister(1234))
-	RegisterV1(1234, func(proto.Message) error { return nil })
+	Register(1234, func(proto.Message) error { return nil })
 	assert.NotNil(t, Deregister(1234))
 }
 
 func TestHandle(t *testing.T) {
 	defer Clear()
 	var triggerAt = make(map[int]int64)
-	RegisterV1(101, func(proto.Message) error {
+	Register(101, func(proto.Message) error {
 		triggerAt[1] = nowNano()
 		return nil
 	})
-	RegisterV2(102, func(proto.Message) (proto.Message, error) {
+	Register(102, func(proto.Message) (proto.Message, error) {
 		triggerAt[2] = nowNano()
 		return nil, nil
 	})
-	RegisterV3(103, func(context.Context, proto.Message) error {
+	Register(103, func(context.Context, proto.Message) error {
 		triggerAt[3] = nowNano()
 		return nil
 	})
-	RegisterV4(104, func(context.Context, proto.Message) (proto.Message, error) {
+	Register(104, func(context.Context, proto.Message) (proto.Message, error) {
 		triggerAt[4] = nowNano()
 		return nil, nil
 	})
-	RegisterV5(105, func(context.Context, *qnet.NetMessage) error {
+	Register(105, func(context.Context, *qnet.NetMessage) error {
 		triggerAt[5] = nowNano()
 		return nil
 	})
@@ -63,7 +64,7 @@ func TestHandle(t *testing.T) {
 func TestPreHook(t *testing.T) {
 	defer Clear()
 	var t1, t2, t3 int64
-	RegisterV1(101, func(proto.Message) error {
+	Register(101, func(proto.Message) error {
 		t1 = nowNano()
 		return nil
 	})
@@ -86,7 +87,7 @@ func TestPreHook(t *testing.T) {
 func TestPostHook(t *testing.T) {
 	defer Clear()
 	var t1, t2, t3 int64
-	RegisterV1(101, func(proto.Message) error {
+	Register(101, func(proto.Message) error {
 		t1 = nowNano()
 		assert.Greater(t, t1, t2)
 		return nil
