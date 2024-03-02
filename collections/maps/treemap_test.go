@@ -9,13 +9,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/svrkit.v1/collections/util"
 	"gopkg.in/svrkit.v1/strutil"
 )
 
 func createTreeMap(text string) *TreeMap[int, string] {
 	keys, values := strutil.ParseKeyValues[int, string](text, "=", ",")
-	var m = NewTreeMap[int, string](util.OrderedCmp[int])
+	var m = NewOrderedTreeMap[int, string]()
 	for i, k := range keys {
 		m.Put(k, values[i])
 	}
@@ -118,7 +117,7 @@ func TestTreeMapRemove(t *testing.T) {
 }
 
 func TestTreeMapFirstLast(t *testing.T) {
-	var m = NewTreeMap[int, string](util.OrderedCmp[int])
+	var m = NewOrderedTreeMap[int, string]()
 	if actualValue, found := m.FirstKey(); found {
 		t.Errorf("Got %v expected %v", actualValue, nil)
 	}
@@ -156,7 +155,7 @@ func TestTreeMapFirstLast(t *testing.T) {
 }
 
 func TestTreeMapCeilingAndFloor(t *testing.T) {
-	var m = NewTreeMap[int, string](util.OrderedCmp[int])
+	var m = NewOrderedTreeMap[int, string]()
 
 	if entry := m.FloorEntry(0); entry != nil {
 		t.Errorf("Got %v expected %v", entry, "<nil>")

@@ -4,6 +4,8 @@
 package maps
 
 import (
+	"cmp"
+
 	"gopkg.in/svrkit.v1/collections/util"
 )
 
@@ -79,9 +81,15 @@ func NewTreeMap[K, V comparable](comparator util.Comparator[K]) *TreeMap[K, V] {
 	}
 }
 
-func NewTreeMapFrom[K, V comparable](unordered map[K]V, comparator util.Comparator[K]) *TreeMap[K, V] {
+func NewOrderedTreeMap[K cmp.Ordered, V comparable]() *TreeMap[K, V] {
+	return &TreeMap[K, V]{
+		comparator: util.OrderedCmp[K],
+	}
+}
+
+func NewTreeMapOf[K cmp.Ordered, V comparable](unordered map[K]V) *TreeMap[K, V] {
 	var m = &TreeMap[K, V]{
-		comparator: comparator,
+		comparator: util.OrderedCmp[K],
 	}
 	for k, v := range unordered {
 		m.Put(k, v)

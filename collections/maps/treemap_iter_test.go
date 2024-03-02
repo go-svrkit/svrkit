@@ -7,12 +7,10 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"gopkg.in/svrkit.v1/collections/util"
 )
 
 func createTreeMap2() *TreeMap[int, string] {
-	var m = NewTreeMap[int, string](util.OrderedCmp[int])
+	var m = NewOrderedTreeMap[int, string]()
 	m.Put(5, "e")
 	m.Put(6, "f")
 	m.Put(7, "g")
