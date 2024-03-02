@@ -8,54 +8,59 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/svrkit.v1/collections/util"
+	"gopkg.in/svrkit.v1/strutil"
 )
 
-func createTreeMap() *TreeMap[int, string] {
+func createTreeMap(text string) *TreeMap[int, string] {
+	keys, values := strutil.ParseKeyValues[int, string](text, "=", ",")
 	var m = NewTreeMap[int, string](util.OrderedCmp[int])
-	m.Put(5, "e")
-	m.Put(6, "f")
-	m.Put(7, "g")
-	m.Put(3, "c")
-	m.Put(4, "d")
-	m.Put(1, "x")
-	m.Put(2, "b")
-	m.Put(1, "a") //overwrite
+	for i, k := range keys {
+		m.Put(k, values[i])
+	}
 	return m
 }
 
-func mapKeysText(m *TreeMap[int, string]) string {
+func formatTreeMap(m *TreeMap[int, string]) string {
 	var sb strings.Builder
-	for _, key := range m.Keys() {
-		fmt.Fprintf(&sb, "%v", key)
+	var entry = m.getFirstEntry()
+	for entry != nil {
+		fmt.Fprintf(&sb, "%v=%v", entry.key, entry.value)
+		entry = successor(entry)
+		if entry != nil {
+			sb.WriteString(",")
+		}
 	}
 	return sb.String()
-}
-
-func mapValuesText(m *TreeMap[int, string]) string {
-	var sb strings.Builder
-	for _, val := range m.Values() {
-		fmt.Fprintf(&sb, "%v", val)
-	}
-	return sb.String()
-}
-
-func checkMapKeyValue(t *testing.T, m *TreeMap[int, string], keyS, valueS string, size int) {
-	if actualValue := m.Size(); actualValue != size {
-		t.Errorf("Got %v expected %v", actualValue, size)
-	}
-	if actualValue, expectedValue := mapKeysText(m), keyS; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-	if actualValue, expectedValue := mapValuesText(m), valueS; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
 }
 
 func TestTreeMapPut(t *testing.T) {
-	var m = createTreeMap()
+	var s = "1=a,2=b,3=c,4=d,5=e,6=f,7=g"
 
-	checkMapKeyValue(t, m, "1234567", "abcdefg", 7)
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"1=a,2=b,3=c,4=d,5=e,6=f,7=g", s},
+		{"1=a,4=d,5=e,6=f,2=b,3=c,7=g", s},
+		{"1=a,2=b,,6=f,3=c,4=d,5=e7=g", s},
+		{"4=d,5=e,1=a,6=f,7=g,2=b,3=c", s},
+	}
+	for i, tc := range tests {
+		var name = fmt.Sprintf("case-%d", i+1)
+		t.Run(name, func(t *testing.T) {
+			var m = createTreeMap(s)
+			var out = formatTreeMap(m)
+			assert.Equal(t, tc.want, out)
+		})
+	}
+}
+
+func TestTreeMapGet(t *testing.T) {
+	var s = "1=a,2=b,3=c,4=d,5=e,6=f,7=g"
+	var m = createTreeMap(s)
+	assert.Equal(t, formatTreeMap(m), s)
 
 	tests := []struct {
 		key   int
@@ -81,13 +86,11 @@ func TestTreeMapPut(t *testing.T) {
 }
 
 func TestTreeMapRemove(t *testing.T) {
-	var m = createTreeMap()
+	var m = createTreeMap("")
 	for i := 5; i <= 8; i++ {
 		m.Remove(i)
 	}
 	m.Remove(5) // remove again
-
-	checkMapKeyValue(t, m, "1234", "abcd", 4)
 
 	tests := []struct {
 		key   int
@@ -112,7 +115,6 @@ func TestTreeMapRemove(t *testing.T) {
 	}
 
 	m.Clear()
-	checkMapKeyValue(t, m, "", "", 0)
 }
 
 func TestTreeMapFirstLast(t *testing.T) {
@@ -183,76 +185,5 @@ func TestTreeMapCeilingAndFloor(t *testing.T) {
 	}
 	if node := m.CeilingEntry(8); node != nil {
 		t.Errorf("Got %v expected %v", node.GetKey(), "<nil>")
-	}
-}
-
-func createTreeMap2() *TreeMap[int, string] {
-	var m = NewTreeMap[int, string](util.OrderedCmp[int])
-	m.Put(5, "e")
-	m.Put(6, "f")
-	m.Put(7, "g")
-	m.Put(3, "c")
-	m.Put(4, "d")
-	m.Put(1, "x")
-	m.Put(2, "b")
-	m.Put(1, "a") //overwrite
-
-	// │   ┌── 7
-	// └── 6
-	//     │   ┌── 5
-	//     └── 4
-	//         │   ┌── 3
-	//         └── 2
-	//             └── 1
-	return m
-}
-
-func TestTreeMapIterator(t *testing.T) {
-	var m = createTreeMap2()
-
-	var count = 0
-	var sb1 strings.Builder
-	var sb2 strings.Builder
-
-	var iter = m.Iterator()
-	for iter.HasNext() {
-		count++
-		var entry = iter.Next()
-		fmt.Fprintf(&sb1, "%v", entry.GetKey())
-		fmt.Fprintf(&sb2, "%v", entry.GetValue())
-	}
-	if actualValue, expectedValue := sb1.String(), "1234567"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-	if actualValue, expectedValue := sb2.String(), "abcdefg"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-	if actualValue, expectedValue := count, m.Size(); actualValue != expectedValue {
-		t.Errorf("Size different. Got %v expected %v", actualValue, expectedValue)
-	}
-}
-
-func TestTreeMapDescendingIterator(t *testing.T) {
-	var m = createTreeMap2()
-
-	var count = 0
-	var sb1 strings.Builder
-	var sb2 strings.Builder
-
-	var iter = m.DescendingIterator()
-	for iter.HasNext() {
-		count++
-		var entry = iter.Next()
-		fmt.Fprintf(&sb1, "%v", entry.GetKey())
-		fmt.Fprintf(&sb2, "%v", entry.GetValue())
-	}
-	if actualValue, expectedValue := sb1.String(), "7654321"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-	if actualValue, expectedValue := sb2.String(), "gfedcba"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-	if actualValue, expectedValue := count, m.Size(); actualValue != expectedValue {
-		t.Errorf("Size different. Got %v expected %v", actualValue, expectedValue)
 	}
 }

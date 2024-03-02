@@ -21,6 +21,8 @@ type MapInterface[K, V comparable] interface {
 	Range(func(key K, value V) (shouldContinue bool))
 }
 
+var _ MapInterface[int, int] = (*RWMutexMap[int, int])(nil)
+
 // RWMutexMap is an implementation of mapInterface using a sync.RWMutex.
 type RWMutexMap[K, V comparable] struct {
 	mu    sync.RWMutex

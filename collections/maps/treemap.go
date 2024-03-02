@@ -14,20 +14,72 @@ import (
 //
 // detail code taken from JDK, see links below
 // https://github.com/openjdk/jdk/blob/jdk-17+35/src/java.base/share/classes/java/util/TreeMap.java
-type TreeMap[K comparable, V any] struct {
+
+// Color Red-black mechanics
+type Color uint8
+
+const (
+	RED   Color = 0
+	BLACK Color = 1
+)
+
+func (c Color) String() string {
+	switch c {
+	case RED:
+		return "red"
+	case BLACK:
+		return "black"
+	default:
+		return "??"
+	}
+}
+
+type TreeEntry[K comparable, V any] struct {
+	left, right, parent *TreeEntry[K, V]
+	color               Color
+	key                 K
+	value               V
+}
+
+func NewTreeEntry[K comparable, V any](key K, val V, parent *TreeEntry[K, V]) *TreeEntry[K, V] {
+	return &TreeEntry[K, V]{
+		key:    key,
+		value:  val,
+		parent: parent,
+		color:  BLACK,
+	}
+}
+
+func (e *TreeEntry[K, V]) GetKey() K {
+	return e.key
+}
+
+func (e *TreeEntry[K, V]) GetValue() V {
+	return e.value
+}
+
+func (e *TreeEntry[K, V]) SetValue(val V) V {
+	var old = e.value
+	e.value = val
+	return old
+}
+
+type TreeMap[K, V comparable] struct {
 	root       *TreeEntry[K, V]
 	comparator util.Comparator[K]
 	size       int // The number of entries in the tree
 	version    int // The number of structural modifications to the tree.
 }
 
-func NewTreeMap[K comparable, V any](comparator util.Comparator[K]) *TreeMap[K, V] {
+var _ MapInterface[int, int] = (*TreeMap[int, int])(nil)
+
+func NewTreeMap[K, V comparable](comparator util.Comparator[K]) *TreeMap[K, V] {
 	return &TreeMap[K, V]{
 		comparator: comparator,
 	}
 }
 
-func NewFrom[K comparable, V any](comparator util.Comparator[K], unordered map[K]V) *TreeMap[K, V] {
+func NewTreeMapFrom[K, V comparable](unordered map[K]V, comparator util.Comparator[K]) *TreeMap[K, V] {
 	var m = &TreeMap[K, V]{
 		comparator: comparator,
 	}
@@ -59,6 +111,10 @@ func (m *TreeMap[K, V]) Get(key K) (V, bool) {
 		return p.value, true
 	}
 	return util.ZeroOf[V](), false
+}
+
+func (m *TreeMap[K, V]) Load(key K) (V, bool) {
+	return m.Get(key)
 }
 
 // GetOrDefault returns the value to which the specified key is mapped,
@@ -149,6 +205,20 @@ func (m *TreeMap[K, V]) Foreach(visit util.KeyValVisitor[K, V]) {
 	}
 }
 
+// Range calls f sequentially for each key and value present in the map.
+// If f returns false, range stops the iteration.
+func (m *TreeMap[K, V]) Range(visit func(key K, value V) (shouldContinue bool)) {
+	var ver = m.version
+	for e := m.getFirstEntry(); e != nil; e = successor(e) {
+		if !visit(e.key, e.value) {
+			break
+		}
+		if ver != m.version {
+			panic("concurrent map modification")
+		}
+	}
+}
+
 // Keys return list of all keys
 func (m *TreeMap[K, V]) Keys() []K {
 	var keys = make([]K, 0, m.size)
@@ -167,7 +237,7 @@ func (m *TreeMap[K, V]) Values() []V {
 	return values
 }
 
-func (m *TreeMap[K, V]) ToUnordered() map[K]V {
+func (m *TreeMap[K, V]) ToHashMap() map[K]V {
 	var unordered = make(map[K]V, m.size)
 	for e := m.getFirstEntry(); e != nil; e = successor(e) {
 		unordered[e.key] = e.value
@@ -201,14 +271,82 @@ func (m *TreeMap[K, V]) Put(key K, value V) V {
 	return m.put(key, value, true)
 }
 
+// Store sets the value for a key, equivalent to Put.
+func (m *TreeMap[K, V]) Store(key K, value V) {
+	m.put(key, value, true)
+}
+
+// LoadOrStore returns the existing value for the key if present.
+// Otherwise, it stores and returns the given value.
+// The loaded result is true if the value was loaded, false if stored.
+func (m *TreeMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
+	var p = m.getEntry(key)
+	if p == nil {
+		actual = value
+		m.put(key, value, true)
+		return value, false
+	} else {
+		return p.value, true
+	}
+}
+
+// Swap swaps the value for a key and returns the previous value if any.
+// The loaded result reports whether the key was present.
+func (m *TreeMap[K, V]) Swap(key K, value V) (previous V, loaded bool) {
+	var p = m.getEntry(key)
+	if p != nil {
+		loaded = true
+		previous = p.value
+	}
+	m.put(key, value, true)
+	return
+}
+
+// PutIfAbsent put a key-value pair if the key is not already associated with a value.
 func (m *TreeMap[K, V]) PutIfAbsent(key K, value V) V {
 	return m.put(key, value, false)
+}
+
+// LoadAndDelete deletes the value for a key, returning the previous value if any.
+// The loaded result reports whether the key was present.
+func (m *TreeMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
+	var p = m.getEntry(key)
+	if p != nil {
+		loaded = true
+		value = p.value
+		m.deleteEntry(p)
+	}
+	return
+}
+
+// CompareAndSwap swaps the old and new values for key if the value stored in the map is equal to old.
+// The old value must be of a comparable type.
+func (m *TreeMap[K, V]) CompareAndSwap(key K, old, new V) (swapped bool) {
+	var p = m.getEntry(key)
+	if p != nil && p.value == old {
+		m.put(key, new, true)
+		return true
+	}
+	return false
 }
 
 // Remove removes the mapping for this key from this TreeMap if present.
 func (m *TreeMap[K, V]) Remove(key K) bool {
 	var p = m.getEntry(key)
 	if p != nil {
+		m.deleteEntry(p)
+		return true
+	}
+	return false
+}
+
+func (m *TreeMap[K, V]) Delete(key K) {
+	m.Remove(key)
+}
+
+func (m *TreeMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+	var p = m.getEntry(key)
+	if p != nil && p.value == old {
 		m.deleteEntry(p)
 		return true
 	}
@@ -640,4 +778,87 @@ func (m *TreeMap[K, V]) fixAfterDeletion(x *TreeEntry[K, V]) {
 		}
 	}
 	setColor(x, BLACK)
+}
+
+func keyOf[K comparable, V any](e *TreeEntry[K, V]) (K, bool) {
+	if e != nil {
+		return e.key, true
+	}
+	return util.ZeroOf[K](), false
+}
+
+func colorOf[K comparable, V any](p *TreeEntry[K, V]) Color {
+	if p != nil {
+		return p.color
+	}
+	return BLACK
+}
+
+func parentOf[K comparable, V any](p *TreeEntry[K, V]) *TreeEntry[K, V] {
+	if p != nil {
+		return p.parent
+	}
+	return nil
+}
+
+func setColor[K comparable, V any](p *TreeEntry[K, V], color Color) {
+	if p != nil {
+		p.color = color
+	}
+}
+
+func leftOf[K comparable, V any](p *TreeEntry[K, V]) *TreeEntry[K, V] {
+	if p != nil {
+		return p.left
+	}
+	return nil
+}
+
+func rightOf[K comparable, V any](p *TreeEntry[K, V]) *TreeEntry[K, V] {
+	if p != nil {
+		return p.right
+	}
+	return nil
+}
+
+// Returns the successor of the specified TreeEntry, or null if no such.
+func successor[K comparable, V any](t *TreeEntry[K, V]) *TreeEntry[K, V] {
+	if t == nil {
+		return nil
+	} else if t.right != nil {
+		var p = t.right
+		for p.left != nil {
+			p = p.left
+		}
+		return p
+	} else {
+		var p = t.parent
+		var ch = t
+		for p != nil && ch == p.right {
+			ch = p
+			p = p.parent
+		}
+		return p
+	}
+}
+
+// Returns the predecessor of the specified TreeEntry, or null if no such.
+func predecessor[K comparable, V any](t *TreeEntry[K, V]) *TreeEntry[K, V] {
+	if t == nil {
+		return nil
+	} else if t.left != nil {
+		var p = t.left
+		for p.right != nil {
+			p = p.right
+		}
+		return p
+	} else {
+		var p = t.parent
+		var ch = t
+		for p != nil && ch == p.left {
+			ch = p
+			p = p.parent
+		}
+		return p
+	}
 }
