@@ -35,7 +35,7 @@ func PrettyBytes(nbytes int) string {
 	if nbytes < KB {
 		return fmt.Sprintf("%s%dB", sign, nbytes)
 	} else if nbytes < MB {
-		return fmt.Sprintf("%s%.1fKB", sign, float64(nbytes)/KB)
+		return fmt.Sprintf("%s%.2fKB", sign, float64(nbytes)/KB)
 	} else if nbytes < GB {
 		return fmt.Sprintf("%s%.2fMB", sign, float64(nbytes)/MB)
 	}
@@ -52,6 +52,7 @@ func JSONParse(data []byte, v any) error {
 	return nil
 }
 
+// JSONStringify 序列化为json字符串
 func JSONStringify(v any) string {
 	data, err := json.Marshal(v)
 	if err != nil {
@@ -61,35 +62,37 @@ func JSONStringify(v any) string {
 	return strutil.BytesAsStr(data)
 }
 
-// Proto2JSON 序列化proto消息为json格式
-func Proto2JSON(msg proto.Message) string {
+// FormatProtoToJSON 序列化proto消息为json格式
+func FormatProtoToJSON(msg proto.Message) string {
 	var jm = jsonpb.Marshaler{EnumsAsInts: true}
 	var sb strings.Builder
 	if err := jm.Marshal(&sb, msg); err != nil {
 		slog.Errorf("marshal %T: %v", msg, err)
-	} else {
-		return sb.String()
+		return ""
 	}
-	return msg.String()
+	return sb.String()
 }
 
-// JSON2Proto 反序列化json字符串为proto消息
-func JSON2Proto(body string, dst proto.Message) error {
+// ParseJSONToProto 反序列化json字符串为proto消息
+func ParseJSONToProto(body string, dst proto.Message) error {
 	return jsonpb.Unmarshal(strings.NewReader(body), dst)
 }
 
+// MD5Sum 计算MD5值
 func MD5Sum(data []byte) string {
 	var hash = md5.New()
 	hash.Write(data)
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
+// SHA1Sum 计算SHA1值
 func SHA1Sum(data []byte) string {
 	var hash = sha1.New()
 	hash.Write(data)
 	return hex.EncodeToString(hash.Sum(nil))
 }
 
+// SHA256Sum 计算SHA256值
 func SHA256Sum(data []byte) string {
 	var hash = sha256.New()
 	hash.Write(data)

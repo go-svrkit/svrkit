@@ -11,8 +11,6 @@ import (
 	"strings"
 )
 
-var EssentialProjDirs = []string{"bin", "config", "data", "logs"}
-
 // IsFileExist test if file exist
 func IsFileExist(filename string) bool {
 	_, err := os.Lstat(filename)
@@ -30,11 +28,14 @@ func ReadFileToLines(filename string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer fd.Close()
+	defer func() {
+		_ = fd.Close()
+	}()
+
 	return ReadToLines(fd)
 }
 
-// ReadToLines 把文件内容按行读取
+// ReadToLines 把内容按行读取
 func ReadToLines(rd io.Reader) ([]string, error) {
 	var lines []string
 	var scanner = bufio.NewScanner(rd)
@@ -57,10 +58,14 @@ func CopyFile(dest, source string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() {
+		_ = f.Close()
+	}()
 	_, err = io.Copy(df, f)
 	return err
 }
+
+var EssentialProjDirs = []string{"bin", "config", "data", "logs"}
 
 // IsProjRootDir 如果有以下几个目录，就认为是项目的根路径
 func IsProjRootDir(path string) bool {
