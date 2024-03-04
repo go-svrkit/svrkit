@@ -9,8 +9,16 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 
 	"gopkg.in/svrkit.v1/slog"
+)
+
+const (
+	SepColon       = ":"
+	SepComma       = ","
+	SepEqualSign   = "="
+	SepVerticalBar = "|"
 )
 
 // ParseBool parse string to bool
@@ -318,4 +326,67 @@ func MustParseTo[T cmp.Ordered | bool](s string) T {
 		slog.Panicf("cannot parse %s to %T: %v", s, val, err)
 	}
 	return val
+}
+
+func ParseSlice[T cmp.Ordered](text, sep string) []T {
+	var parts = strings.Split(text, sep)
+	var slice = make([]T, 0, len(parts))
+	for _, part := range parts {
+		var s = strings.TrimSpace(part)
+		if s != "" {
+			if v, err := ParseTo[T](s); err == nil {
+				slice = append(slice, v)
+			}
+		}
+	}
+	return slice
+}
+
+// ParseKeyValues 解析字符串为K-V slice
+func ParseKeyValues[K, V cmp.Ordered](text string, sep1, sep2 string) ([]K, []V) {
+	var parts = strings.Split(text, sep2)
+	var keys = make([]K, 0, len(parts))
+	var values = make([]V, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		var pair = strings.Split(part, sep1)
+		if len(pair) == 2 {
+			var strKey = strings.TrimSpace(pair[0])
+			var strVal = strings.TrimSpace(pair[1])
+			key, err1 := ParseTo[K](strKey)
+			val, err2 := ParseTo[V](strVal)
+			if err1 == nil && err2 == nil {
+				keys = append(keys, key)
+				values = append(values, val)
+			}
+		}
+	}
+	return keys, values
+}
+
+// ParseMap 解析字符串为K-V map，
+// 示例： ParseKVPairs("x=1|y=2", SepEqualSign, SepVerticalBar) -> {"a":"x,y", "c":"z"}
+func ParseMap[K, V cmp.Ordered](text string, sep1, sep2 string) map[K]V {
+	var dict = make(map[K]V)
+	var parts = strings.Split(text, sep2)
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		var pair = strings.Split(part, sep1)
+		if len(pair) == 2 {
+			var strKey = strings.TrimSpace(pair[0])
+			var strVal = strings.TrimSpace(pair[1])
+			key, err1 := ParseTo[K](strKey)
+			val, err2 := ParseTo[V](strVal)
+			if err1 == nil && err2 == nil {
+				dict[key] = val
+			}
+		}
+	}
+	return dict
 }

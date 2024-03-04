@@ -252,7 +252,7 @@ func TestEtcdClient_WatchDirTo(t *testing.T) {
 		t.Fatalf("list: %v", err)
 	}
 	for _, node := range nodes {
-		nodeMap.InsertNode(node)
+		nodeMap.AddNode(node)
 	}
 
 	client.WatchDirTo(ctx, dir, nodeMap)

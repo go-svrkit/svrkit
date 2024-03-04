@@ -475,9 +475,9 @@ func (c *EtcdClient) WatchDirTo(ctx context.Context, dir string, nodeMap *NodeMa
 func updateNodeEvent(nodeMap *NodeMap, rootDir string, ev *NodeEvent) {
 	switch ev.Type {
 	case EventCreate:
-		nodeMap.InsertNode(ev.Node)
+		nodeMap.AddNode(ev.Node)
 	case EventUpdate:
-		nodeMap.InsertNode(ev.Node) // 插入前会先检查是否有重复
+		nodeMap.AddNode(ev.Node) // 插入前会先检查是否有重复
 	case EventDelete:
 		nodeType, id := parseNodeTypeAndID(rootDir, ev.Key)
 		if nodeType != "" && id > 0 {

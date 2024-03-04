@@ -17,17 +17,3 @@ type Iterator[T any] interface {
 	// Remove removes from the underlying collection the last element returned by this iterator.
 	Remove()
 }
-
-// Container a base linear container interface
-type Container[T any] interface {
-	Len() int
-	IsEmpty() bool
-	Front() T
-	Back() T
-
-	PushBack(value T)
-	PushFront(value T)
-	PopFront() T
-	PopBack() T
-	Clear()
-}

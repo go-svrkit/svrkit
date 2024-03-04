@@ -4,8 +4,11 @@
 package strutil
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
+	"reflect"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -201,4 +204,59 @@ func BenchmarkParseToInt32(b *testing.B) {
 		r += int64(v)
 	}
 	b.Logf("result=%d", r)
+}
+
+func TestParseSlice(t *testing.T) {
+	const sep = "|"
+	assert.Equal(t, len(ParseSlice[int]("", sep)), 0)
+	assert.Equal(t, len(ParseSlice[int](sep, sep)), 0)
+	assert.True(t, slices.Equal([]int{1}, ParseSlice[int]("1", sep)))
+	assert.True(t, slices.Equal([]int{1}, ParseSlice[int]("1||", sep)))
+	assert.True(t, slices.Equal([]int{1}, ParseSlice[int]("||1||", sep)))
+	assert.True(t, slices.Equal([]int{1, 2, 3}, ParseSlice[int]("|1|2|3|", sep)))
+
+	assert.True(t, slices.Equal([]string{"usr", "local", "bin"}, ParseSlice[string]("/usr/local/bin", "/")))
+}
+
+func TestParseKeyValues(t *testing.T) {
+	tests := []struct {
+		input string
+		want1 []int
+		want2 []int
+	}{
+		{"", nil, nil},
+		{"", []int{}, []int{}},
+	}
+	for i, tc := range tests {
+		var name = fmt.Sprintf("case-%d", i+1)
+		t.Run(name, func(t *testing.T) {
+			out1, out2 := ParseKeyValues[int, int](tc.input, SepEqualSign, SepComma)
+			assert.True(t, slices.Equal(out1, tc.want1))
+			assert.True(t, slices.Equal(out2, tc.want2))
+		})
+	}
+}
+
+func TestParseMap(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected map[int]int
+	}{
+		{"", map[int]int{}},
+		{"1:2", map[int]int{1: 2}},
+		{"|1:2|", map[int]int{1: 2}},
+		{"||1:2||||", map[int]int{1: 2}},
+		{"1:2|3:4", map[int]int{1: 2, 3: 4}},
+		{"  1 : 2 | 3 : 4|  ", map[int]int{1: 2, 3: 4}},
+	}
+	for i, tc := range tests {
+		var name = fmt.Sprintf("case-%d", i+1)
+		t.Run(name, func(t *testing.T) {
+			var out = ParseMap[int, int](tc.input, SepColon, SepVerticalBar)
+			if !reflect.DeepEqual(out, tc.expected) {
+				t.Fatalf("unexpected ParseMap(%s)  result: %v != %v", tc.input, out, tc.expected)
+			}
+		})
+
+	}
 }

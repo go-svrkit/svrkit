@@ -1,4 +1,4 @@
-// Copyright © 2022 ichenq@gmail.com All rights reserved.
+// Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
 package events
@@ -116,7 +116,7 @@ func (e *Emitter) Emit(eventName string, args ...any) error {
 	if len(handlers) == 0 {
 		return ErrNoListenerFired
 	}
-	var event = NewEvent(e, eventName, args)
+	var event = NewEvent(e, eventName, args...)
 	var err error
 	for _, h := range handlers {
 		if er := h.Fire(event); er != nil {

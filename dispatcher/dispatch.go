@@ -13,15 +13,19 @@ import (
 )
 
 type (
-	MessageHandlerV1 func(proto.Message) error
-	MessageHandlerV2 func(proto.Message) (proto.Message, error)
-	MessageHandlerV3 func(context.Context, proto.Message) error
-	MessageHandlerV4 func(context.Context, proto.Message) (proto.Message, error)
-	MessageHandlerV5 func(context.Context, *qnet.NetMessage) error
+	MessageHandlerV1 = func(proto.Message) error
+	MessageHandlerV2 = func(proto.Message) (proto.Message, error)
+	MessageHandlerV3 = func(context.Context, proto.Message) error
+	MessageHandlerV4 = func(context.Context, proto.Message) (proto.Message, error)
+	MessageHandlerV5 = func(context.Context, *qnet.NetMessage) error
 
 	PreHookFunc  func(context.Context, *qnet.NetMessage) bool
 	PostHookFunc func(context.Context, *qnet.NetMessage)
 )
+
+type IHandler interface {
+	MessageHandlerV1 | MessageHandlerV2 | MessageHandlerV3 | MessageHandlerV4 | MessageHandlerV5
+}
 
 // 消息派发
 var (
@@ -64,36 +68,7 @@ func RegisterPostHook(prepend bool, h PostHookFunc) {
 	}
 }
 
-// RegisterV1 注册消息处理函数
-func RegisterV1(cmd uint32, action MessageHandlerV1) {
-	if HasRegistered(cmd) {
-		slog.Warnf("duplicate handler registration of message %v", cmd)
-	}
-	handlers[cmd] = action
-}
-
-func RegisterV2(cmd uint32, action MessageHandlerV2) {
-	if HasRegistered(cmd) {
-		slog.Warnf("duplicate handler registration of message %v", cmd)
-	}
-	handlers[cmd] = action
-}
-
-func RegisterV3(cmd uint32, action MessageHandlerV3) {
-	if HasRegistered(cmd) {
-		slog.Warnf("duplicate handler registration of message %v", cmd)
-	}
-	handlers[cmd] = action
-}
-
-func RegisterV4(cmd uint32, action MessageHandlerV4) {
-	if HasRegistered(cmd) {
-		slog.Warnf("duplicate handler registration of message %v", cmd)
-	}
-	handlers[cmd] = action
-}
-
-func RegisterV5(cmd uint32, action MessageHandlerV5) {
+func Register[F IHandler](cmd uint32, action F) {
 	if HasRegistered(cmd) {
 		slog.Warnf("duplicate handler registration of message %v", cmd)
 	}

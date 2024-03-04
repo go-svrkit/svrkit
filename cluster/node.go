@@ -7,11 +7,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
+
+	"gopkg.in/svrkit.v1/strutil"
 )
 
 // Node 表示用于服务发现的节点信息
@@ -38,15 +41,23 @@ func NewNode(nodeType string, id uint32) Node {
 	return node
 }
 
-func (n *Node) Get(key string) string {
+func (n *Node) GetStr(key string) string {
 	return n.Args[key]
 }
 
-func (n *Node) Set(key, val string) {
+func (n *Node) SetStr(key, val string) {
 	if n.Args == nil {
 		n.Args = make(map[string]string)
 	}
 	n.Args[key] = val
+}
+
+func (n *Node) Set(key string, val any) {
+	if n.Args == nil {
+		n.Args = make(map[string]string)
+	}
+	data, _ := json.Marshal(val)
+	n.Args[key] = strutil.BytesAsStr(data)
 }
 
 func (n *Node) GetInt(key string) int {
@@ -57,7 +68,7 @@ func (n *Node) GetInt(key string) int {
 
 func (n *Node) SetInt(key string, val int) {
 	var s = strconv.Itoa(val)
-	n.Set(key, s)
+	n.SetStr(key, s)
 }
 
 func (n *Node) GetBool(key string) bool {
@@ -68,7 +79,7 @@ func (n *Node) GetBool(key string) bool {
 
 func (n *Node) SetBool(key string, val bool) {
 	var s = strconv.FormatBool(val)
-	n.Set(key, s)
+	n.SetStr(key, s)
 }
 
 func (n *Node) GetFloat(key string) float64 {
@@ -78,16 +89,13 @@ func (n *Node) GetFloat(key string) float64 {
 }
 
 func (n *Node) SetFloat(key string, val float64) {
-	var s = strconv.FormatFloat(val, 'f', 3, 64)
-	n.Set(key, s)
+	var s = strconv.FormatFloat(val, 'f', 5, 64)
+	n.SetStr(key, s)
 }
 
 func (n *Node) Clone() Node {
 	var clone = *n
-	clone.Args = make(map[string]string, len(n.Args))
-	for k, v := range n.Args {
-		clone.Args[k] = v
-	}
+	clone.Args = maps.Clone(n.Args)
 	return clone
 }
 
@@ -128,95 +136,105 @@ func (e NodeEvent) String() string {
 	return fmt.Sprintf("%v %s: %v", e.Type, e.Key, e.Node)
 }
 
-// NodeSet 节点信息列表
-type NodeSet []Node
-
 // NodeMap 按服务类型区分的节点信息
 type NodeMap struct {
-	guard sync.RWMutex
-	nodes map[string]NodeSet
+	sync.RWMutex
+	nodes map[string][]Node
 }
 
 func NewNodeMap() *NodeMap {
 	return &NodeMap{
-		nodes: make(map[string]NodeSet),
+		nodes: make(map[string][]Node),
 	}
 }
 
 // Count 所有节点数量
 func (m *NodeMap) Count() int {
-	m.guard.RLock()
+	m.RLock()
 	var count = 0
 	for _, nodes := range m.nodes {
 		count += len(nodes)
 	}
-	m.guard.RUnlock()
+	m.RUnlock()
 	return count
 }
 
+func (m *NodeMap) CountOf(nodeType string) int {
+	m.RLock()
+	v := m.nodes[nodeType]
+	m.RUnlock()
+	return len(v)
+}
+
 func (m *NodeMap) GetKeys() []string {
-	m.guard.RLock()
+	m.RLock()
 	var names = make([]string, 0, len(m.nodes))
 	for name := range m.nodes {
 		names = append(names, name)
 	}
-	m.guard.RUnlock()
+	m.RUnlock()
 	return names
 }
 
 // GetNodes 所有本类型的节点，不要修改返回值
-func (m *NodeMap) GetNodes(nodeType string) NodeSet {
-	m.guard.RLock()
+func (m *NodeMap) GetNodes(nodeType string) []Node {
+	m.RLock()
 	v := m.nodes[nodeType]
-	m.guard.RUnlock()
+	m.RUnlock()
 	return v
 }
 
-// InsertNode 添加一个节点
-func (m *NodeMap) InsertNode(node Node) {
-	m.guard.Lock()
-	defer m.guard.Unlock()
+func (m *NodeMap) FindNodeOf(nodeType string, id uint32) int {
+	var nodes = m.nodes[nodeType]
+	for i := 0; i < len(nodes); i++ {
+		if nodes[i].ID == id {
+			return i
+		}
+	}
+	return -1
+}
 
-	slice := m.nodes[node.Type]
-	for i, v := range slice {
+// AddNode 添加一个节点
+func (m *NodeMap) AddNode(node Node) {
+	m.Lock()
+	defer m.Unlock()
+
+	var nodes = m.nodes[node.Type]
+	for i, v := range nodes {
 		if v.ID == node.ID {
-			slice[i] = node
+			nodes[i] = node
 			return
 		}
 	}
-	m.nodes[node.Type] = append(slice, node)
+	m.nodes[node.Type] = append(nodes, node)
 }
 
 func (m *NodeMap) Clear() {
-	m.guard.Lock()
-	m.nodes = make(map[string]NodeSet)
-	m.guard.Unlock()
+	m.Lock()
+	m.nodes = make(map[string][]Node)
+	m.Unlock()
 }
 
-// DeleteNodes 删除某一类型的所有节点
-func (m *NodeMap) DeleteNodes(nodeType string) {
-	m.guard.Lock()
+// DeleteNodesOf 删除某一类型的所有节点
+func (m *NodeMap) DeleteNodesOf(nodeType string) {
+	m.Lock()
 	m.nodes[nodeType] = nil
-	m.guard.Unlock()
+	m.Unlock()
 }
 
 // DeleteNode 删除一个节点
 func (m *NodeMap) DeleteNode(nodeType string, id uint32) {
-	m.guard.Lock()
-	defer m.guard.Unlock()
+	m.Lock()
+	defer m.Unlock()
 
-	var a = m.nodes[nodeType]
-	var idx = -1
-	for i, v := range a {
-		if v.ID == id {
-			idx = i
-			break
-		}
-	}
+	var idx = m.FindNodeOf(nodeType, id)
 	if idx >= 0 {
-		m.nodes[nodeType] = slices.Delete(a, idx, idx+1)
+		var nodes = m.nodes[nodeType]
+		nodes = slices.Delete(nodes, idx, idx+1)
 		if len(m.nodes[nodeType]) == 0 {
 			delete(m.nodes, nodeType)
+		} else {
+			m.nodes[nodeType] = nodes
 		}
 	}
 }
