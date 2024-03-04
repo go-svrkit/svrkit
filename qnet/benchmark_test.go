@@ -14,8 +14,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/svrkit.v1/datetime"
 	"gopkg.in/svrkit.v1/slog"
+)
+
+const (
+	kBenchConnNum       = 10
+	kTotalBenchMsgCount = 1000000
 )
 
 func listenTestServer(t *testing.T, addr string, n int, bus chan net.Conn) {
@@ -35,12 +41,11 @@ func listenTestServer(t *testing.T, addr string, n int, bus chan net.Conn) {
 	}
 }
 
-func startBenchServer(t *testing.T, ctx context.Context, addr string, ready chan struct{}) {
-	var incoming = make(chan *NetMessage, 6000)
-
-	var errChan = make(chan *Error, 1024)
-	var bus = make(chan net.Conn, 1024)
-	//go serveListen(ln, bus)
+func startBenchServer(t *testing.T, ctx context.Context, addr string) {
+	var incoming = make(chan *NetMessage, 8192)
+	var errChan = make(chan *Error, kBenchConnNum)
+	var bus = make(chan net.Conn, kBenchConnNum)
+	go listenTestServer(t, addr, kBenchConnNum, bus)
 
 	var autoId int32 = 1
 
@@ -105,30 +110,26 @@ func startBenchClient(t *testing.T, conn net.Conn, msgCount int, totalRecvMsgCou
 func TestServerClientQPS(t *testing.T) {
 	var address = "localhost:15334"
 
-	var kBenchConnCount = 10
-	var kTotalBenchMsgCount = 1000000
-	var kEachConnMsgCount = kTotalBenchMsgCount / kBenchConnCount
-	t.Logf("total msg %d, total conn %d, each msg %d", kTotalBenchMsgCount, kBenchConnCount, kEachConnMsgCount)
+	var kEachConnMsgCount = kTotalBenchMsgCount / kBenchConnNum
+	t.Logf("total msg %d, total conn %d, each msg %d", kTotalBenchMsgCount, kBenchConnNum, kEachConnMsgCount)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	var ready = make(chan struct{})
-	go startBenchServer(t, ctx, address, ready)
-	<-ready // server listen ready
+	go startBenchServer(t, ctx, address)
 
 	var startTime = time.Now()
 	fmt.Printf("start QPS benchmark %s\n", datetime.FormatTime(startTime))
 
 	var wg sync.WaitGroup
 	var totalRecvMsgCount int64
-	for i := 0; i < kBenchConnCount; i++ {
-		conn, err := net.Dial("tcp", address)
-		if err != nil {
-			t.Fatalf("Dial %s: %v", address, err)
+	for i := 0; i < kBenchConnNum; i++ {
+		conn, err := net.DialTimeout("tcp", address, time.Millisecond*500)
+		assert.Nil(t, err)
+		if conn != nil {
+			wg.Add(1)
+			go startBenchClient(t, conn, kEachConnMsgCount, &totalRecvMsgCount, &wg)
 		}
-		wg.Add(1)
-		go startBenchClient(t, conn, kEachConnMsgCount, &totalRecvMsgCount, &wg)
 	}
 
 	wg.Wait()
@@ -136,7 +137,7 @@ func TestServerClientQPS(t *testing.T) {
 	var stopAt = time.Now()
 	fmt.Printf("QPS benchmark finished %s\n", datetime.FormatTime(stopAt))
 	var elapsed = stopAt.Sub(startTime)
-	fmt.Printf("Send/recv %d message with %d clients cost %v\n", totalRecvMsgCount, kBenchConnCount, elapsed)
+	fmt.Printf("Send/recv %d message with %d clients cost %v\n", totalRecvMsgCount, kBenchConnNum, elapsed)
 	var qps = float64(totalRecvMsgCount) / (float64(elapsed) / float64(time.Second))
 	fmt.Printf("avg QPS: %.2f/s\n", qps)
 	fmt.Printf("Benchmark finished\n")
