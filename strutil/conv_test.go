@@ -6,10 +6,8 @@ package strutil
 import (
 	"fmt"
 	"math"
-	"math/rand"
 	"reflect"
 	"slices"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -184,28 +182,6 @@ func TestParseTo(t *testing.T) {
 	}
 }
 
-func BenchmarkParseI32(b *testing.B) {
-	var n = rand.Int31()
-	var s = strconv.Itoa(int(n))
-	var r int64
-	for i := 0; i < 100000; i++ {
-		v, _ := ParseI32(s)
-		r += int64(v)
-	}
-	b.Logf("result=%d", r)
-}
-
-func BenchmarkParseToInt32(b *testing.B) {
-	var n = rand.Int31()
-	var s = strconv.Itoa(int(n))
-	var r int64
-	for i := 0; i < 100000; i++ {
-		v, _ := ParseTo[int32](s)
-		r += int64(v)
-	}
-	b.Logf("result=%d", r)
-}
-
 func TestParseSlice(t *testing.T) {
 	const sep = "|"
 	assert.Equal(t, len(ParseSlice[int]("", sep)), 0)
@@ -260,3 +236,33 @@ func TestParseMap(t *testing.T) {
 
 	}
 }
+
+func BenchmarkParseI32(b *testing.B) {
+	var total int64
+	var val int32
+	for i := 0; i < b.N; i++ {
+		val, _ = ParseI32("1234567890")
+		total += int64(val)
+		val, _ = ParseI32("2147483647")
+		total += int64(val)
+		val, _ = ParseI32("-2147483648")
+		total += int64(val)
+	}
+}
+
+func BenchmarkParseToInt(b *testing.B) {
+	var total int64
+	var val int32
+	for i := 0; i < b.N; i++ {
+		val, _ = ParseTo[int32]("1234567890")
+		total += int64(val)
+		val, _ = ParseTo[int32]("2147483647")
+		total += int64(val)
+		val, _ = ParseTo[int32]("-2147483648")
+		total += int64(val)
+	}
+}
+
+// AMD Ryzen 5 6-Core Processor
+// BenchmarkParseI32-4     	    22760205                49.79 ns/op
+// BenchmarkParseToInt-4        19730870                59.22 ns/op

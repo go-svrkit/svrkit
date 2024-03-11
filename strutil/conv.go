@@ -230,7 +230,7 @@ func MustParseF64(s string) float64 {
 }
 
 // ParseTo parse string to any number type
-// this routine may not have the best performance, but it has the best usability.
+// this generic routine is 12%-20% slower than concrete ParseXXX version, see conv_test.go
 func ParseTo[T cmp.Ordered | bool](s string) (T, error) {
 	var zero T
 	if s == "" {
