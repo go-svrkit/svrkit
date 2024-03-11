@@ -15,8 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
+	"gopkg.in/svrkit.v1/codec"
 	"gopkg.in/svrkit.v1/slog"
 )
 
@@ -67,20 +66,20 @@ func WriteLenData(w io.Writer, body []byte) error {
 	return nil
 }
 
-func ReadProtoMessage(conn net.Conn, msg proto.Message) error {
+func ReadProtoMessage(conn net.Conn, msg codec.Message) error {
 	conn.SetReadDeadline(time.Now().Add(time.Second * 60))
 	body, err := ReadLenData(conn, math.MaxUint16)
 	if err != nil {
 		return err
 	}
-	if err = proto.Unmarshal(body, msg); err != nil {
+	if err = codec.Unmarshal(body, msg); err != nil {
 		return err
 	}
 	return nil
 }
 
-func WriteProtoMessage(w io.Writer, msg proto.Message) error {
-	body, err := proto.Marshal(msg)
+func WriteProtoMessage(w io.Writer, msg codec.Message) error {
+	body, err := codec.Marshal(msg)
 	if err != nil {
 		return err
 	}
@@ -88,7 +87,7 @@ func WriteProtoMessage(w io.Writer, msg proto.Message) error {
 }
 
 // RequestProtoMessage send req and wait for ack
-func RequestProtoMessage(conn net.Conn, req, ack proto.Message) error {
+func RequestProtoMessage(conn net.Conn, req, ack codec.Message) error {
 	if err := WriteProtoMessage(conn, req); err != nil {
 		return err
 	}
@@ -124,7 +123,7 @@ func DecodeHTTPRequestBody(req *http.Request, ptr interface{}) error {
 }
 
 // ReadProtoFromHTTPRequest 从http请求中读取proto消息
-func ReadProtoFromHTTPRequest(req *http.Request, msg proto.Message) error {
+func ReadProtoFromHTTPRequest(req *http.Request, msg codec.Message) error {
 	var contentType = req.Header.Get("Content-Type")
 	if contentType == "" {
 		contentType = "application/json"
@@ -133,7 +132,7 @@ func ReadProtoFromHTTPRequest(req *http.Request, msg proto.Message) error {
 	switch contentType {
 	case "application/json":
 		defer req.Body.Close()
-		return jsonpb.Unmarshal(req.Body, msg)
+		return codec.UnmarshalProtoJSON(req.Body, msg)
 
 	case "application/octet-stream", "application/binary":
 		rawbytes, err := io.ReadAll(req.Body)
@@ -141,7 +140,7 @@ func ReadProtoFromHTTPRequest(req *http.Request, msg proto.Message) error {
 			return err
 		}
 		defer req.Body.Close()
-		if err = proto.Unmarshal(rawbytes, msg); err != nil {
+		if err = codec.Unmarshal(rawbytes, msg); err != nil {
 			return err
 		}
 		return nil
@@ -153,7 +152,7 @@ func ReadProtoFromHTTPRequest(req *http.Request, msg proto.Message) error {
 		var data = req.Form.Get(UrlFormKey)
 		if len(data) > 0 {
 			var buf = bytes.NewBufferString(data)
-			return jsonpb.Unmarshal(buf, msg)
+			return codec.UnmarshalProtoJSON(buf, msg)
 		}
 		return nil
 
@@ -163,21 +162,20 @@ func ReadProtoFromHTTPRequest(req *http.Request, msg proto.Message) error {
 }
 
 // WriteProtoHTTPResponse 写入proto消息到http响应
-func WriteProtoHTTPResponse(w http.ResponseWriter, msg proto.Message, contentType string) error {
+func WriteProtoHTTPResponse(w http.ResponseWriter, msg codec.Message, contentType string) error {
 	var data []byte
 	switch contentType {
 	case "json":
-		var m jsonpb.Marshaler
-		var buf bytes.Buffer
-		if err := m.Marshal(&buf, msg); err != nil {
-			slog.Errorf("WriteProtoResponse: jsonpb.Marshal: %v", err)
+		var err error
+		data, err = codec.MarshalProtoJSON(msg)
+		if err != nil {
+			slog.Errorf("WriteProtoResponse: MarshalProtoJSON: %v", err)
 			return err
 		}
 		w.Header().Set("Content-Type", "application/json")
-		data = buf.Bytes()
 
 	default:
-		rawbytes, err := proto.Marshal(msg)
+		rawbytes, err := codec.Marshal(msg)
 		if err != nil {
 			slog.Errorf("WriteProtoResponse: pb.Marshal: %v", err)
 			return err

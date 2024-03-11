@@ -11,10 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
 	"gopkg.in/svrkit.v1/slog"
 	"gopkg.in/svrkit.v1/strutil"
 )
@@ -60,22 +57,6 @@ func JSONStringify(v any) string {
 		return ""
 	}
 	return strutil.BytesAsStr(data)
-}
-
-// FormatProtoToJSON 序列化proto消息为json格式
-func FormatProtoToJSON(msg proto.Message) string {
-	var jm = jsonpb.Marshaler{EnumsAsInts: true}
-	var sb strings.Builder
-	if err := jm.Marshal(&sb, msg); err != nil {
-		slog.Errorf("marshal %T: %v", msg, err)
-		return ""
-	}
-	return sb.String()
-}
-
-// ParseJSONToProto 反序列化json字符串为proto消息
-func ParseJSONToProto(body string, dst proto.Message) error {
-	return jsonpb.Unmarshal(strings.NewReader(body), dst)
 }
 
 // MD5Sum 计算MD5值
