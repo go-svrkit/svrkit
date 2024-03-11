@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"gopkg.in/svrkit.v1/codec"
-	"gopkg.in/svrkit.v1/slog"
+	"gopkg.in/svrkit.v1/zlog"
 )
 
 const (
@@ -169,7 +169,7 @@ func WriteProtoHTTPResponse(w http.ResponseWriter, msg codec.Message, contentTyp
 		var err error
 		data, err = codec.MarshalProtoJSON(msg)
 		if err != nil {
-			slog.Errorf("WriteProtoResponse: MarshalProtoJSON: %v", err)
+			zlog.Errorf("WriteProtoResponse: MarshalProtoJSON: %v", err)
 			return err
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -177,7 +177,7 @@ func WriteProtoHTTPResponse(w http.ResponseWriter, msg codec.Message, contentTyp
 	default:
 		rawbytes, err := codec.Marshal(msg)
 		if err != nil {
-			slog.Errorf("WriteProtoResponse: pb.Marshal: %v", err)
+			zlog.Errorf("WriteProtoResponse: pb.Marshal: %v", err)
 			return err
 		}
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -191,14 +191,14 @@ func WriteProtoHTTPResponse(w http.ResponseWriter, msg codec.Message, contentTyp
 func GetLocalIPList() []net.IP {
 	inetfaces, err := net.Interfaces()
 	if err != nil {
-		slog.Errorf("cannot fetch net interfaces: %v", err)
+		zlog.Errorf("cannot fetch net interfaces: %v", err)
 		return nil
 	}
 	var ipList []net.IP
 	for _, inetface := range inetfaces {
 		addrs, err := inetface.Addrs()
 		if err != nil {
-			slog.Errorf("cannot fetch net address: %v", err)
+			zlog.Errorf("cannot fetch net address: %v", err)
 			continue
 		}
 		for _, addr := range addrs {

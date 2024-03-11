@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/svrkit.v1/codec"
 	"gopkg.in/svrkit.v1/qnet"
-	"gopkg.in/svrkit.v1/slog"
+	"gopkg.in/svrkit.v1/zlog"
 )
 
 type (
@@ -50,7 +50,7 @@ func (d *Dispatcher) Clear() {
 
 func (d *Dispatcher) Register(cmd uint32, action any) bool {
 	if d.HasRegistered(cmd) {
-		slog.Warnf("duplicate handler registration of cmd %d", cmd)
+		zlog.Warnf("duplicate handler registration of cmd %d", cmd)
 	}
 	switch action.(type) {
 	case MessageHandlerV1, MessageHandlerV2, MessageHandlerV3, MessageHandlerV4, MessageHandlerV5:

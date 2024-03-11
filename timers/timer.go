@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/svrkit.v1/datetime"
 	"gopkg.in/svrkit.v1/sched"
-	"gopkg.in/svrkit.v1/slog"
+	"gopkg.in/svrkit.v1/zlog"
 )
 
 const (
@@ -150,8 +150,8 @@ func Schedule(durationMs int64, runnable sched.IRunner) int64 {
 }
 
 func gTimerWorker(ready chan struct{}) {
-	slog.Infof("timeout worker thread started")
-	defer slog.Infof("timeout worker thread exit")
+	zlog.Infof("timeout worker thread started")
+	defer zlog.Infof("timeout worker thread exit")
 
 	ready <- struct{}{}
 
@@ -187,7 +187,7 @@ func Preprocess(msg *TimeoutMsg) bool {
 		var runner = msg.Data.(sched.IRunner)
 		if runner != nil {
 			if err := runner.Run(); err != nil {
-				slog.Errorf("run timeout msg %d %T: %v", msg.Action, runner, err)
+				zlog.Errorf("run timeout msg %d %T: %v", msg.Action, runner, err)
 			}
 		}
 		return true

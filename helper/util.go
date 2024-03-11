@@ -8,17 +8,17 @@ import (
 	"net/http"
 
 	"github.com/joho/godotenv"
-	"gopkg.in/svrkit.v1/slog"
+	"gopkg.in/svrkit.v1/zlog"
 )
 
 func StartProfiler(addr string) {
 	go func() {
-		slog.Infof("listen pprof at %s", addr)
+		zlog.Infof("listen pprof at %s", addr)
 		var httpServer = &http.Server{
 			Addr: addr,
 		}
 		if err := httpServer.ListenAndServe(); err != nil {
-			slog.Infof("%v", err)
+			zlog.Infof("%v", err)
 		}
 	}()
 }

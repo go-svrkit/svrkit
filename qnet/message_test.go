@@ -6,7 +6,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/svrkit.v1/factory"
+	"gopkg.in/svrkit.v1/codec"
 )
 
 // proto message for test
@@ -110,9 +110,9 @@ func TestNetMessage_Encode(t *testing.T) {
 }
 
 func TestNetMessage_Refuse(t *testing.T) {
-	defer factory.Clear()
-	assert.Nil(t, factory.Register(reflect.TypeOf((*PrebuildReq)(nil))))
-	assert.Nil(t, factory.Register(reflect.TypeOf((*PrebuildAck)(nil))))
+	defer codec.Clear()
+	assert.Nil(t, codec.Register(reflect.TypeOf((*PrebuildReq)(nil))))
+	assert.Nil(t, codec.Register(reflect.TypeOf((*PrebuildAck)(nil))))
 
 	var queue = make(chan *NetMessage, 1)
 	var session = NewFakeSession(queue)
@@ -124,7 +124,7 @@ func TestNetMessage_Refuse(t *testing.T) {
 	assert.Nil(t, msg.Refuse(10001))
 	var ackMsg = <-queue
 	assert.NotNil(t, ackMsg)
-	assert.Equal(t, "qnet.PrebuildAck", factory.GetMessageFullName(ackMsg.Command))
+	assert.Equal(t, "qnet.PrebuildAck", codec.GetMessageFullName(ackMsg.Command))
 	ack, ok := ackMsg.Body.(*PrebuildAck)
 	assert.True(t, ok)
 	assert.NotNil(t, ack)

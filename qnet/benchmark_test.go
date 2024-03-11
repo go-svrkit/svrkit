@@ -16,7 +16,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/svrkit.v1/datetime"
-	"gopkg.in/svrkit.v1/slog"
+	"gopkg.in/svrkit.v1/zlog"
 )
 
 const (
@@ -33,7 +33,7 @@ func listenTestServer(t *testing.T, addr string, n int, bus chan net.Conn) {
 	for n > 0 {
 		conn, err := ln.Accept()
 		if err != nil {
-			slog.Errorf("accept error: %v", err)
+			zlog.Errorf("accept error: %v", err)
 			return
 		}
 		bus <- conn

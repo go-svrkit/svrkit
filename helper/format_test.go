@@ -107,53 +107,6 @@ func TestJSONStringify(t *testing.T) {
 	}
 }
 
-func TestFormatProtoToJSON(t *testing.T) {
-	tests := []struct {
-		input proto.Message
-		want  string
-	}{
-		{nil, ""},
-		{&Coord{}, "{}"},
-		{&Coord{X: 12, Z: 34}, `{"X":12,"Z":34}`},
-	}
-	for i, tt := range tests {
-		var name = fmt.Sprintf("case-%d", i+1)
-		t.Run(name, func(t *testing.T) {
-			if got := FormatProtoToJSON(tt.input); got != tt.want {
-				t.Errorf("FormatProtoToJSON() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestParseJSONToProto(t *testing.T) {
-	tests := []struct {
-		input   string
-		want    proto.Message
-		wantErr bool
-	}{
-		{"{}", &Coord{}, true},
-		{`{"X":12, "Z":34}`, &Coord{X: 12, Z: 34}, true},
-	}
-	for i, tt := range tests {
-		var name = fmt.Sprintf("case-%d", i+1)
-		t.Run(name, func(t *testing.T) {
-			var dst = reflect.New(reflect.TypeOf(tt.want).Elem()).Interface()
-			var err = ParseJSONToProto(tt.input, dst.(proto.Message))
-			if err != nil {
-				if tt.wantErr {
-					return
-				}
-				t.Fatalf("ParseJSONToProto() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if !reflect.DeepEqual(tt.want, dst) {
-				t.Errorf("ParseJSONToProto() %v want %T:%v, got %T:%v", err, tt.want, tt.want, dst, dst)
-			}
-		})
-	}
-}
-
 func TestMD5Sum(t *testing.T) {
 	tests := []struct {
 		input []byte

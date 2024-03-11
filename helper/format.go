@@ -12,8 +12,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"gopkg.in/svrkit.v1/slog"
 	"gopkg.in/svrkit.v1/strutil"
+	"gopkg.in/svrkit.v1/zlog"
 )
 
 const (
@@ -53,7 +53,7 @@ func JSONParse(data []byte, v any) error {
 func JSONStringify(v any) string {
 	data, err := json.Marshal(v)
 	if err != nil {
-		slog.Errorf("JSONStringify %T: %v", v, err)
+		zlog.Errorf("JSONStringify %T: %v", v, err)
 		return ""
 	}
 	return strutil.BytesAsStr(data)

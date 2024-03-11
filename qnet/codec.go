@@ -11,7 +11,7 @@ import (
 	"hash/crc32"
 	"io"
 
-	"gopkg.in/svrkit.v1/slog"
+	"gopkg.in/svrkit.v1/zlog"
 )
 
 const (
@@ -104,7 +104,7 @@ func ReadHeadBody(rd io.Reader, head NetV1Header, maxSize uint32) ([]byte, error
 	}
 	var nLen = head.Len()
 	if nLen < V1HeaderLength || nLen > maxSize {
-		slog.Errorf("ReadHeadBody: msg size %d out of range", nLen)
+		zlog.Errorf("ReadHeadBody: msg size %d out of range", nLen)
 		return nil, ErrPktSizeOutOfRange
 	}
 	var body []byte
@@ -116,7 +116,7 @@ func ReadHeadBody(rd io.Reader, head NetV1Header, maxSize uint32) ([]byte, error
 	}
 	var checksum = head.CalcCRC(body)
 	if crc := head.CRC(); crc != checksum {
-		slog.Errorf("ReadHeadBody: msg %v checksum mismatch %x != %x", head.Command(), checksum, crc)
+		zlog.Errorf("ReadHeadBody: msg %v checksum mismatch %x != %x", head.Command(), checksum, crc)
 		return nil, ErrPktChecksumMismatch
 	}
 	return body, nil
@@ -177,7 +177,7 @@ func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 				body = encoded.Bytes()
 			}
 		} else {
-			slog.Errorf("msg %d compress failed: %v", netMsg.Command, err)
+			zlog.Errorf("msg %d compress failed: %v", netMsg.Command, err)
 		}
 	}
 	if encrypt != nil {

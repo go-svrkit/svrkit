@@ -10,8 +10,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-
-	"gopkg.in/svrkit.v1/slog"
 )
 
 const (
@@ -323,7 +321,7 @@ func ParseTo[T cmp.Ordered | bool](s string) (T, error) {
 func MustParseTo[T cmp.Ordered | bool](s string) T {
 	val, err := ParseTo[T](s)
 	if err != nil {
-		slog.Panicf("cannot parse %s to %T: %v", s, val, err)
+		log.Panicf("cannot parse %s to %T: %v", s, val, err)
 	}
 	return val
 }
