@@ -4,7 +4,9 @@
 package util
 
 import (
+	"cmp"
 	"maps"
+	"slices"
 )
 
 // MapKeys 返回map的key列表
@@ -32,6 +34,35 @@ func MapKeyValues[M ~map[K]V, K comparable, V any](m M) ([]K, []V) {
 	for k, val := range m {
 		keys = append(keys, k)
 		values = append(values, val)
+	}
+	return keys, values
+}
+
+// MapOrderedKeys 返回map里已排序的key列表
+func MapOrderedKeys[M ~map[K]V, K cmp.Ordered, V any](m M) []K {
+	var keys = MapKeys(m)
+	slices.Sort(keys)
+	return keys
+}
+
+// MapOrderedValues 返回map里按key排序的value列表
+func MapOrderedValues[M ~map[K]V, K cmp.Ordered, V any](m M) []V {
+	var keys = MapKeys(m)
+	slices.Sort(keys)
+	var values = make([]V, 0, len(m))
+	for i := 0; i < len(keys); i++ {
+		values = append(values, m[keys[i]])
+	}
+	return values
+}
+
+// MapOrderedKeyValues 返回map里已排序的key和value列表
+func MapOrderedKeyValues[M ~map[K]V, K cmp.Ordered, V any](m M) ([]K, []V) {
+	var keys = MapKeys(m)
+	slices.Sort(keys)
+	var values = make([]V, 0, len(m))
+	for i := 0; i < len(keys); i++ {
+		values = append(values, m[keys[i]])
 	}
 	return keys, values
 }

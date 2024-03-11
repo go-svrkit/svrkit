@@ -7,91 +7,95 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/protobuf/proto"
+	"gopkg.in/svrkit.v1/codec"
 	"gopkg.in/svrkit.v1/qnet"
 	"gopkg.in/svrkit.v1/slog"
 )
 
 type (
-	MessageHandlerV1 = func(proto.Message) error
-	MessageHandlerV2 = func(proto.Message) (proto.Message, error)
-	MessageHandlerV3 = func(context.Context, proto.Message) error
-	MessageHandlerV4 = func(context.Context, proto.Message) (proto.Message, error)
+	MessageHandlerV1 = func(codec.Message) error
+	MessageHandlerV2 = func(codec.Message) (codec.Message, error)
+	MessageHandlerV3 = func(context.Context, codec.Message) error
+	MessageHandlerV4 = func(context.Context, codec.Message) (codec.Message, error)
 	MessageHandlerV5 = func(context.Context, *qnet.NetMessage) error
 
-	PreHookFunc  func(context.Context, *qnet.NetMessage) bool
-	PostHookFunc func(context.Context, *qnet.NetMessage)
+	BeforeHookFunc func(context.Context, *qnet.NetMessage) bool
+	AfterHookFunc  func(context.Context, *qnet.NetMessage)
 )
 
 type IHandler interface {
 	MessageHandlerV1 | MessageHandlerV2 | MessageHandlerV3 | MessageHandlerV4 | MessageHandlerV5
 }
 
-// 消息派发
-var (
-	handlers  = make(map[uint32]any)
-	preHooks  []PreHookFunc
-	postHooks []PostHookFunc
-)
+type Dispatcher struct {
+	handlers    map[uint32]any
+	once        map[uint32]bool
+	beforeHooks []BeforeHookFunc
+	afterHooks  []AfterHookFunc
+}
 
-func HasRegistered(cmd uint32) bool {
-	_, found := handlers[cmd]
+func NewDispatcher() *Dispatcher {
+	return &Dispatcher{
+		handlers: make(map[uint32]any),
+		once:     make(map[uint32]bool),
+	}
+}
+
+func (d *Dispatcher) Clear() {
+	clear(d.handlers)
+	clear(d.once)
+	d.beforeHooks = nil
+	d.afterHooks = nil
+}
+
+func (d *Dispatcher) Register(cmd uint32, action any) bool {
+	if d.HasRegistered(cmd) {
+		slog.Warnf("duplicate handler registration of cmd %d", cmd)
+	}
+	switch action.(type) {
+	case MessageHandlerV1, MessageHandlerV2, MessageHandlerV3, MessageHandlerV4, MessageHandlerV5:
+		d.handlers[cmd] = action
+		return true
+	}
+	return false
+}
+
+func (d *Dispatcher) RegisterOnce(cmd uint32, action any) {
+	d.once[cmd] = true
+	d.Register(cmd, action)
+}
+
+// HasRegistered 是否注册
+func (d *Dispatcher) HasRegistered(cmd uint32) bool {
+	_, found := d.handlers[cmd]
 	return found
 }
 
 // Deregister 取消所有
-func Deregister(cmd uint32) any {
-	var old = handlers[cmd]
-	delete(handlers, cmd)
+func (d *Dispatcher) Deregister(cmd uint32) any {
+	var old = d.handlers[cmd]
+	delete(d.handlers, cmd)
 	return old
 }
 
-func Clear() {
-	handlers = make(map[uint32]any)
-	preHooks = nil
-	postHooks = nil
-}
-
-func RegisterPreHook(prepend bool, h PreHookFunc) {
+func (d *Dispatcher) RegisterBeforeHook(prepend bool, h BeforeHookFunc) {
 	if prepend {
-		preHooks = append([]PreHookFunc{h}, preHooks...)
+		d.beforeHooks = append([]BeforeHookFunc{h}, d.beforeHooks...)
 	} else {
-		preHooks = append(preHooks, h)
+		d.beforeHooks = append(d.beforeHooks, h)
 	}
 }
 
-func RegisterPostHook(prepend bool, h PostHookFunc) {
+func (d *Dispatcher) RegisterAfterHook(prepend bool, h AfterHookFunc) {
 	if prepend {
-		postHooks = append([]PostHookFunc{h}, postHooks...)
+		d.afterHooks = append([]AfterHookFunc{h}, d.afterHooks...)
 	} else {
-		postHooks = append(postHooks, h)
+		d.afterHooks = append(d.afterHooks, h)
 	}
 }
 
-func Register[F IHandler](cmd uint32, action F) {
-	if HasRegistered(cmd) {
-		slog.Warnf("duplicate handler registration of message %v", cmd)
-	}
-	handlers[cmd] = action
-}
-
-func Handle(ctx context.Context, message *qnet.NetMessage) (proto.Message, error) {
-	var cmd = message.Command
-	action, found := handlers[cmd]
-	if !found {
-		return nil, fmt.Errorf("message %v handler not found", cmd)
-	}
-
-	if !invokePreHooks(ctx, message) {
-		return nil, nil // stop continue
-	}
-	defer invokePostHooks(ctx, message)
-
-	return dispatch(ctx, action, message)
-}
-
-func invokePreHooks(ctx context.Context, msg *qnet.NetMessage) bool {
-	for _, h := range preHooks {
+func (d *Dispatcher) invokePreHooks(ctx context.Context, msg *qnet.NetMessage) bool {
+	for _, h := range d.beforeHooks {
 		if !h(ctx, msg) {
 			return false // stop continue
 		}
@@ -99,13 +103,23 @@ func invokePreHooks(ctx context.Context, msg *qnet.NetMessage) bool {
 	return true
 }
 
-func invokePostHooks(ctx context.Context, msg *qnet.NetMessage) {
-	for _, h := range postHooks {
+func (d *Dispatcher) invokePostHooks(ctx context.Context, msg *qnet.NetMessage) {
+	for _, h := range d.afterHooks {
 		h(ctx, msg)
 	}
 }
 
-func dispatch(ctx context.Context, action any, msg *qnet.NetMessage) (resp proto.Message, err error) {
+func (d *Dispatcher) Handle(ctx context.Context, message *qnet.NetMessage) (codec.Message, error) {
+	if !d.invokePreHooks(ctx, message) {
+		return nil, nil // stop continue
+	}
+	defer d.invokePostHooks(ctx, message)
+
+	var h = d.handlers[message.Command]
+	return d.dispatch(ctx, h, message)
+}
+
+func (d *Dispatcher) dispatch(ctx context.Context, action any, msg *qnet.NetMessage) (resp codec.Message, err error) {
 	switch h := action.(type) {
 	case MessageHandlerV1:
 		err = h(msg.Body)
