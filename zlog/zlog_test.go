@@ -1,9 +1,13 @@
-package slog
+// Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
+// See accompanying files LICENSE.txt
+
+package zlog
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
-	"testing"
 )
 
 func TestLogger(t *testing.T) {

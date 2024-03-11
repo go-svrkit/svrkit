@@ -1,14 +1,15 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
-package slog
+package zlog
 
 import (
 	"fmt"
-	"golang.org/x/crypto/ssh/terminal"
-	"gopkg.in/natefinch/lumberjack.v2"
 	"io"
 	"os"
+
+	"golang.org/x/crypto/ssh/terminal"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // Writer write log to file and console

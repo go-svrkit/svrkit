@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
-package slog
+package zlog
 
 import (
 	"go.uber.org/zap"
