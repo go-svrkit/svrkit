@@ -42,7 +42,7 @@ func (g MsgFlag) Clear(n MsgFlag) MsgFlag {
 	return g &^ n
 }
 
-// wire protocol
+// a simple wire protocol
 // ------|---------|---------|--------|---------|---------|----------|
 // field |--<len>--|--<crc>--|-<flag>-|--<seq>--|--<cmd>--|--<data>--|
 // bytes |----3----|----4----|----1---|----4----|----4----|---N/A----|
@@ -77,6 +77,12 @@ func (h NetV1Header) CRC() uint32 {
 
 func (h NetV1Header) SetCRC(v uint32) {
 	binary.LittleEndian.PutUint32(h[3:], v)
+}
+
+func (h NetV1Header) Clear() {
+	for i := 0; i < len(h); i++ {
+		h[i] = 0
+	}
 }
 
 // CalcCRC checksum = f(head) and f(body)
@@ -151,8 +157,12 @@ func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetM
 	if err != nil {
 		return err
 	}
+	return DecodeNetMsg(head, body, decrypt, netMsg)
+}
+
+func DecodeNetMsg(head NetV1Header, body []byte, decrypt Encryptor, netMsg *NetMessage) error {
 	var flags = head.Flag()
-	body, err = ProcessHeaderFlags(flags, body, decrypt)
+	body, err := ProcessHeaderFlags(flags, body, decrypt)
 	if err != nil {
 		return err
 	}

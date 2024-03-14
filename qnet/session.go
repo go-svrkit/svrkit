@@ -24,13 +24,15 @@ type TcpSession struct {
 	conn     net.Conn       // tcp Conn
 	done     chan struct{}  // sync write pump
 	wg       sync.WaitGroup // sync flush write
+	recvHead NetV1Header    // recv head buffer
 	intranet bool           // 内联网
 }
 
 func NewTcpSession(conn net.Conn) *TcpSession {
 	var session = &TcpSession{
-		conn: conn,
-		done: make(chan struct{}),
+		conn:     conn,
+		done:     make(chan struct{}),
+		recvHead: NewNetV1Header(),
 	}
 	session.RemoteAddr = conn.RemoteAddr().String()
 	return session
@@ -176,15 +178,20 @@ func (t *TcpSession) writePump(ctx context.Context) {
 }
 
 func (t *TcpSession) readMessage(rd io.Reader, netMsg *NetMessage) error {
-	var maxBytes uint32 = MaxPayloadSize
+	var maxSize uint32 = MaxPayloadSize
 	if !t.intranet {
-		maxBytes = uint32(MaxClientUpStreamSize)
+		maxSize = uint32(MaxClientUpStreamSize)
 	}
 	var deadline = time.Now().Add(TCPReadTimeout)
 	if err := t.conn.SetReadDeadline(deadline); err != nil {
 		zlog.Errorf("session %v set read deadline: %v", t.Node, err)
 	}
-	if err := DecodeMsgFrom(rd, maxBytes, t.Decrypt, netMsg); err != nil {
+	t.recvHead.Clear()
+	body, err := ReadHeadBody(rd, t.recvHead, maxSize)
+	if err != nil {
+		return err
+	}
+	if err = DecodeNetMsg(t.recvHead, body, t.Decrypt, netMsg); err != nil {
 		return err
 	}
 	netMsg.Session = t
