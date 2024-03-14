@@ -100,7 +100,7 @@ func (u Uint128) Add(v Uint128) Uint128 {
 	lo, carry := bits.Add64(u.Lo, v.Lo, 0)
 	hi, carry := bits.Add64(u.Hi, v.Hi, carry)
 	if carry != 0 {
-		panic("Uint128 overflow")
+		panic("overflow")
 	}
 	return Uint128{lo, hi}
 }
