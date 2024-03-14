@@ -105,26 +105,3 @@ func makeSlicePointer(size int) *[]byte {
 	data := make([]byte, size)
 	return &data
 }
-
-const (
-	MinBufSize = 8
-	MaxBufSize = 32 << 10 // 32K
-)
-
-var bytesPool = NewBucketPool(MinBufSize, MaxBufSize)
-
-func AllocBytes(size int) []byte {
-	if size == 0 {
-		return nil
-	}
-	if size >= MinBufSize && size <= MaxBufSize {
-		return *bytesPool.Get(size)
-	}
-	return make([]byte, size)
-}
-
-func FreeBytes(buf []byte) {
-	if cap(buf) >= MinBufSize && cap(buf) <= MaxBufSize {
-		bytesPool.Put(&buf)
-	}
-}
