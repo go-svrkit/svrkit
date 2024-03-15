@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
-package reflext
+package eval
 
 import (
 	"bytes"
@@ -70,7 +70,7 @@ func ParseCallExprArgs(call *ast.CallExpr) ([]string, error) {
 // ConvParamToType 转换函数所有参数类型
 func ConvParamToType(rType reflect.Type, input string) (val reflect.Value, err error) {
 	var kind = rType.Kind()
-	if IsPrimitive(kind) {
+	if isPrimitiveKind(kind) {
 		return ParseBaseKindToType(rType, input)
 	}
 	switch kind {
@@ -212,4 +212,13 @@ func ParseBaseKindToType(rType reflect.Type, input string) (val reflect.Value, e
 		err = fmt.Errorf("ParseBaseKindToType: unrecognized type %v", rType.Kind())
 	}
 	return
+}
+
+func isPrimitiveKind(kind reflect.Kind) bool {
+	switch kind {
+	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int, reflect.Int64,
+		reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint, reflect.Uint64,
+		reflect.Float32, reflect.Float64, reflect.Bool, reflect.String:
+	}
+	return false
 }

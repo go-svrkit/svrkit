@@ -1,13 +1,25 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
-package reflext
+package eval
 
 import (
 	"image"
 	"reflect"
 	"testing"
 )
+
+func isInterfaceNil(c any) bool {
+	if c == nil {
+		return true
+	}
+	var rv = reflect.ValueOf(c)
+	switch rv.Kind() {
+	case reflect.Ptr, reflect.Array, reflect.Slice, reflect.Map, reflect.Chan, reflect.Func:
+		return rv.IsNil()
+	}
+	return false
+}
 
 type TA struct {
 	B        bool
@@ -86,7 +98,7 @@ func TestEvalGet(t *testing.T) {
 		{"Dict[`kkk`]", true, nil},
 	}
 	for _, tc := range tests {
-		var evalCtx = NewEvalContext(ta)
+		var evalCtx = NewContext(ta)
 		evalCtx.ReadOnly = true
 		v, err := evalCtx.Eval(tc.expr)
 		if tc.shouldHasErr {
@@ -97,7 +109,7 @@ func TestEvalGet(t *testing.T) {
 		}
 		t.Logf("%s: %v, %v", tc.expr, v, err)
 		//evalCtx.PrintNodes(os.Stdout)
-		if tc.result == nil && !IsInterfaceNil(v) {
+		if tc.result == nil && !isInterfaceNil(v) {
 			t.Fatalf("%s: %v", tc.expr, err)
 		} else if !reflect.DeepEqual(v, tc.result) {
 			t.Fatalf("%s: %v", tc.expr, err)
@@ -121,7 +133,7 @@ func TestEvalEval(t *testing.T) {
 		{"Get(`hello`)", true, nil},
 	}
 	for _, tc := range tests {
-		var evalCtx = NewEvalContext(ta)
+		var evalCtx = NewContext(ta)
 		v, err := evalCtx.Eval(tc.expr)
 		if tc.shouldHasErr {
 			if err == nil {
@@ -131,7 +143,7 @@ func TestEvalEval(t *testing.T) {
 		}
 		t.Logf("%s: %v, %v", tc.expr, v, err)
 		//evalCtx.PrintNodes(os.Stdout)
-		if tc.result == nil && !IsInterfaceNil(v) {
+		if tc.result == nil && !isInterfaceNil(v) {
 			t.Fatalf("%s: %v", tc.expr, err)
 		} else if !reflect.DeepEqual(v, tc.result) {
 			t.Fatalf("%s: %v", tc.expr, err)
@@ -157,7 +169,7 @@ func TestEvalSet(t *testing.T) {
 	}
 	for _, tc := range tests {
 		var obj = createTA()
-		var ctx = NewEvalContext(obj)
+		var ctx = NewContext(obj)
 		err := ctx.Set(tc.expr, tc.val)
 		t.Logf("%s: %v", tc.expr, err)
 		if tc.shouldHasErr {
@@ -190,7 +202,7 @@ func TestEvalRemove(t *testing.T) {
 	}
 	for _, tc := range tests {
 		var obj = createTA()
-		var ctx = NewEvalContext(obj)
+		var ctx = NewContext(obj)
 		err := ctx.Delete(tc.expr)
 		t.Logf("%s: %v", tc.expr, err)
 		if tc.hasErr {

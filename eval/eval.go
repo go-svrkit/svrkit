@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying files LICENSE.txt
 
-package reflext
+package eval
 
 import (
 	"errors"
@@ -19,25 +19,25 @@ var (
 	ErrInvalidCallNode = errors.New("invalid call node")
 )
 
-type EvalNode struct {
+type Node struct {
 	Key string
 	Val reflect.Value
 }
 
-type EvalContext struct {
+type Context struct {
 	This     any
 	Expr     string
 	ReadOnly bool
-	Nodes    []*EvalNode
+	Nodes    []*Node
 }
 
-func NewEvalContext(this any) *EvalContext {
-	return &EvalContext{
+func NewContext(this any) *Context {
+	return &Context{
 		This: this,
 	}
 }
 
-func (c *EvalContext) walkExprGet(this reflect.Value, astNode ast.Expr) (val reflect.Value, err error) {
+func (c *Context) walkExprGet(this reflect.Value, astNode ast.Expr) (val reflect.Value, err error) {
 	if !this.IsValid() {
 		err = ErrValNotValid
 		return
@@ -47,7 +47,7 @@ func (c *EvalContext) walkExprGet(this reflect.Value, astNode ast.Expr) (val ref
 		return
 	}
 
-	var node = new(EvalNode)
+	var node = new(Node)
 	switch expr := astNode.(type) {
 	case *ast.Ident:
 		err = c.evalIdentGet(this, expr, node) // A
@@ -67,7 +67,7 @@ func (c *EvalContext) walkExprGet(this reflect.Value, astNode ast.Expr) (val ref
 }
 
 // 常量只能是寻址struct的field和map的key
-func (c *EvalContext) evalIdentGet(this reflect.Value, ident *ast.Ident, node *EvalNode) error {
+func (c *Context) evalIdentGet(this reflect.Value, ident *ast.Ident, node *Node) error {
 	if !this.IsValid() {
 		return ErrValNotValid
 	}
@@ -96,7 +96,7 @@ func createMapKey(rv reflect.Value, value string) (val reflect.Value, err error)
 }
 
 // 只有数组、切片、字符串和map支持`[]`操作符
-func (c *EvalContext) evalIndexGet(this reflect.Value, expr *ast.IndexExpr, node *EvalNode) error {
+func (c *Context) evalIndexGet(this reflect.Value, expr *ast.IndexExpr, node *Node) error {
 	index, ok := expr.Index.(*ast.BasicLit)
 	if !ok {
 		return fmt.Errorf("index is not literal")
@@ -194,7 +194,7 @@ func tryCallMethod(this reflect.Value, call *ast.CallExpr, name string) (val ref
 	return
 }
 
-func (c *EvalContext) evalCall(this reflect.Value, call *ast.CallExpr, node *EvalNode) error {
+func (c *Context) evalCall(this reflect.Value, call *ast.CallExpr, node *Node) error {
 	if c.ReadOnly {
 		return fmt.Errorf("cannot call method in read-only mode")
 	}
@@ -229,7 +229,7 @@ func (c *EvalContext) evalCall(this reflect.Value, call *ast.CallExpr, node *Eva
 }
 
 // 选择表达式
-func (c *EvalContext) evalSelectorGet(this reflect.Value, expr *ast.SelectorExpr, node *EvalNode) error {
+func (c *Context) evalSelectorGet(this reflect.Value, expr *ast.SelectorExpr, node *Node) error {
 	var kind = this.Kind()
 	if kind == reflect.Ptr {
 		kind = this.Elem().Kind()
@@ -253,7 +253,7 @@ func (c *EvalContext) evalSelectorGet(this reflect.Value, expr *ast.SelectorExpr
 }
 
 // Eval 在`this`上，返回其`expr`对应的值
-func (c *EvalContext) Eval(expr string) (any, error) {
+func (c *Context) Eval(expr string) (any, error) {
 	c.Expr = expr
 	node, err := parser.ParseExpr(expr)
 	if err != nil {
@@ -275,7 +275,7 @@ func setValueTo(dst, src reflect.Value) error {
 		return ErrValNotValid
 	}
 	srtType, dstType := src.Type(), dst.Type()
-	if IsPrimitive(dstType.Kind()) {
+	if isPrimitiveKind(dstType.Kind()) {
 		if srtType.ConvertibleTo(dstType) {
 			var val = src.Convert(dstType)
 			dst.Set(val)
@@ -296,7 +296,7 @@ func setValueTo(dst, src reflect.Value) error {
 }
 
 // a.X = b
-func (c *EvalContext) setIdent(lhv, rhv reflect.Value, ident *ast.Ident) error {
+func (c *Context) setIdent(lhv, rhv reflect.Value, ident *ast.Ident) error {
 	var kind = lhv.Kind()
 	if kind == reflect.Ptr {
 		if lhv.Elem().Kind() == reflect.Struct {
@@ -317,7 +317,7 @@ func (c *EvalContext) setIdent(lhv, rhv reflect.Value, ident *ast.Ident) error {
 }
 
 // 数组或者map的下标赋值，a[X] = b
-func (c *EvalContext) setIndexExpr(lhv, rhv reflect.Value, expr *ast.IndexExpr) error {
+func (c *Context) setIndexExpr(lhv, rhv reflect.Value, expr *ast.IndexExpr) error {
 	index, ok := expr.Index.(*ast.BasicLit)
 	if !ok {
 		return fmt.Errorf("index is not literal")
@@ -354,7 +354,7 @@ func (c *EvalContext) setIndexExpr(lhv, rhv reflect.Value, expr *ast.IndexExpr) 
 	return nil
 }
 
-func (c *EvalContext) setSelector(lhv, rhv reflect.Value, expr *ast.SelectorExpr) error {
+func (c *Context) setSelector(lhv, rhv reflect.Value, expr *ast.SelectorExpr) error {
 	if lhv.Kind() == reflect.Ptr {
 		if lhv.Elem().Kind() == reflect.Struct {
 			lhv = lhv.Elem()
@@ -378,7 +378,7 @@ func (c *EvalContext) setSelector(lhv, rhv reflect.Value, expr *ast.SelectorExpr
 }
 
 // Set 在`this`上，设置v到对应`expr`
-func (c *EvalContext) Set(expr string, v any) error {
+func (c *Context) Set(expr string, v any) error {
 	c.Expr = expr
 	node, err := parser.ParseExpr(expr)
 	if err != nil {
@@ -399,7 +399,7 @@ func (c *EvalContext) Set(expr string, v any) error {
 }
 
 // 删除操作，slice, map
-func (c *EvalContext) removeIndex(this reflect.Value, expr *ast.IndexExpr) error {
+func (c *Context) removeIndex(this reflect.Value, expr *ast.IndexExpr) error {
 	index, ok := expr.Index.(*ast.BasicLit)
 	if !ok {
 		return fmt.Errorf("index is not literal")
@@ -445,7 +445,7 @@ func (c *EvalContext) removeIndex(this reflect.Value, expr *ast.IndexExpr) error
 }
 
 // Delete 删除 a[X]
-func (c *EvalContext) Delete(expr string) error {
+func (c *Context) Delete(expr string) error {
 	c.Expr = expr
 	node, err := parser.ParseExpr(expr)
 	if err != nil {
@@ -466,7 +466,7 @@ func (c *EvalContext) Delete(expr string) error {
 	}
 }
 
-func (c *EvalContext) PrintNodes(w io.Writer) {
+func (c *Context) PrintNodes(w io.Writer) {
 	for _, node := range c.Nodes {
 		fmt.Fprintf(w, "%s -> %s\n", node.Key, node.Val.Type().String())
 	}
