@@ -8,15 +8,9 @@ import (
 	"unsafe"
 )
 
+// Everything below is taken from the GO SDK runtime package, and must stay in sync with it.
+
 // Type is the runtime representation of a Go type.
-//
-// Type is also referenced implicitly
-// (in the form of expressions involving constants and arch.PtrSize)
-// in cmd/compile/internal/reflectdata/reflect.go
-// and cmd/link/internal/ld/decodesym.go
-// (e.g. data[2*arch.PtrSize+4] references the TFlag field)
-// unsafe.OffsetOf(Type{}.TFlag) cannot be used directly in those
-// places because it varies with cross compilation and experiments.
 type Type struct {
 	Size_       uintptr
 	PtrBytes    uintptr // number of (prefix) bytes in the type that can contain pointers
