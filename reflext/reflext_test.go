@@ -1,53 +1,50 @@
 package reflext
 
 import (
+	"reflect"
 	"testing"
+	"unsafe"
+
+	"github.com/stretchr/testify/assert"
 )
 
-/*
-	func TestRangeAllTypes(t *testing.T) {
-		var count = 0
-		RangeAllTypes(func(typ reflect.Type) bool {
-			//t.Logf("%s", typ.String())
-			count++
-			return true
-		})
-		assert.True(t, count > 0)
-		t.Logf("all types count: %d", count)
-	}
-
-	func TestRangePackageTypes(t *testing.T) {
-		var count = 0
-		RangePackageTypes("sync", func(typ reflect.Type) bool {
-			//t.Logf("%s", typ.String())
-			count++
-			return true
-		})
-		assert.True(t, count > 0)
-		t.Logf("all sync pacakge types count: %d", count)
-	}
-
-	func TestTypeForName(t *testing.T) {
-		// runtime package
-		{
-			typ := TypeForName("runtime.g")
-			assert.NotNil(t, typ)
-			assert.Truef(t, typeHasField(typ, "goid", reflect.Uint64), "runtime.g should have field goid")
-			assert.Truef(t, typeHasField(typ, "sched", reflect.Struct), "runtime.g should have field goid")
+func getFieldOffset(typ reflect.Type, fieldName string) uintptr {
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		if field.Name == fieldName {
+			return field.Offset
 		}
 	}
+	return 0
+}
 
-	func typeHasField(typ reflect.Type, fieldName string, kind reflect.Kind) bool {
-		for i := 0; i < typ.NumField(); i++ {
-			field := typ.Field(i)
-			if field.Name == fieldName && field.Type.Kind() == kind {
-				return true
-			}
+func typeHasField(typ reflect.Type, fieldName string, kind reflect.Kind) bool {
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		if field.Name == fieldName && field.Type.Kind() == kind {
+			return true
 		}
-		return false
 	}
-*/
+	return false
+}
+
+func TestEnumerateAllTypes(t *testing.T) {
+	var allTypes = EnumerateAllTypes()
+	typ := allTypes["runtime.g"] // runtime G
+	assert.NotNil(t, typ)
+	assert.Truef(t, typeHasField(typ, "goid", reflect.Uint64), "runtime.g should have field goid")
+	assert.Truef(t, typeHasField(typ, "sched", reflect.Struct), "runtime.g should have field sched")
+
+	// goroutine ID
+	var offset = getFieldOffset(typ, "goid")
+	var base = getg()
+	var goid = *(*int64)(unsafe.Add(unsafe.Pointer(base), offset))
+	t.Logf("goroutine ID: %d", goid)
+}
+
 func TestGetFunc(t *testing.T) {
+	var ptr = getg()
+	t.Logf("%d", ptr)
 	var timeNowFunc func() (int64, int32)
 	GetFunc(&timeNowFunc, "time.now")
 	sec, nsec := timeNowFunc()

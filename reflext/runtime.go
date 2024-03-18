@@ -321,3 +321,5 @@ func unsafe_NewArray(*Type, int) unsafe.Pointer
 
 //go:linkname firstmoduledata runtime.firstmoduledata
 var firstmoduledata Moduledata
+
+func getg() uintptr
