@@ -34,6 +34,7 @@ require (
 	github.com/klauspost/compress v1.17.7 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
+	github.com/planetscale/vtprotobuf v0.6.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect

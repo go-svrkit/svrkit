@@ -10,10 +10,27 @@ import (
 
 type Message = proto.Message
 
-var (
-	Marshal   = proto.Marshal
-	Unmarshal = proto.Unmarshal
-)
+type VTProtoMessage interface {
+	SizeVT() int
+	MarshalVT() ([]byte, error)
+	MarshalToVT(data []byte) (int, error)
+	MarshalToSizedBufferVT(data []byte) (int, error)
+	UnmarshalVT([]byte) error
+}
+
+func Marshal(m proto.Message) ([]byte, error) {
+	if vtM, ok := m.(VTProtoMessage); ok {
+		return vtM.MarshalVT()
+	}
+	return proto.Marshal(m)
+}
+
+func Unmarshal(b []byte, m Message) error {
+	if vtM, ok := m.(VTProtoMessage); ok {
+		return vtM.UnmarshalVT(b)
+	}
+	return proto.Unmarshal(b, m)
+}
 
 func UnmarshalProtoJSON(b []byte, m proto.Message) error {
 	var opt = protojson.UnmarshalOptions{
