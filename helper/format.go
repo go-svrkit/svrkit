@@ -4,15 +4,14 @@
 package helper
 
 import (
-	"bytes"
 	"crypto/md5"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 
-	"gopkg.in/svrkit.v1/strutil"
+	"github.com/bytedance/sonic"
+	"github.com/bytedance/sonic/decoder"
 	"gopkg.in/svrkit.v1/zlog"
 )
 
@@ -40,9 +39,9 @@ func PrettyBytes(nbytes int) string {
 }
 
 // JSONParse 避免大数值被解析为float导致的精度丢失
-func JSONParse(data []byte, v any) error {
-	var dec = json.NewDecoder(bytes.NewBuffer(data))
-	dec.UseNumber()
+func JSONParse(s string, v any) error {
+	var dec = decoder.NewDecoder(s)
+	dec.UseInt64()
 	if err := dec.Decode(v); err != nil {
 		return err
 	}
@@ -51,12 +50,12 @@ func JSONParse(data []byte, v any) error {
 
 // JSONStringify 序列化为json字符串
 func JSONStringify(v any) string {
-	data, err := json.Marshal(v)
+	data, err := sonic.MarshalString(v)
 	if err != nil {
 		zlog.Errorf("JSONStringify %T: %v", v, err)
 		return ""
 	}
-	return strutil.BytesAsStr(data)
+	return data
 }
 
 // MD5Sum 计算MD5值

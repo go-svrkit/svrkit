@@ -48,10 +48,11 @@ func TestPrettyBytes(t *testing.T) {
 
 func TestJSONParse(t *testing.T) {
 	tests := []struct {
-		input   string
-		want    interface{}
-		wantErr bool
+		input  string
+		want   interface{}
+		hasErr bool
 	}{
+		{"xx", 0, true},
 		{"1", 1, false},
 		{"true", true, false},
 		{"127", int8(127), false},
@@ -67,12 +68,12 @@ func TestJSONParse(t *testing.T) {
 		var name = fmt.Sprintf("case-%d", i+1)
 		t.Run(name, func(t *testing.T) {
 			var rval = reflect.New(reflect.TypeOf(tt.want))
-			var err = JSONParse([]byte(tt.input), rval.Interface())
+			var err = JSONParse(tt.input, rval.Interface())
 			if err != nil {
-				if tt.wantErr {
+				if tt.hasErr {
 					return
 				}
-				t.Fatalf("JSONParse() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("JSONParse() error = %v, wantErr %v", err, tt.hasErr)
 			}
 			var got = rval.Elem().Interface()
 			if !reflect.DeepEqual(got, tt.want) {
@@ -83,9 +84,6 @@ func TestJSONParse(t *testing.T) {
 }
 
 func TestJSONStringify(t *testing.T) {
-	type args struct {
-		v any
-	}
 	tests := []struct {
 		input interface{}
 		want  string

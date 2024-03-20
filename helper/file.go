@@ -40,7 +40,7 @@ func ReadToLines(rd io.Reader) ([]string, error) {
 	var lines []string
 	var scanner = bufio.NewScanner(rd)
 	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
+		lines = append(lines, strings.TrimSpace(scanner.Text()))
 	}
 	if err := scanner.Err(); err != nil {
 		return nil, err

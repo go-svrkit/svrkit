@@ -4,9 +4,12 @@
 package helper
 
 import (
+	"log"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
 
 // GetEnv 获取环境变量
@@ -57,4 +60,15 @@ func GetEnvBool(key string) bool {
 		return b
 	}
 	return false
+}
+
+func LoadDotEnv() {
+	var filename = ".env"
+	if IsFileExist(filename) {
+		if err := godotenv.Load(filename); err != nil {
+			log.Printf("load %s failed: %v", filename, err)
+		} else {
+			log.Printf("load %s OK", filename)
+		}
+	}
 }
