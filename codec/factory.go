@@ -99,7 +99,7 @@ func registerByNameHash(mt protoreflect.MessageType) bool {
 // protobuf使用init()注册(RegisterType)，则此API需要在import后调用
 func RegisterAllMessages() {
 	protoregistry.GlobalTypes.RangeMessages(registerByNameHash)
-	log.Printf("%d proto message registered", len(id2name))
+	log.Printf("registered %d proto messages", len(id2name))
 }
 
 func Register(fullname string) error {
@@ -125,6 +125,18 @@ func Register(fullname string) error {
 // GetMessageFullName 根据消息ID获取消息名称
 func GetMessageFullName(msgId uint32) string {
 	return id2name[msgId]
+}
+
+func GetMessageShortName(msgId uint32) string {
+	var name = id2name[msgId]
+	if name == "" {
+		return ""
+	}
+	var idx = strings.LastIndex(name, ".")
+	if idx > 0 {
+		return name[idx+1:]
+	}
+	return name
 }
 
 // GetMessageId 根据消息名称获取消息ID

@@ -18,8 +18,10 @@ import (
 
 type WatchDog struct {
 	path       string
+	done       chan struct{}
 	wg         sync.WaitGroup
 	running    atomic.Bool
+	ready      atomic.Bool
 	lastUpdate int64
 	ttl        int64
 	ticker     *time.Ticker
@@ -29,6 +31,7 @@ func NewWatchDog(path string, ttl int64) *WatchDog {
 	return &WatchDog{
 		path:       path,
 		ttl:        ttl,
+		done:       make(chan struct{}, 1),
 		lastUpdate: time.Now().Unix(),
 	}
 }
@@ -40,15 +43,14 @@ func (wd *WatchDog) Go() {
 
 func (wd *WatchDog) KeepAlive() {
 	wd.lastUpdate = time.Now().Unix()
+	wd.ready.Store(true)
 }
 
 func (wd *WatchDog) Stop() {
 	if !wd.running.CompareAndSwap(true, false) {
 		return
 	}
-	if wd.ticker != nil {
-		wd.ticker.Stop()
-	}
+	close(wd.done)
 	wd.wg.Wait()
 	wd.ticker = nil
 }
@@ -70,11 +72,13 @@ func (wd *WatchDog) worker() {
 	for wd.running.Load() {
 		select {
 		case now := <-wd.ticker.C:
-			if now.Unix()-wd.lastUpdate > wd.ttl {
+			if now.Unix()-wd.lastUpdate > wd.ttl && wd.ready.Load() {
 				go wd.dumpCPU()
 				wd.dumpGoroutines()
-				return
+				wd.ready.Store(false) // wait for next keepalive
 			}
+		case <-wd.done:
+			return
 		}
 	}
 }
