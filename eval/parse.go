@@ -5,7 +5,6 @@ package eval
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -14,6 +13,7 @@ import (
 	"strings"
 	"unsafe"
 
+	"github.com/bytedance/sonic/decoder"
 	"gopkg.in/svrkit.v1/strutil"
 )
 
@@ -78,9 +78,8 @@ func ConvParamToType(rType reflect.Type, input string) (val reflect.Value, err e
 		return ConvParamToType(rType.Elem(), input)
 	case reflect.Slice, reflect.Map, reflect.Struct:
 		var b = unsafe.Slice(unsafe.StringData(input), len(input))
-		var rd = bytes.NewReader(b)
-		var dec = json.NewDecoder(rd)
-		dec.UseNumber()
+		var dec = decoder.NewStreamDecoder(bytes.NewReader(b))
+		dec.UseInt64()
 		val = reflect.New(rType)
 		err = dec.Decode(val.Interface())
 		return
@@ -163,7 +162,7 @@ func ParseBaseKindToType(rType reflect.Type, input string) (val reflect.Value, e
 	case reflect.Int64:
 		var n int64
 		if n, err = strutil.ParseI64(input); err == nil {
-			val.SetInt(int64(n))
+			val.SetInt(n)
 		}
 
 	case reflect.Uint:
@@ -219,6 +218,7 @@ func isPrimitiveKind(kind reflect.Kind) bool {
 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int, reflect.Int64,
 		reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint, reflect.Uint64,
 		reflect.Float32, reflect.Float64, reflect.Bool, reflect.String:
+		return true
 	}
 	return false
 }

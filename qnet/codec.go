@@ -128,7 +128,7 @@ func ReadHeadBody(rd io.Reader, head NetV1Header, maxSize uint32) ([]byte, error
 	return body, nil
 }
 
-func ProcessHeaderFlags(flags MsgFlag, body []byte, decrypt Encryptor) ([]byte, error) {
+func DecodeBodyByFlags(flags MsgFlag, body []byte, decrypt Encryptor) ([]byte, error) {
 	if flags.Has(FlagEncrypt) {
 		if decrypt == nil {
 			return nil, ErrCannotDecryptPkt
@@ -162,7 +162,7 @@ func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetM
 
 func DecodeNetMsg(head NetV1Header, body []byte, decrypt Encryptor, netMsg *NetMessage) error {
 	var flags = head.Flag()
-	body, err := ProcessHeaderFlags(flags, body, decrypt)
+	body, err := DecodeBodyByFlags(flags, body, decrypt)
 	if err != nil {
 		return err
 	}

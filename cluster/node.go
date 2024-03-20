@@ -5,7 +5,6 @@ package cluster
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
@@ -14,7 +13,8 @@ import (
 	"strings"
 	"sync"
 
-	"gopkg.in/svrkit.v1/strutil"
+	"github.com/bytedance/sonic"
+	"github.com/bytedance/sonic/decoder"
 )
 
 // Node 表示用于服务发现的节点信息
@@ -56,8 +56,8 @@ func (n *Node) Set(key string, val any) {
 	if n.Args == nil {
 		n.Args = make(map[string]string)
 	}
-	data, _ := json.Marshal(val)
-	n.Args[key] = strutil.BytesAsStr(data)
+	data, _ := sonic.MarshalString(val)
+	n.Args[key] = data
 }
 
 func (n *Node) GetInt(key string) int {
@@ -100,8 +100,8 @@ func (n *Node) Clone() Node {
 }
 
 func (n *Node) String() string {
-	data, _ := json.Marshal(n)
-	return string(data)
+	data, _ := sonic.MarshalString(n)
+	return data
 }
 
 type NodeEventType int
@@ -250,8 +250,8 @@ func (m *NodeMap) String() string {
 // 使用bigint序列化大整数
 func unmarshalNode(data []byte, node *Node) error {
 	if len(data) > 0 {
-		var dec = json.NewDecoder(bytes.NewReader(data))
-		dec.UseNumber()
+		var dec = decoder.NewStreamDecoder(bytes.NewReader(data))
+		dec.UseInt64()
 		return dec.Decode(node)
 	}
 	return nil

@@ -5,7 +5,6 @@ package cluster
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -13,8 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-	"unsafe"
 
+	"github.com/bytedance/sonic"
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/svrkit.v1/zlog"
 )
@@ -141,15 +140,15 @@ func (c *EtcdClient) GetNode(ctx context.Context, name string) (*Node, error) {
 // PutNode 设置节点信息
 func (c *EtcdClient) PutNode(ctx context.Context, name string, value any, leaseId int64) error {
 	var key = c.FormatKey(name)
-	data, err := json.Marshal(value)
+	data, err := sonic.MarshalString(value)
 	if err != nil {
 		return err
 	}
 	var resp *clientv3.PutResponse
 	if leaseId <= 0 {
-		resp, err = c.client.Put(ctx, key, bytesAsString(data))
+		resp, err = c.client.Put(ctx, key, data)
 	} else {
-		resp, err = c.client.Put(ctx, key, bytesAsString(data), clientv3.WithLease(clientv3.LeaseID(leaseId)))
+		resp, err = c.client.Put(ctx, key, data, clientv3.WithLease(clientv3.LeaseID(leaseId)))
 	}
 	if err != nil {
 		return err
@@ -500,8 +499,4 @@ func parseNodeTypeAndID(root, key string) (string, uint32) {
 	var strId = key[idx+1:]
 	id, _ := strconv.Atoi(strId)
 	return nodeType, uint32(id)
-}
-
-func bytesAsString(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
 }
