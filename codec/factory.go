@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
 )
@@ -22,17 +22,15 @@ import (
 // 4. `Req`和`Ack`名字前缀需要匹配，即`FooReq`和`FooAck`表示一对请求/响应协议；
 
 var (
-	name2id = make(map[string]uint32)       // 消息名称 <-> 消息ID
-	id2name = make(map[uint32]string)       // 消息ID <-> 消息名称
-	id2type = make(map[uint32]reflect.Type) // 消息ID <-> reflect
-	type2id = make(map[reflect.Type]uint32) // reflect <-> 消息ID
+	name2id = make(map[string]uint32)                   // 消息名称 <-> 消息ID
+	id2name = make(map[uint32]string)                   // 消息ID <-> 消息名称
+	id2type = make(map[uint32]protoreflect.MessageType) // 消息名称 <-> 消息类型
 )
 
 func Clear() {
-	name2id = make(map[string]uint32)
-	id2name = make(map[uint32]string)
-	id2type = make(map[uint32]reflect.Type)
-	type2id = make(map[reflect.Type]uint32)
+	clear(name2id)
+	clear(id2name)
+	clear(id2type)
 }
 
 // HasValidSuffix 指定的后缀才自动注册
@@ -79,28 +77,19 @@ func NameHash(name string) uint32 {
 	return h.Sum32()
 }
 
-func registerByNameHash(fd protoreflect.FileDescriptor) bool {
-	if isWellKnown(fd.Path()) {
+func registerByNameHash(mt protoreflect.MessageType) bool {
+	var md = mt.Descriptor()
+	var fd = md.ParentFile()
+	if fd != nil && isWellKnown(fd.Path()) {
 		return true
 	}
-	// log.Printf("register %s", fd.Path())
-	var descriptors = fd.Messages()
-	for i := 0; i < descriptors.Len(); i++ {
-		var descriptor = descriptors.Get(i)
-		var fullname = string(descriptor.FullName())
-		if !HasValidSuffix(fullname) {
-			continue
-		}
-		var name = string(descriptor.Name())
-		var rtype = proto.MessageType(fullname)
-		if rtype == nil {
-			log.Printf("message %s cannot be reflected\n", fullname)
-			continue
-		}
-		if GetMessageId(name) == 0 {
-			if err := Register(rtype); err != nil {
-				log.Printf("register msg %s: %v\n", name, err)
-			}
+	var fullname = string(md.FullName())
+	if !HasValidSuffix(fullname) {
+		return true
+	}
+	if GetMessageId(fullname) == 0 {
+		if err := Register(fullname); err != nil {
+			log.Printf("register msg %s: %v\n", fullname, err)
 		}
 	}
 	return true
@@ -109,28 +98,27 @@ func registerByNameHash(fd protoreflect.FileDescriptor) bool {
 // RegisterAllMessages 自动注册所有protobuf消息
 // protobuf使用init()注册(RegisterType)，则此API需要在import后调用
 func RegisterAllMessages() {
-	protoregistry.GlobalFiles.RangeFiles(registerByNameHash)
-	log.Printf("%d proto message registered", len(id2type))
+	protoregistry.GlobalTypes.RangeMessages(registerByNameHash)
+	log.Printf("%d proto message registered", len(id2name))
 }
 
-func Register(rType reflect.Type) error {
-	if rType.Kind() == reflect.Ptr {
-		rType = rType.Elem()
+func Register(fullname string) error {
+	mt, err := protoregistry.GlobalTypes.FindMessageByName(protoreflect.FullName(fullname))
+	if err != nil {
+		return err
 	}
 	// 不能重复注册
-	var name = rType.String()
-	if _, ok := name2id[name]; ok {
-		return fmt.Errorf("duplicate registration of %s", name)
+	if _, ok := name2id[fullname]; ok {
+		return fmt.Errorf("duplicate registration of %s", fullname)
 	}
 	// 不同的名字如果生成了相同的hash，需要更改新名字
-	var hash = NameHash(name)
+	var hash = NameHash(fullname)
 	if old, found := id2name[hash]; found {
-		return fmt.Errorf("duplicate hash of %s -> %s", old, name)
+		return fmt.Errorf("duplicate hash of %s -> %s", old, fullname)
 	}
-	name2id[name] = hash
-	id2type[hash] = rType
-	id2name[hash] = name
-	type2id[rType] = hash
+	name2id[fullname] = hash
+	id2name[hash] = fullname
+	id2type[hash] = mt
 	return nil
 }
 
@@ -145,20 +133,22 @@ func GetMessageId(fullName string) uint32 {
 }
 
 func GetMessageType(msgId uint32) reflect.Type {
-	return id2type[msgId]
+	if mt, found := id2type[msgId]; found && mt != nil {
+		return reflect.TypeOf(mt.Zero().Interface())
+	}
+	return nil
 }
 
 // GetMessageIdOf 获取proto消息的ID
 func GetMessageIdOf(msg proto.Message) uint32 {
-	var rtype = reflect.TypeOf(msg)
-	return type2id[rtype.Elem()]
+	var fullname = reflect.TypeOf(msg).Elem().String()
+	return name2id[fullname]
 }
 
 // CreateMessageByID 根据消息ID创建消息（使用反射）
 func CreateMessageByID(msgId uint32) proto.Message {
-	if rtype, found := id2type[msgId]; found {
-		var val = reflect.New(rtype).Interface()
-		return val.(proto.Message)
+	if mt, found := id2type[msgId]; found && mt != nil {
+		return mt.New().Interface()
 	}
 	return nil
 }

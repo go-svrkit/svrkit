@@ -4,32 +4,30 @@
 package codec
 
 import (
-	"bytes"
-
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
-
-// TODO: switch to different protobuf implementations
-// 	1. google.golang.org/protobuf
-// 	2. github.com/gogo/protobuf
-// 	3. github.com/planetscale/vtprotobuf
 
 type Message = proto.Message
 
 var (
-	Marshal            = proto.Marshal
-	Unmarshal          = proto.Unmarshal
-	UnmarshalProtoJSON = jsonpb.Unmarshal
+	Marshal   = proto.Marshal
+	Unmarshal = proto.Unmarshal
 )
+
+func UnmarshalProtoJSON(b []byte, m proto.Message) error {
+	var opt = protojson.UnmarshalOptions{
+		AllowPartial:   true,
+		DiscardUnknown: true,
+	}
+	return opt.Unmarshal(b, m)
+}
 
 // MarshalProtoJSON 序列化proto消息为json格式
 func MarshalProtoJSON(msg proto.Message) ([]byte, error) {
-	var jm = jsonpb.Marshaler{EnumsAsInts: true}
-	var sb bytes.Buffer
-	if err := jm.Marshal(&sb, msg); err != nil {
-		return nil, err
-	} else {
-		return sb.Bytes(), nil
+	var opt = protojson.MarshalOptions{
+		AllowPartial:   true,
+		UseEnumNumbers: true,
 	}
+	return opt.Marshal(msg)
 }
