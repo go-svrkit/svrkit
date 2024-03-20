@@ -4,9 +4,6 @@
 package events
 
 import (
-	"fmt"
-	"os"
-
 	"gopkg.in/svrkit.v1/debug"
 )
 
@@ -53,12 +50,7 @@ func (h *EventHandler) Get() EventListener {
 }
 
 func (h *EventHandler) Fire(event *Event) (err error) {
-	defer func() {
-		if v := recover(); v != nil {
-			err = fmt.Errorf("%v", v)
-			debug.Backtrace("handle event "+event.Name, v, os.Stderr)
-		}
-	}()
+	defer debug.CatchPanic(event.Name)
 	return h.callback(event)
 }
 
@@ -80,12 +72,8 @@ func (h *EventOnceHandler) Get() EventListener {
 }
 
 func (h *EventOnceHandler) Fire(event *Event) (err error) {
-	defer func() {
-		if v := recover(); v != nil {
-			err = fmt.Errorf("%v", v)
-			debug.Backtrace("handle event "+event.Name, v, os.Stderr)
-		}
-	}()
+	defer debug.CatchPanic(event.Name)
+
 	if !h.fired {
 		h.fired = true
 		h.target.RemoveListener(event.Name, h.callback)

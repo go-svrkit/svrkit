@@ -4,7 +4,6 @@
 package qnet
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"gopkg.in/svrkit.v1/codec"
+	"gopkg.in/svrkit.v1/strutil"
 	"gopkg.in/svrkit.v1/zlog"
 )
 
@@ -132,7 +132,11 @@ func ReadProtoFromHTTPRequest(req *http.Request, msg codec.Message) error {
 	switch contentType {
 	case "application/json":
 		defer req.Body.Close()
-		return codec.UnmarshalProtoJSON(req.Body, msg)
+		if data, err := io.ReadAll(req.Body); err != nil {
+			return err
+		} else {
+			return codec.UnmarshalProtoJSON(data, msg)
+		}
 
 	case "application/octet-stream", "application/binary":
 		rawbytes, err := io.ReadAll(req.Body)
@@ -151,8 +155,7 @@ func ReadProtoFromHTTPRequest(req *http.Request, msg codec.Message) error {
 		}
 		var data = req.Form.Get(UrlFormKey)
 		if len(data) > 0 {
-			var buf = bytes.NewBufferString(data)
-			return codec.UnmarshalProtoJSON(buf, msg)
+			return codec.UnmarshalProtoJSON(strutil.StrAsBytes(data), msg)
 		}
 		return nil
 

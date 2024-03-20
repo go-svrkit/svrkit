@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/svrkit.v1/codec/testdata"
 	"gopkg.in/svrkit.v1/strutil"
 )
 
@@ -72,15 +73,15 @@ func TestCompress(t *testing.T) {
 
 func TestDecodeMsgFrom(t *testing.T) {
 	var buf bytes.Buffer
-	var msg = CreateNetMessageWith(&PrebuildReq{PosX: 11, PosZ: 22})
+	var msg = CreateNetMessageWith(&testdata.BuildReq{PosX: 11, PosY: 22})
 	assert.Nil(t, EncodeMsgTo(msg, nil, &buf))
 	var netMsg = AllocNetMessage()
 	assert.Nil(t, DecodeMsgFrom(&buf, MaxPayloadSize, nil, netMsg))
 	assert.True(t, len(netMsg.Data) > 0)
-	var req PrebuildReq
+	var req testdata.BuildReq
 	assert.Nil(t, netMsg.DecodeTo(&req))
 	assert.Equal(t, req.PosX, int32(11))
-	assert.Equal(t, req.PosZ, int32(22))
+	assert.Equal(t, req.PosY, int32(22))
 }
 
 func isMsgEqual(t *testing.T, a, b *NetMessage) bool {

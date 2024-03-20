@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/svrkit.v1/codec/testdata"
 )
 
 func createTestPipeConn(t *testing.T, addr string) (local, remote net.Conn) {
@@ -78,10 +79,10 @@ func TestReadProtoMessage(t *testing.T) {
 		remote.Close()
 	}()
 
-	var req = &PrebuildReq{PosX: 1234, PosZ: 5678}
+	var req = &testdata.BuildReq{PosX: 1234, PosY: 5678}
 	assert.Nil(t, WriteProtoMessage(local, req))
 
-	var req2 PrebuildReq
+	var req2 testdata.BuildReq
 	assert.Nil(t, ReadProtoMessage(remote, &req2))
 
 	assert.True(t, reflect.DeepEqual(req, &req2))

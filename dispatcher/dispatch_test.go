@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/svrkit.v1/codec"
 	"gopkg.in/svrkit.v1/qnet"
 )
 
@@ -20,33 +20,33 @@ func nowNano() int64 {
 func TestRegister(t *testing.T) {
 	var d = NewDispatcher()
 	assert.False(t, d.HasRegistered(1234))
-	d.Register(1234, func(proto.Message) error { return nil })
+	d.Register(1234, func(codec.Message) error { return nil })
 	assert.True(t, d.HasRegistered(1234))
 }
 
 func TestDeregister(t *testing.T) {
 	var d = NewDispatcher()
 	assert.Nil(t, d.Deregister(1234))
-	d.Register(1234, func(proto.Message) error { return nil })
+	d.Register(1234, func(codec.Message) error { return nil })
 	assert.NotNil(t, d.Deregister(1234))
 }
 
 func TestHandle(t *testing.T) {
 	var d = NewDispatcher()
 	var triggerAt = make(map[int]int64)
-	d.Register(101, func(proto.Message) error {
+	d.Register(101, func(codec.Message) error {
 		triggerAt[1] = nowNano()
 		return nil
 	})
-	d.Register(102, func(proto.Message) (proto.Message, error) {
+	d.Register(102, func(codec.Message) (codec.Message, error) {
 		triggerAt[2] = nowNano()
 		return nil, nil
 	})
-	d.Register(103, func(context.Context, proto.Message) error {
+	d.Register(103, func(context.Context, codec.Message) error {
 		triggerAt[3] = nowNano()
 		return nil
 	})
-	d.Register(104, func(context.Context, proto.Message) (proto.Message, error) {
+	d.Register(104, func(context.Context, codec.Message) (codec.Message, error) {
 		triggerAt[4] = nowNano()
 		return nil, nil
 	})
@@ -67,7 +67,7 @@ func TestHandle(t *testing.T) {
 func TestBeforeHook(t *testing.T) {
 	var d = NewDispatcher()
 	var t1, t2, t3 int64
-	d.Register(101, func(proto.Message) error {
+	d.Register(101, func(codec.Message) error {
 		t1 = nowNano()
 		return nil
 	})
@@ -90,7 +90,7 @@ func TestBeforeHook(t *testing.T) {
 func TestAfterHook(t *testing.T) {
 	var d = NewDispatcher()
 	var t1, t2, t3 int64
-	d.Register(101, func(proto.Message) error {
+	d.Register(101, func(codec.Message) error {
 		t1 = nowNano()
 		assert.Greater(t, t1, t2)
 		return nil

@@ -114,7 +114,7 @@ func TestRegister(t *testing.T) {
 	assert.Greater(t, hash, uint32(0))
 	assert.Equal(t, GetMessageFullName(hash), name)
 	var req testdata.BuildReq
-	assert.Equal(t, GetMessageType(hash).String(), reflect.TypeOf(req).String())
+	assert.Equal(t, GetMessageType(hash).String(), reflect.TypeOf(&req).Elem().String())
 	assert.Equal(t, hash, GetMessageIdOf(&req))
 }
 

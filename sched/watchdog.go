@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"runtime/pprof"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -55,8 +56,9 @@ func (wd *WatchDog) Stop() {
 func (wd *WatchDog) worker() {
 	defer func() {
 		if v := recover(); v != nil {
-			debug.Backtrace("watchdog panic", v, os.Stderr)
-			zlog.Errorf("watchdog panic: %v", v)
+			var sb strings.Builder
+			debug.TraceStack(1, "watchdog panic", v, &sb)
+			zlog.Error(sb.String())
 		}
 		wd.wg.Done()
 	}()

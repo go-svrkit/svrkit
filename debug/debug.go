@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/svrkit.v1/zlog"
@@ -12,19 +12,21 @@ import (
 
 const timestampLayout = "2006-01-02T15:04:05.000-0700" // IOS8601
 
-func TraceStack(title string, w io.Writer) {
-	var stack = GetCallerStack(1)
+func TraceStack(skip int, title string, err interface{}, w io.Writer) {
+	var stack = GetCallerStack(skip + 1)
 	var now = time.Now()
-	fmt.Fprintf(w, "%s\nstack traceback[%s] (most recent calls):\n", title, now.Format(timestampLayout))
-	fmt.Fprintf(w, "%v \n", stack)
+	fmt.Fprintf(w, "%s\n%v\nstack traceback[%s] (most recent calls):\n", title, err, now.Format(timestampLayout))
+	fmt.Fprintf(w, "%v\n", stack)
 }
 
 func CatchPanic(title string) {
 	if v := recover(); v != nil {
-		var now = time.Now()
 		var stack = GetCallerStack(1)
-		fmt.Fprintf(os.Stderr, "%s\nstack traceback[%s] (most recent calls):\n", title, now.Format(timestampLayout))
-		fmt.Fprintf(os.Stderr, "%v %v\n", stack, v)
+		var now = time.Now()
+		var sb strings.Builder
+		fmt.Fprintf(&sb, "%s\n%v\nstack traceback[%s] (most recent calls):", title, v, now.Format(timestampLayout))
+		fmt.Fprintf(&sb, "%v\n", stack)
+		zlog.Error(sb.String())
 	}
 }
 

@@ -134,7 +134,7 @@ func GetMessageId(fullName string) uint32 {
 
 func GetMessageType(msgId uint32) reflect.Type {
 	if mt, found := id2type[msgId]; found && mt != nil {
-		return reflect.TypeOf(mt.Zero().Interface())
+		return reflect.TypeOf(mt.Zero().Interface()).Elem()
 	}
 	return nil
 }
