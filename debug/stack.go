@@ -5,16 +5,8 @@ package debug
 
 import (
 	"fmt"
-	"io"
-	"os"
 	"runtime"
 	"strings"
-	"time"
-)
-
-const (
-	timestampLayout = "2006-01-02T15:04:05-0700" // IOS8601
-	mainPkgName     = "main.main"
 )
 
 // code taken from https://github.com/pkg/errors with modification
@@ -24,8 +16,7 @@ const (
 // its value represents the program counter + 1.
 type Frame uintptr
 
-// PC returns the program counter for this frame;
-// multiple frames may have the same PC value.
+// PC returns the program counter for this frame; multiple frames may have the same PC value.
 func (f Frame) PC() uintptr { return uintptr(f) - 1 }
 
 // Stack represents a stack of program counters.
@@ -46,11 +37,11 @@ func (s Stack) CallerNames(limit int) []string {
 			break
 		}
 		fnName := fn.Name()
-		if idx := strings.LastIndex(fnName, "/"); idx > 0 {
-			fnName = fnName[idx+1:]
+		if i := strings.LastIndex(fnName, "/"); i > 0 {
+			fnName = fnName[i+1:]
 		}
 		names = append(names, fnName+"()")
-		if len(names) >= limit || fnName == "main.main" {
+		if len(names) >= limit || fnName == "runtime·goexit" {
 			break
 		}
 	}
@@ -68,44 +59,25 @@ func (s Stack) String() string {
 		file, line := fn.FileLine(pc)
 		fnName := fn.Name()
 		fmt.Fprintf(&sb, "% 3d. %s() %s:%d\n", i+1, fnName, file, line)
-		if fnName == mainPkgName {
+		if fnName == "runtime·goexit" {
 			break
 		}
 	}
 	return sb.String()
 }
 
-// GetCallerStack 获取当前调用堆栈
-func GetCallerStack(stack *Stack, skip int) {
-	if stack.pcs == nil {
-		stack.pcs = make([]uintptr, 32) // 32 depth is enough
+// GetCallerStack 获取当前调用栈
+func GetCallerStack(skip int) Stack {
+	var stack = Stack{
+		pcs: make([]uintptr, 32), // 32 depth is enough
 	}
-	n := runtime.Callers(skip+1, stack.pcs[:])
+	n := runtime.Callers(skip+1, stack.pcs)
 	stack.pcs = stack.pcs[0:n]
-}
-
-func GetCallStack(skip int) Stack {
-	var stack Stack
-	GetCallerStack(&stack, skip+1)
 	return stack
 }
 
+// GetCallStackNames 当前调用栈得名称
 func GetCallStackNames(skip, limit int) []string {
-	var stack Stack
-	GetCallerStack(&stack, skip+1)
+	var stack = GetCallerStack(skip + 1)
 	return stack.CallerNames(limit)
-}
-
-func Backtrace(title string, val interface{}, w io.Writer) {
-	var stack Stack
-	GetCallerStack(&stack, 1)
-	var now = time.Now()
-	fmt.Fprintf(w, "%s\nTraceback[%s] (most recent call last):\n", title, now.Format(timestampLayout))
-	fmt.Fprintf(w, "%v %v\n", stack, val)
-}
-
-func CatchPanic(title string) {
-	if v := recover(); v != nil {
-		Backtrace(title, v, os.Stderr)
-	}
 }
