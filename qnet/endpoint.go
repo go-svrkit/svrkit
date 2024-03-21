@@ -17,7 +17,7 @@ const (
 const (
 	DefaultRecvQueueSize        = 1 << 16
 	DefaultBackendSendQueueSize = 1 << 14
-	DefaultSessionSendQueueSize = 1024
+	DefaultSessionSendQueueSize = 448
 	DefaultBacklogSize          = 128
 	DefaultErrorChanSize        = 64
 )
@@ -37,7 +37,6 @@ type Endpoint interface {
 
 	GetUserData() any
 	SetEncryption(Encryptor, Encryptor)
-	SetSendQueue(chan *NetMessage)
 
 	Go(ctx context.Context, reader, writer bool) // 开启read/write线程
 

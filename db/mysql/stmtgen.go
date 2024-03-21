@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/svrkit.v1/conv"
 	"gopkg.in/svrkit.v1/strutil"
 )
 
@@ -171,7 +172,7 @@ func (g *SQLStmtGen) RegisterStruct(tag string, ptr interface{}, srcFile string)
 		var field = st.Field(i)
 		var colName, colType string
 		tagText := field.Tag.Get(tag)
-		tagFields := strutil.ParseMap[string, string](tagText, " ", "=")
+		tagFields := conv.ParseMap[string, string](tagText, conv.SepSpace, conv.SepEqualSign)
 		if v := tagFields[DBColumnName]; len(v) > 0 {
 			colName = v
 		}
@@ -286,7 +287,7 @@ func getStructComments(file *token.File, fast *ast.File, structTyp *ast.StructTy
 //	}
 func (g *SQLStmtGen) parseIndex(meta *DBTableMeta, name, s string) {
 	var index = NewDBIndexMeta(name)
-	opts := strutil.ParseMap[string, string](s, ",", ":")
+	opts := conv.ParseMap[string, string](s, conv.SepComma, conv.SepColon)
 	if v := opts["name"]; v != "" {
 		index.Name = v
 	} else {

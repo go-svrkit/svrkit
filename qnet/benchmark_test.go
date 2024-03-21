@@ -52,11 +52,10 @@ func startBenchServer(t *testing.T, ctx context.Context, addr string) {
 	for {
 		select {
 		case conn := <-bus:
-			var session = NewTcpSession(conn)
+			var session = NewTcpSession(conn, 256)
 			session.Node = NodeID(autoId)
 			session.RecvQueue = incoming
 			session.ErrChan = errChan
-			session.SetSendQueue(make(chan *NetMessage, 256))
 			session.Go(context.Background(), true, true)
 			autoId++
 

@@ -28,11 +28,14 @@ type TcpSession struct {
 	intranet bool           // 内联网
 }
 
-func NewTcpSession(conn net.Conn) *TcpSession {
+func NewTcpSession(conn net.Conn, sendQSize int) *TcpSession {
 	var session = &TcpSession{
 		conn:     conn,
 		done:     make(chan struct{}),
 		recvHead: NewNetV1Header(),
+	}
+	if sendQSize > 0 {
+		session.SendQueue = make(chan *NetMessage, sendQSize)
 	}
 	session.RemoteAddr = conn.RemoteAddr().String()
 	return session

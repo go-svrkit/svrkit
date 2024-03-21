@@ -7,25 +7,9 @@ import (
 	"math/rand"
 	"strings"
 	"unicode"
-	"unsafe"
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-=~!@#$%^&*()_+[]\\;',./{}|:<>?"
-
-// StrAsBytes returns the bytes backing a string, it is the caller's responsibility not to mutate the bytes returned.
-// see https://pkg.go.dev/unsafe#Pointer rule(6)
-func StrAsBytes(s string) []byte {
-	if len(s) == 0 {
-		return nil
-	}
-	return unsafe.Slice(unsafe.StringData(s), len(s))
-}
-
-// BytesAsStr returns the string view of byte slice
-func BytesAsStr(b []byte) string {
-	//return *(*string)(unsafe.Pointer(&b))
-	return unsafe.String(unsafe.SliceData(b), len(b))
-}
 
 // RandString 随机长度的字符串
 func RandString(length int) string {

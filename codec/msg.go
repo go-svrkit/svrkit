@@ -18,6 +18,11 @@ type VTProtoMessage interface {
 	UnmarshalVT([]byte) error
 }
 
+var (
+	Merge = proto.Merge
+	Clone = proto.Clone
+)
+
 func Marshal(m proto.Message) ([]byte, error) {
 	if vtM, ok := m.(VTProtoMessage); ok {
 		return vtM.MarshalVT()

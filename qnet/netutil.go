@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"gopkg.in/svrkit.v1/codec"
-	"gopkg.in/svrkit.v1/strutil"
+	"gopkg.in/svrkit.v1/conv"
 	"gopkg.in/svrkit.v1/zlog"
 )
 
@@ -155,7 +155,7 @@ func ReadProtoFromHTTPRequest(req *http.Request, msg codec.Message) error {
 		}
 		var data = req.Form.Get(UrlFormKey)
 		if len(data) > 0 {
-			return codec.UnmarshalProtoJSON(strutil.StrAsBytes(data), msg)
+			return codec.UnmarshalProtoJSON(conv.StrAsBytes(data), msg)
 		}
 		return nil
 

@@ -161,8 +161,8 @@ func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetM
 }
 
 func DecodeNetMsg(head NetV1Header, body []byte, decrypt Encryptor, netMsg *NetMessage) error {
-	var flags = head.Flag()
-	body, err := DecodeBodyByFlags(flags, body, decrypt)
+	var err error
+	body, err = DecodeBodyByFlags(head.Flag(), body, decrypt)
 	if err != nil {
 		return err
 	}

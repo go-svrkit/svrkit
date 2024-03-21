@@ -54,7 +54,12 @@ func CreateNetMessageWith(body codec.Message) *NetMessage {
 }
 
 func (m *NetMessage) Reset() {
-	*m = NetMessage{}
+	m.CreatedAt = 0
+	m.Command = 0
+	m.Seq = 0
+	m.Data = nil
+	m.Body = nil
+	m.Session = nil
 }
 
 func (m *NetMessage) Clone() *NetMessage {

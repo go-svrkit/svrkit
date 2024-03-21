@@ -9,11 +9,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/svrkit.v1/strutil"
+	"gopkg.in/svrkit.v1/conv"
 )
 
 func createTreeMap(text string) *TreeMap[int, string] {
-	keys, values := strutil.ParseKeyValues[int, string](text, "=", ",")
+	keys, values := conv.ParseKeyValues[int, string](text, "=", ",")
 	var m = NewOrderedTreeMap[int, string]()
 	for i, k := range keys {
 		m.Put(k, values[i])

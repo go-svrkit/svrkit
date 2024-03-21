@@ -14,7 +14,7 @@ import (
 	"unsafe"
 
 	"github.com/bytedance/sonic/decoder"
-	"gopkg.in/svrkit.v1/strutil"
+	"gopkg.in/svrkit.v1/conv"
 )
 
 // ParseCallExprArgs 解析call表达式的参数列表
@@ -137,31 +137,31 @@ func ParseBaseKindToType(rType reflect.Type, input string) (val reflect.Value, e
 
 	case reflect.Int:
 		var n int64
-		if n, err = strutil.ParseI64(input); err == nil {
+		if n, err = conv.ParseI64(input); err == nil {
 			val.SetInt(n)
 		}
 
 	case reflect.Int8:
 		var n int8
-		if n, err = strutil.ParseI8(input); err == nil {
+		if n, err = conv.ParseI8(input); err == nil {
 			val.SetInt(int64(n))
 		}
 
 	case reflect.Int16:
 		var n int16
-		if n, err = strutil.ParseI16(input); err == nil {
+		if n, err = conv.ParseI16(input); err == nil {
 			val.SetInt(int64(n))
 		}
 
 	case reflect.Int32:
 		var n int32
-		if n, err = strutil.ParseI32(input); err == nil {
+		if n, err = conv.ParseI32(input); err == nil {
 			val.SetInt(int64(n))
 		}
 
 	case reflect.Int64:
 		var n int64
-		if n, err = strutil.ParseI64(input); err == nil {
+		if n, err = conv.ParseI64(input); err == nil {
 			val.SetInt(n)
 		}
 
@@ -173,37 +173,37 @@ func ParseBaseKindToType(rType reflect.Type, input string) (val reflect.Value, e
 
 	case reflect.Uint8:
 		var n uint8
-		if n, err = strutil.ParseU8(input); err == nil {
+		if n, err = conv.ParseU8(input); err == nil {
 			val.SetInt(int64(n))
 		}
 
 	case reflect.Uint16:
 		var n uint16
-		if n, err = strutil.ParseU16(input); err == nil {
+		if n, err = conv.ParseU16(input); err == nil {
 			val.SetInt(int64(n))
 		}
 
 	case reflect.Uint32:
 		var n uint32
-		if n, err = strutil.ParseU32(input); err == nil {
+		if n, err = conv.ParseU32(input); err == nil {
 			val.SetInt(int64(n))
 		}
 
 	case reflect.Uint64:
 		var n uint64
-		if n, err = strutil.ParseU64(input); err == nil {
+		if n, err = conv.ParseU64(input); err == nil {
 			val.SetInt(int64(n))
 		}
 
 	case reflect.Float32:
 		var f float32
-		if f, err = strutil.ParseF32(input); err == nil {
+		if f, err = conv.ParseF32(input); err == nil {
 			val.SetFloat(float64(f))
 		}
 
 	case reflect.Float64:
 		var f float64
-		if f, err = strutil.ParseF64(input); err == nil {
+		if f, err = conv.ParseF64(input); err == nil {
 			val.SetFloat(f)
 		}
 
