@@ -1,3 +1,5 @@
+# Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
+# See accompanying files LICENSE.txt
 
 PWD = $(shell pwd)
 GOBIN = $(PWD)/bin
@@ -28,7 +30,7 @@ test:
 	#$(GO) test -v -bench ${ALL_TEST_PKG} -run ^Benchmark$ -benchmem
 
 lint:
-	cd src && golangci-lint run --timeout 10m ./... > ../golint.log
+	cd src && golangci-lint run --timeout 10m ./... > golint.log
 
 clean:
 	$(GO) clean
