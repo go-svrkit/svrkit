@@ -39,7 +39,7 @@ func unsafe_New(unsafe.Pointer) unsafe.Pointer
 func unsafe_NewArray(unsafe.Pointer, int) unsafe.Pointer
 
 //go:noescape
-//go:linkname Getitab runtime.getitab
+//go:linkname GetItab runtime.getitab
 func GetItab(inter unsafe.Pointer, typ *GoType, canfail bool) *GoItab
 
 // get current runtime.G
