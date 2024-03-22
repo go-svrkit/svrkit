@@ -16,7 +16,7 @@ const (
 
 const (
 	DefaultRecvQueueSize        = 1 << 16
-	DefaultBackendSendQueueSize = 1 << 13
+	DefaultBackendSendQueueSize = 1 << 14
 	DefaultSessionSendQueueSize = 448
 	DefaultBacklogSize          = 128
 	DefaultErrorChanSize        = 64
