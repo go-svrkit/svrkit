@@ -9,6 +9,8 @@ import (
 	"runtime"
 	"strings"
 	"unsafe"
+
+	"gopkg.in/svrkit.v1/reflext/rt"
 )
 
 func EnumerateAllTypes() map[string]reflect.Type {
@@ -37,11 +39,6 @@ func EnumerateAllTypes() map[string]reflect.Type {
 	return types
 }
 
-// GetFunc gets the function defined by the given fully-qualified name. The
-// outFuncPtr parameter should be a pointer to a function with the appropriate
-// type (e.g. the address of a local variable), and is set to a new function
-// value that calls the specified function. If the specified function does not
-// exist, outFuncPtr is not set and an error is returned.
 func GetFunc(outFuncPtr interface{}, name string) error {
 	codePtr, err := FindFuncWithName(name)
 	if err != nil {
@@ -51,33 +48,24 @@ func GetFunc(outFuncPtr interface{}, name string) error {
 	return nil
 }
 
-// FuncP Convenience struct for modifying the underlying code pointer of a function
-// value. The actual struct has other values, but always starts with a code
-// pointer.
 type FuncP struct {
 	pc uintptr
 }
 
-// CreateFuncForCodePtr is given a code pointer and creates a function value
-// that uses that pointer. The outFun argument should be a pointer to a function
-// of the proper type (e.g. the address of a local variable), and will be set to
-// the result function value.
 func CreateFuncForCodePtr(outFuncPtr interface{}, pc uintptr) {
 	outFuncVal := reflect.ValueOf(outFuncPtr).Elem()
-	newFuncVal := reflect.MakeFunc(outFuncVal.Type(), nil)
-	funcValuePtr := reflect.ValueOf(newFuncVal).FieldByName("ptr").Pointer()
-	funcPtr := (*FuncP)(unsafe.Pointer(funcValuePtr))
+	newFuncVal := reflect.MakeFunc(outFuncVal.Type(), nil) // reflect.Value
+	//(*rt.RValue)(unsafe.Pointer(&newFuncVal)).Ptr = unsafe.Pointer(pc)
+	funcValuePtr := reflect.ValueOf(newFuncVal).FieldByName("ptr").Pointer() // reflect.Value.ptr
+	funcPtr := (*FuncP)(unsafe.Pointer(funcValuePtr))                        // reflect.Value.ptr = pc
 	funcPtr.pc = pc
 	outFuncVal.Set(newFuncVal)
 }
 
-// FindFuncWithName searches through the moduledata table created by the linker
-// and returns the function's code pointer. If the function was not found, it
-// returns an error.
 func FindFuncWithName(name string) (uintptr, error) {
-	for md := &firstmoduledata; md != nil; md = md.next {
-		for _, ftab := range md.ftab {
-			f := (*runtime.Func)(unsafe.Pointer(&md.pclntable[ftab.funcoff]))
+	for md := rt.GetFirstModuleData(); md != nil; md = md.Next {
+		for _, ftab := range md.Ftab {
+			f := (*runtime.Func)(unsafe.Pointer(&md.Pclntable[ftab.Funcoff]))
 			if f.Name() == name {
 				return f.Entry(), nil
 			}
@@ -85,3 +73,9 @@ func FindFuncWithName(name string) (uintptr, error) {
 	}
 	return 0, fmt.Errorf("invalid function name: %s", name)
 }
+
+//go:linkname typelinks reflect.typelinks
+func typelinks() (sections []unsafe.Pointer, offset [][]int32)
+
+//go:linkname resolveTypeOff reflect.resolveTypeOff
+func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer

@@ -3,7 +3,6 @@ package reflext
 import (
 	"reflect"
 	"testing"
-	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -35,16 +34,9 @@ func TestEnumerateAllTypes(t *testing.T) {
 	assert.Truef(t, typeHasField(typ, "goid", reflect.Uint64), "runtime.g should have field goid")
 	assert.Truef(t, typeHasField(typ, "sched", reflect.Struct), "runtime.g should have field sched")
 
-	// goroutine ID
-	var offset = getFieldOffset(typ, "goid")
-	var base = getg()
-	var goid = *(*int64)(unsafe.Add(unsafe.Pointer(base), offset))
-	t.Logf("goroutine ID: %d", goid)
 }
 
 func TestGetFunc(t *testing.T) {
-	var ptr = getg()
-	t.Logf("%d", ptr)
 	var timeNowFunc func() (int64, int32)
 	GetFunc(&timeNowFunc, "time.now")
 	sec, nsec := timeNowFunc()
