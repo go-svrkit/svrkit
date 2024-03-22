@@ -40,11 +40,11 @@ func EnumerateAllTypes() map[string]reflect.Type {
 }
 
 func GetFunc(outFuncPtr interface{}, name string) error {
-	codePtr, err := FindFuncWithName(name)
+	pc, err := FindFuncPCWithName(name)
 	if err != nil {
 		return err
 	}
-	CreateFuncForCodePtr(outFuncPtr, codePtr)
+	CreateFuncForCodePtr(outFuncPtr, pc)
 	return nil
 }
 
@@ -54,15 +54,13 @@ type FuncP struct {
 
 func CreateFuncForCodePtr(outFuncPtr interface{}, pc uintptr) {
 	outFuncVal := reflect.ValueOf(outFuncPtr).Elem()
-	newFuncVal := reflect.MakeFunc(outFuncVal.Type(), nil) // reflect.Value
-	//(*rt.RValue)(unsafe.Pointer(&newFuncVal)).Ptr = unsafe.Pointer(pc)
-	funcValuePtr := reflect.ValueOf(newFuncVal).FieldByName("ptr").Pointer() // reflect.Value.ptr
-	funcPtr := (*FuncP)(unsafe.Pointer(funcValuePtr))                        // reflect.Value.ptr = pc
-	funcPtr.pc = pc
+	newFuncVal := reflect.MakeFunc(outFuncVal.Type(), nil)
+	funcValuePtr := reflect.ValueOf(newFuncVal).FieldByName("ptr").Pointer()
+	(*FuncP)(unsafe.Pointer(funcValuePtr)).pc = pc
 	outFuncVal.Set(newFuncVal)
 }
 
-func FindFuncWithName(name string) (uintptr, error) {
+func FindFuncPCWithName(name string) (uintptr, error) {
 	for md := rt.GetFirstModuleData(); md != nil; md = md.Next {
 		for _, ftab := range md.Ftab {
 			f := (*runtime.Func)(unsafe.Pointer(&md.Pclntable[ftab.Funcoff]))

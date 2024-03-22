@@ -40,25 +40,7 @@ type GoMap struct {
 }
 
 type bmap struct {
-	tophash []uint8
-}
-
-type GoMapIter struct {
-	Key         unsafe.Pointer
-	Elem        unsafe.Pointer
-	T           *GoMapType
-	H           *GoMap
-	Buckets     unsafe.Pointer
-	BPtr        *unsafe.Pointer // bucket ptr
-	Overflow    *[]*bmap
-	OldOverflow *[]*bmap
-	StartBucket uintptr
-	Offset      uint8
-	Wrapped     bool
-	B           uint8
-	I           uint8
-	Bucket      uintptr
-	CheckBucket uintptr
+	tophash [8]uint8
 }
 
 // GoEface empty interface
@@ -80,10 +62,6 @@ func UnpackEface(v interface{}) GoEface {
 type GoIface struct {
 	Itab  *GoItab
 	Value unsafe.Pointer
-}
-
-func UnpackIface(v interface{}) GoIface {
-	return *(*GoIface)(unsafe.Pointer(&v))
 }
 
 func getReflectTypeItab() *GoItab {

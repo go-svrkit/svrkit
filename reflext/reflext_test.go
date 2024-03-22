@@ -1,10 +1,14 @@
 package reflext
 
 import (
+	"bytes"
+	"image"
 	"reflect"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/svrkit.v1/reflext/rt"
 )
 
 func getFieldOffset(typ reflect.Type, fieldName string) uintptr {
@@ -43,4 +47,38 @@ func TestGetFunc(t *testing.T) {
 	if sec == 0 && nsec == 0 {
 		t.Error("Expected nonzero result from time.now().")
 	}
+}
+
+func TestRTPackEface(t *testing.T) {
+	var pt = image.Point{X: 1234, Y: 5678}
+	var eface = rt.UnpackEface(pt)
+	assert.NotNil(t, eface.Typ)
+	assert.Equal(t, eface.Typ.Size_, unsafe.Sizeof(pt))
+	assert.Equal(t, eface.Typ.PtrBytes, uintptr(0))
+	assert.NotNil(t, eface.Data)
+
+	var val = rt.PackEface(&eface)
+	ptt, ok := val.(image.Point)
+	assert.True(t, ok)
+	assert.Equal(t, pt, ptt)
+	assert.Equal(t, &pt, &ptt)
+}
+
+func TestRTPackReflectType(t *testing.T) {
+	var buf bytes.Buffer
+	var rt1 = reflect.TypeOf(buf)
+	var gotyp = rt.UnpackReflectType(rt1)
+	assert.NotNil(t, gotyp)
+	assert.Equal(t, gotyp.Size_, unsafe.Sizeof(buf))
+	assert.Greater(t, int(gotyp.PtrBytes), 0)
+
+	var rt2 = rt.PackReflectType(gotyp)
+	assert.Equal(t, rt1.String(), rt2.String())
+}
+
+func TestRTMap(t *testing.T) {
+	var mm = map[int]string{1234: "1234", 5678: "5678"}
+	var gomap = *(**rt.GoMap)(unsafe.Pointer(&mm))
+	assert.NotNil(t, gomap)
+	assert.Equal(t, gomap.Count, len(mm))
 }
