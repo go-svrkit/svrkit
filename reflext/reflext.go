@@ -13,7 +13,7 @@ import (
 	"gopkg.in/svrkit.v1/reflext/rt"
 )
 
-func EnumerateAllStructTypes() map[string]reflect.Type {
+func EnumerateAllStructs() map[string]reflect.Type {
 	var types = make(map[string]reflect.Type)
 	sections, offsets := typelinks()
 	for i, offs := range offsets {
@@ -39,7 +39,7 @@ func EnumerateAllStructTypes() map[string]reflect.Type {
 	return types
 }
 
-func EnumerateAllFuncs() map[string]uintptr {
+func EnumerateAllFuncPCs() map[string]uintptr {
 	var all = map[string]uintptr{}
 	for md := rt.GetFirstModuleData(); md != nil; md = md.Next {
 		for _, ftab := range md.Ftab {
