@@ -31,8 +31,8 @@ func typeHasField(typ reflect.Type, fieldName string, kind reflect.Kind) bool {
 	return false
 }
 
-func TestEnumerateAllTypes(t *testing.T) {
-	var allTypes = EnumerateAllTypes()
+func TestEnumerateAllStructTypes(t *testing.T) {
+	var allTypes = EnumerateAllStructTypes()
 	typ := allTypes["runtime.g"] // runtime G
 	assert.NotNil(t, typ)
 	assert.Truef(t, typeHasField(typ, "goid", reflect.Uint64), "runtime.g should have field goid")
@@ -40,13 +40,25 @@ func TestEnumerateAllTypes(t *testing.T) {
 
 }
 
+func TestEnumerateAllFuncs(t *testing.T) {
+	var all = EnumerateAllFuncs()
+	assert.True(t, len(all) > 0)
+
+	var pc = all["time.now"]
+	assert.True(t, pc > 0)
+	var timeNowFunc func() (int64, int32)
+	CreateFuncForPC(&timeNowFunc, pc)
+	assert.NotNil(t, timeNowFunc)
+	sec, nsec := timeNowFunc()
+	assert.False(t, sec == 0 && nsec == 0)
+}
+
 func TestGetFunc(t *testing.T) {
 	var timeNowFunc func() (int64, int32)
-	GetFunc(&timeNowFunc, "time.now")
+	err := GetFunc(&timeNowFunc, "time.now")
+	assert.Nil(t, err)
 	sec, nsec := timeNowFunc()
-	if sec == 0 && nsec == 0 {
-		t.Error("Expected nonzero result from time.now().")
-	}
+	assert.False(t, sec == 0 && nsec == 0)
 }
 
 func TestRTPackEface(t *testing.T) {
