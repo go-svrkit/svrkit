@@ -8,35 +8,11 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
 
 	"github.com/bytedance/sonic"
 	"github.com/bytedance/sonic/decoder"
 	"gopkg.in/svrkit.v1/zlog"
 )
-
-const (
-	KB = 1 << 10
-	MB = 1 << 20
-	GB = 1 << 30
-)
-
-// PrettyBytes 打印容量大小
-func PrettyBytes(nbytes int) string {
-	var sign = ""
-	if nbytes < 0 {
-		sign = "-"
-		nbytes = -nbytes
-	}
-	if nbytes < KB {
-		return fmt.Sprintf("%s%dB", sign, nbytes)
-	} else if nbytes < MB {
-		return fmt.Sprintf("%s%.2fKB", sign, float64(nbytes)/KB)
-	} else if nbytes < GB {
-		return fmt.Sprintf("%s%.2fMB", sign, float64(nbytes)/MB)
-	}
-	return fmt.Sprintf("%s%.2fGB", sign, float64(nbytes)/GB)
-}
 
 // JSONParse 避免大数值被解析为float导致的精度丢失
 func JSONParse(s string, v any) error {

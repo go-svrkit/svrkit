@@ -22,30 +22,6 @@ func (m *Coord) Reset()         { *m = Coord{} }
 func (m *Coord) String() string { return proto.CompactTextString(m) }
 func (*Coord) ProtoMessage()    {}
 
-func TestPrettyBytes(t *testing.T) {
-	tests := []struct {
-		input int
-		want  string
-	}{
-		{0, "0B"},
-		{KB, "1.00KB"},
-		{-KB, "-1.00KB"},
-		{KB + 100, "1.10KB"},
-		{MB, "1.00MB"},
-		{MB + 10*KB, "1.01MB"},
-		{GB, "1.00GB"},
-		{GB + 100*MB, "1.10GB"},
-	}
-	for i, tt := range tests {
-		var name = fmt.Sprintf("case-%d", i+1)
-		t.Run(name, func(t *testing.T) {
-			if got := PrettyBytes(tt.input); got != tt.want {
-				t.Errorf("PrettyBytes() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestJSONParse(t *testing.T) {
 	tests := []struct {
 		input  string

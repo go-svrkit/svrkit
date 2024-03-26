@@ -4,6 +4,7 @@
 package strutil
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -86,5 +87,56 @@ func TestLongestCommonPrefix(t *testing.T) {
 		if test.expected != output {
 			t.Fatalf("Test case %d failed, expect %s, got %s", i, test.expected, output)
 		}
+	}
+}
+
+func TestPrettyBytes(t *testing.T) {
+	tests := []struct {
+		input int
+		want  string
+	}{
+		{0, "0B"},
+		{KiB, "1.00KiB"},
+		{-KiB, "-1.00KiB"},
+		{KiB + 100, "1.10KiB"},
+		{MiB, "1.00MiB"},
+		{MiB + 10*KiB, "1.01MiB"},
+		{GiB, "1.00GiB"},
+		{GiB + 100*MiB, "1.10GiB"},
+	}
+	for i, tt := range tests {
+		var name = fmt.Sprintf("case-%d", i+1)
+		t.Run(name, func(t *testing.T) {
+			if got := PrettyBytes(tt.input); got != tt.want {
+				t.Errorf("PrettyBytes() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseByteCount(t *testing.T) {
+	tests := []struct {
+		input  string
+		want   int64
+		wantOK bool
+	}{
+		{"", 0, true},
+		{"0", 0, true},
+		{"0B", 0, false},
+		{"64B", 64, false},
+		{"1KiB", KiB, true},
+		{"1MiB", MiB, true},
+		{"1GiB", GiB, true},
+		{"1TiB", TiB, true},
+	}
+	for i, tt := range tests {
+		var name = fmt.Sprintf("case-%d", i)
+		t.Run(name, func(t *testing.T) {
+			got, ok := ParseByteCount(tt.input)
+			assert.Equal(t, tt.wantOK, ok)
+			if ok {
+				assert.Equalf(t, tt.want, got, "ParseByteCount(%v)", tt.input)
+			}
+		})
 	}
 }
