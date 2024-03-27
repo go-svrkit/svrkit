@@ -8,16 +8,27 @@ import (
 	"context"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestArena_Simple(t *testing.T) {
 	var a = NewArenaPool[bytes.Buffer](100)
-	for i := 0; i < 102; i++ {
-		var buf = a.Alloc()
-		assert.NotNil(t, buf)
-	}
+	var b = a.Alloc()
+	assert.NotNil(t, b)
+
+	a = NewArenaPool[bytes.Buffer](1)
+	b = a.Alloc()
+	assert.NotNil(t, b) // exhaust the block
+	var idx = a.idx
+	a.Free(b)
+	assert.Equal(t, idx, a.idx)
+	var ptr = unsafe.Pointer(&a.block[0])
+
+	b = a.Alloc() // should allocate a new block
+	assert.NotNil(t, b)
+	assert.NotEqual(t, ptr, unsafe.Pointer(&a.block[0]))
 }
 
 func arenaWorker(ctx context.Context, t *testing.T, pool *ArenaPool[bytes.Buffer]) {
@@ -31,6 +42,7 @@ func arenaWorker(ctx context.Context, t *testing.T, pool *ArenaPool[bytes.Buffer
 			count++
 			var buf = pool.Alloc()
 			assert.NotNil(t, buf)
+
 		case <-ctx.Done():
 			return
 		}
@@ -38,7 +50,7 @@ func arenaWorker(ctx context.Context, t *testing.T, pool *ArenaPool[bytes.Buffer
 }
 
 func TestArena_Concurrent(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
 	defer cancel()
 
 	var a = NewArenaPool[bytes.Buffer](100)

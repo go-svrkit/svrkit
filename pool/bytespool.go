@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-var bytesPool = createLeveledBytesPool()
+var classBytesPool = createBytesClassPool()
 
 func AllocBytes(size int) []byte {
 	if size == 0 {
@@ -16,7 +16,8 @@ func AllocBytes(size int) []byte {
 	if size <= MaxSmallSize {
 		var sizeClass = getSizeClass(size)
 		if sizeClass > 0 {
-			return bytesPool[sizeClass-1].Get().([]byte)
+			var buf = classBytesPool[sizeClass-1].Get().([]byte)
+			return buf[:size]
 		}
 	}
 	return make([]byte, size)
@@ -27,12 +28,12 @@ func FreeBytes(buf []byte) {
 	if cap(buf) >= MaxSmallSize && len(buf) <= MaxSmallSize {
 		var sizeClass = getSizeClass(size)
 		if sizeClass > 0 {
-			bytesPool[sizeClass-1].Put(buf)
+			classBytesPool[sizeClass-1].Put(buf)
 		}
 	}
 }
 
-func createLeveledBytesPool() *[NumSizeClasses - 1]sync.Pool {
+func createBytesClassPool() *[NumSizeClasses - 1]sync.Pool {
 	var pools [NumSizeClasses - 1]sync.Pool
 	for i := 0; i < NumSizeClasses-1; i++ {
 		size := int(class_to_size[i+1])

@@ -42,6 +42,68 @@ func TestToSnakeCase(t *testing.T) {
 	}
 }
 
+func TestToScreamingSnake(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"helloWorld", "HELLO_WORLD"},
+		{"hello2world", "HELLO_2_WORLD"},
+		{"hello world_again", "HELLO_WORLD_AGAIN"},
+		{"HELLO_WORLD", "HELLO_WORLD"},
+		{"", ""},
+	}
+
+	for i, test := range tests {
+		output := ToScreamingSnake(test.input)
+		if test.expected != output {
+			t.Fatalf("Test case %d is not successful, expect: %s, got: %s", i, test.expected, output)
+		}
+	}
+}
+
+func TestToKebabCase(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"HelloKittyWorld", "hello-kitty-world"},
+		{"hello", "hello"},
+		{"Hello2World", "hello-2-world"},
+		{"Hello_World", "hello-world"},
+		{"Hello World", "hello-world"},
+		{"", ""},
+	}
+
+	for i, test := range tests {
+		output := ToKebabCase(test.input)
+		if test.expected != output {
+			t.Fatalf("Test case %d is not successful, expect: %s, got: %s", i, test.expected, output)
+		}
+	}
+}
+
+func TestToScreamingKebab(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"helloWorld", "HELLO-WORLD"},
+		{"hello2world", "HELLO-2-WORLD"},
+		{"hello world_again", "HELLO-WORLD-AGAIN"},
+		{"HELLO-WORLD", "HELLO-WORLD"},
+		{"Hello", "HELLO"},
+		{"", ""},
+	}
+
+	for i, test := range tests {
+		output := ToScreamingKebab(test.input)
+		if test.expected != output {
+			t.Fatalf("Test case %d is not successful, expect: %s, got: %s", i, test.expected, output)
+		}
+	}
+}
+
 func TestToCamelCase(t *testing.T) {
 	tests := []struct {
 		input    string
@@ -63,6 +125,28 @@ func TestToCamelCase(t *testing.T) {
 
 	for i, test := range tests {
 		output := ToCamelCase(test.input)
+		if test.expected != output {
+			t.Fatalf("Test case %d is not successful, expect: %s, got: %s", i, test.expected, output)
+		}
+	}
+}
+
+func TestToLowerCamelCase(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"Hello", "hello"},
+		{"hello", "hello"},
+		{"helloWorld", "helloWorld"},
+		{"hello2World", "hello2World"},
+		{"hello_world", "helloWorld"},
+		{"hello world", "helloWorld"},
+		{" ", ""},
+	}
+
+	for i, test := range tests {
+		output := ToLowerCamelCase(test.input)
 		if test.expected != output {
 			t.Fatalf("Test case %d is not successful, expect: %s, got: %s", i, test.expected, output)
 		}

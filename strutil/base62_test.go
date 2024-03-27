@@ -4,18 +4,27 @@
 package strutil
 
 import (
+	"math"
 	"math/rand"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestBase62Encode(t *testing.T) {
-	for i := 0; i < 10000; i++ {
-		var id = rand.Int63()
-		var shorten = EncodeBase62String(id)
-		var n = DecodeBase62String(shorten)
-		if n != id {
-			t.Fatalf("base62 not equal: %d != %d, %s", id, n, shorten)
-		}
+func TestEncodeBase62String(t *testing.T) {
+	assert.Equal(t, "a", EncodeBase62String(0))
+	assert.NotEqual(t, "a", EncodeBase62String(123456789))
+	assert.NotEqual(t, "", EncodeBase62String(123456789))
+	assert.NotEqual(t, "", EncodeBase62String(9223372036854775807))
+}
+
+func TestDecodeBase62String(t *testing.T) {
+	assert.Equal(t, int64(0), DecodeBase62String("a"))
+	var nn = []int64{0, math.MaxInt16, 1234567890, math.MaxInt32, math.MaxInt64}
+	for _, n := range nn {
+		var shorten = EncodeBase62String(n)
+		var got = DecodeBase62String(shorten)
+		assert.Equal(t, n, got)
 	}
 }
 

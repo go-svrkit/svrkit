@@ -25,6 +25,8 @@ func NewArenaPool[T any](blockSize int) *ArenaPool[T] {
 
 func (a *ArenaPool[T]) Alloc() *T {
 	a.guard.Lock()
+	defer a.guard.Unlock()
+
 	var size = len(a.block)
 	var ret = &a.block[a.idx]
 	a.idx++
@@ -32,7 +34,6 @@ func (a *ArenaPool[T]) Alloc() *T {
 		a.block = make([]T, size)
 		a.idx = 0
 	}
-	a.guard.Unlock()
 	return ret
 }
 
