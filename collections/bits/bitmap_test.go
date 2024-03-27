@@ -5,260 +5,318 @@ package bits
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func wordToBytes(words []uint64) []uint8 {
-	if len(words) == 0 {
-		return nil
-	}
-	var b = make([]uint8, len(words)*8)
-	var x = 0
-	for i := 0; i < len(words); i++ {
-		var v = words[i]
-		// little endian
-		b[x] = byte(v)
-		b[x+1] = byte(v >> 8)
-		b[x+2] = byte(v >> 16)
-		b[x+3] = byte(v >> 24)
-		b[x+4] = byte(v >> 32)
-		b[x+5] = byte(v >> 40)
-		b[x+6] = byte(v >> 48)
-		b[x+7] = byte(v >> 56)
-		x += 8
-	}
-	return b
+func TestBitWordsCount(t *testing.T) {
+	assert.Equal(t, 1, BitWordsCount(1))
+	assert.Equal(t, 1, BitWordsCount(64))
+	assert.Equal(t, 2, BitWordsCount(65))
+	assert.Equal(t, 2, BitWordsCount(128))
+	assert.Equal(t, 4, BitWordsCount(256))
+	assert.Equal(t, 5, BitWordsCount(257))
 }
 
-func TestBitMapTestBit(t *testing.T) {
+func TestBitBytesCount(t *testing.T) {
+	assert.Equal(t, 1, BitBytesCount(1))
+	assert.Equal(t, 1, BitBytesCount(8))
+	assert.Equal(t, 2, BitBytesCount(9))
+	assert.Equal(t, 8, BitBytesCount(64))
+	assert.Equal(t, 9, BitBytesCount(65))
+}
+
+func TestBitMap64_TestBit(t *testing.T) {
 	tests := []struct {
-		name     string
-		input    []uint64 // 位组
-		expected []int    // 位为1的索引
+		input []uint64
+		idx   int
+		want  bool
 	}{
-		{"one word", []uint64{0b01}, []int{0}},
-		{"multi words", []uint64{0b1000000010000000100000001}, []int{0, 8, 16, 24}},
-		{"two words", []uint64{0b11, 0b11}, []int{0, 1, 64, 65}},
+		{[]uint64{0b001001}, 100, false},
+		{[]uint64{0b001001}, 0, true},
+		{[]uint64{0b001001}, 1, false},
+		{[]uint64{0b001001}, 3, true},
+		{[]uint64{0x0, 0b1}, 64, true},
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var bm1 = BitMap64(tc.input)
-			var bm2 = BitMap8(wordToBytes(tc.input))
-			for _, idx := range tc.expected {
-				if !bm1.TestBit(idx) {
-					t.Fatalf("BitMap64: %b unexpected bit result at %d", tc.input, idx)
-				}
-				if !bm2.TestBit(idx) {
-					t.Fatalf("BitMap8: %b unexpected bit result at %d", tc.input, idx)
-				}
-			}
-		})
+	for i, tt := range tests {
+		var bm = BitMap64(tt.input)
+		var got = bm.TestBit(tt.idx)
+		assert.Equalf(t, tt.want, got, "case %d index %d", i+1, tt.idx)
 	}
 }
 
-func TestBitMapSetBit(t *testing.T) {
-	tests := []struct {
-		name     string
-		bitSize  int   // 位长度
-		expected []int // 设置为1的位的索引
-	}{
-		{"one word", 64, []int{0, 1, 2, 3, 4, 5, 6, 60, 61, 62, 63}},
-		{"two words", 73, []int{0, 8, 16, 24, 32, 40, 48, 56, 64, 72}},
+func TestBitMap64_SetBit(t *testing.T) {
+	var bm = BitMap64([]uint64{0b0})
+	for i := 0; i < bitsPerWord; i++ {
+		assert.False(t, bm.TestBit(i))
+		bm.SetBit(i)
+		assert.True(t, bm.TestBit(i))
 	}
-	var runTest = func(t *testing.T, bm BitMapper, idx int) {
-		bm.SetBit(idx)
-		if !bm.TestBit(idx) {
-			t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-		}
+	assert.Equal(t, uint64(0xFFFFFFFFFFFFFFFF), bm[0])
+
+	bm = BitMap64([]uint64{0b1, 0b1, 0b1})
+	for _, i := range []int{0, 64, 128} {
+		assert.True(t, bm.TestBit(i))
+		bm.SetBit(i)
+		assert.True(t, bm.TestBit(i))
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var bm1 = NewBitMap64(tc.bitSize)
-			var bm2 = NewBitMap8(tc.bitSize)
-			for _, idx := range tc.expected {
-				runTest(t, bm1, idx)
-				runTest(t, bm2, idx)
-			}
-		})
+	for _, i := range []int{1, 65, 129} {
+		assert.False(t, bm.TestBit(i))
+		bm.SetBit(i)
+		assert.True(t, bm.TestBit(i))
 	}
 }
 
-func TestBitMapMustSetBit(t *testing.T) {
-	tests := []struct {
-		name     string
-		expected []int // 设置为1的位的索引
-	}{
-		{"simple1", []int{0, 1, 2, 3, 4, 5, 6, 60, 61, 62, 63, 64, 128, 1023}},
-		{"simple2", []int{0, 8, 16, 24, 32, 40, 48, 56, 64, 72, 128, 1023}},
+func TestBitMap64_ClearBit(t *testing.T) {
+	var bm = BitMap64([]uint64{0b1, 0b1, 0b1})
+	for _, i := range []int{0, 64, 128} {
+		assert.True(t, bm.TestBit(i))
+		bm.ClearBit(i)
+		assert.False(t, bm.TestBit(i))
 	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var bm1 = NewBitMap64(0) // 都初始为0
-			var bm2 = NewBitMap8(0)
-			for _, idx := range tc.expected {
-				bm1 = bm1.MustSetBit(idx)
-				if !bm1.TestBit(idx) {
-					t.Fatalf("BitMap64: unexpected bit result at %d", idx)
-				}
-				bm2 = bm2.MustSetBit(idx)
-				if !bm2.TestBit(idx) {
-					t.Fatalf("BitMap8: unexpected bit result at %d", idx)
-				}
-			}
-			t.Logf("length of BitMap64 %d", len(bm1))
-			t.Logf("length of BitMap8 %d", len(bm2))
-		})
+	for _, i := range []int{1, 65, 129} {
+		assert.False(t, bm.TestBit(i))
+		bm.ClearBit(i)
+		assert.False(t, bm.TestBit(i))
 	}
 }
 
-func TestBitMapClearBit(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   []uint64 // 位组
-		indexes []int    // 设置为0的位的索引
-	}{
-		{"one word", []uint64{0b01010101010}, []int{1, 3, 5, 7, 9}},
-		{"two words", []uint64{0b1111, 0b1111}, []int{1, 2, 3, 4, 64, 65, 66, 67}},
+func TestBitMap64_FlipBit(t *testing.T) {
+	var bm = BitMap64([]uint64{0b1, 0b1, 0b1})
+	for _, i := range []int{0, 64, 128} {
+		assert.True(t, bm.TestBit(i))
+		bm.FlipBit(i)
+		assert.False(t, bm.TestBit(i))
+		bm.FlipBit(i)
+		assert.True(t, bm.TestBit(i))
 	}
-	var runTest = func(t *testing.T, bm BitMapper, idx int) {
-		bm.ClearBit(idx)
-		if bm.TestBit(idx) {
-			t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-		}
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var bm1 = BitMap64(tc.input)
-			var bm2 = BitMap8(wordToBytes(tc.input))
-			for _, idx := range tc.indexes {
-				runTest(t, bm1, idx)
-				runTest(t, bm2, idx)
-			}
-		})
+	for _, i := range []int{1, 65, 129} {
+		assert.False(t, bm.TestBit(i))
+		bm.FlipBit(i)
+		assert.True(t, bm.TestBit(i))
+		bm.FlipBit(i)
+		assert.False(t, bm.TestBit(i))
 	}
 }
 
-func TestBitMapFlipBit(t *testing.T) {
-	tests := []struct {
-		name    string
-		bitSize int   // 位长度
-		indexes []int // 测试的索引
-	}{
-		{"one word", 64, []int{0, 8, 16, 24, 32, 40, 63}},
-		{"two words", 100, []int{0, 10, 20, 30, 40, 50, 99}},
+func TestBitMap64_TestAndSetBit(t *testing.T) {
+	var bm = BitMap64([]uint64{0b1, 0b1, 0b1})
+	for _, i := range []int{0, 64, 128} {
+		assert.True(t, bm.TestAndSetBit(i))
+		assert.True(t, bm.TestBit(i))
 	}
-
-	var runTest = func(t *testing.T, bm BitMapper, idx int) {
-		// 设置前应该为0
-		if bm.TestBit(idx) {
-			t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-		}
-		// 把0翻转为1
-		bm.FlipBit(idx)
-		if !bm.TestBit(idx) {
-			t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-		}
-		// 把1翻转为0
-		bm.FlipBit(idx)
-		if bm.TestBit(idx) {
-			t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-		}
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			var bm1 = NewBitMap64(tc.bitSize)
-			var bm2 = NewBitMap8(tc.bitSize)
-			for _, idx := range tc.indexes {
-				runTest(t, bm1, idx)
-				runTest(t, bm2, idx)
-			}
-		})
+	for _, i := range []int{1, 65, 129} {
+		assert.False(t, bm.TestAndSetBit(i))
+		assert.True(t, bm.TestBit(i))
 	}
 }
 
-func TestBitMapTestAndSetBit(t *testing.T) {
-	tests := []struct {
-		bitSize int   // 位长度
-		indexes []int // 测试的索引
-	}{
-		{64, []int{0, 8, 16, 24, 32, 40, 63}},
-		{100, []int{0, 10, 20, 30, 40, 50, 99}},
+func TestBitMap64_TestAndClearBit(t *testing.T) {
+	var bm = BitMap64([]uint64{0b1, 0b1, 0b1})
+	for _, i := range []int{0, 64, 128} {
+		assert.True(t, bm.TestAndClearBit(i))
+		assert.False(t, bm.TestBit(i))
 	}
-	var runTest = func(t *testing.T, bm BitMapper, idx int) {
-		// 设置前应该为0
-		if bm.TestBit(idx) {
-			t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-		}
-		// 没有设置过，应该为0
-		if bm.TestAndSetBit(idx) {
-			t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-		}
-		// 设置后应该为1
-		if !bm.TestBit(idx) {
-			t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-		}
-		// 再次设置应该为1
-		if !bm.TestAndSetBit(idx) {
-			t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-		}
-	}
-	for _, tc := range tests {
-		var bm1 = NewBitMap64(tc.bitSize)
-		var bm2 = NewBitMap8(tc.bitSize)
-		for _, idx := range tc.indexes {
-			runTest(t, bm1, idx)
-			runTest(t, bm2, idx)
-		}
+	for _, i := range []int{1, 65, 129} {
+		assert.False(t, bm.TestAndClearBit(i))
+		assert.False(t, bm.TestBit(i))
 	}
 }
 
-func TestBitMapTestAndClearBit(t *testing.T) {
+func TestBitMap64_OnesCount(t *testing.T) {
 	tests := []struct {
-		input   []uint64 // 位组
-		indexes []int    // 测试的索引
-	}{
-		{[]uint64{0b111100001111}, []int{1, 2, 3, 4, 5, 10}},
-		{[]uint64{0b01010101, 0b10101010}, []int{0, 8, 64, 65}},
-	}
-	var runTest = func(t *testing.T, bm BitMapper, idx int) {
-		var old = bm.TestBit(idx)
-		if old {
-			if !bm.TestAndClearBit(idx) {
-				t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-			}
-		}
-		if bm.TestAndClearBit(idx) {
-			t.Fatalf("%T: unexpected bit result at %d", bm, idx)
-		}
-	}
-	for _, tc := range tests {
-		var bm1 = BitMap64(tc.input)
-		var bm2 = BitMap8(wordToBytes(tc.input))
-		for _, idx := range tc.indexes {
-			runTest(t, bm1, idx)
-			runTest(t, bm2, idx)
-		}
-	}
-}
-
-func TestBitMapOnesCount(t *testing.T) {
-	tests := []struct {
-		input    []uint64 // 位组
-		expected int      // 为1的位的数量
+		input    []uint64
+		expected int
 	}{
 		{nil, 0},
-		{[]uint64{0b111100001111}, 8},
-		{[]uint64{0b1111, 0b1111}, 8},
+		{[]uint64{}, 0},
+		{[]uint64{0b1}, 1},
+		{[]uint64{0b100000001, 0b100000001}, 4},
+		{[]uint64{0b101010101, 0b101010101}, 10},
 	}
-	var runTest = func(t *testing.T, bm BitMapper, expected int) {
-		var cnt = bm.OnesCount()
-		if cnt != expected {
-			t.Fatalf("%T: unexpected bit count %d != %d", bm, cnt, expected)
-		}
+	for i, tt := range tests {
+		var bm = BitMap64(tt.input)
+		assert.Equalf(t, tt.expected, bm.OnesCount(), "case-%d", i+1)
 	}
-	for _, tc := range tests {
-		var bm1 = BitMap64(tc.input)
-		var bm2 = BitMap8(wordToBytes(tc.input))
-		runTest(t, bm1, tc.expected)
-		runTest(t, bm2, tc.expected)
+}
+
+func TestBitMap64_IsZero(t *testing.T) {
+	tests := []struct {
+		input    []uint64
+		expected bool
+	}{
+		{nil, true},
+		{[]uint64{}, true},
+		{[]uint64{0b1}, false},
+		{[]uint64{0b0, 0b0, 0b0}, true},
+		{[]uint64{0b0, 0b1, 0b0}, false},
+	}
+	for i, tt := range tests {
+		var bm = BitMap64(tt.input)
+		assert.Equalf(t, tt.expected, bm.IsZero(), "case-%d", i+1)
+	}
+}
+
+func TestBitMap64_String(t *testing.T) {
+	tests := []struct {
+		input    []uint64
+		expected string
+	}{
+		{nil, ""},
+		{[]uint64{}, ""},
+		{[]uint64{0b1}, "1000000000000000000000000000000000000000000000000000000000000000"},
+		{[]uint64{0b1001001}, "1001001000000000000000000000000000000000000000000000000000000000"},
+	}
+	for i, tt := range tests {
+		var bm = BitMap64(tt.input)
+		assert.Equalf(t, tt.expected, bm.String(), "case-%d", i+1)
+	}
+}
+
+func TestBitMap8_TestBit(t *testing.T) {
+	tests := []struct {
+		input []uint8
+		idx   int
+		want  bool
+	}{
+		{[]uint8{0b001001}, 100, false},
+		{[]uint8{0b001001}, 0, true},
+		{[]uint8{0b001001}, 1, false},
+		{[]uint8{0b001001}, 3, true},
+		{[]uint8{0x0, 0b1}, 8, true},
+	}
+	for i, tt := range tests {
+		var bm = BitMap8(tt.input)
+		var got = bm.TestBit(tt.idx)
+		assert.Equalf(t, tt.want, got, "case %d index %d", i+1, tt.idx)
+	}
+}
+
+func TestBitMap8_SetBit(t *testing.T) {
+	var bm = BitMap8([]uint8{0b0})
+	for i := 0; i < bitsPerByte; i++ {
+		assert.False(t, bm.TestBit(i))
+		bm.SetBit(i)
+		assert.True(t, bm.TestBit(i))
+	}
+	assert.Equal(t, uint8(0xFF), bm[0])
+
+	bm = BitMap8([]uint8{0b1, 0b1, 0b1})
+	for _, i := range []int{0, 8, 16} {
+		assert.True(t, bm.TestBit(i))
+		bm.SetBit(i)
+		assert.True(t, bm.TestBit(i))
+	}
+	for _, i := range []int{1, 9, 17} {
+		assert.False(t, bm.TestBit(i))
+		bm.SetBit(i)
+		assert.True(t, bm.TestBit(i))
+	}
+}
+
+func TestBitMap8_ClearBit(t *testing.T) {
+	var bm = BitMap8([]uint8{0b1, 0b1, 0b1})
+	for _, i := range []int{0, 8, 16} {
+		assert.True(t, bm.TestBit(i))
+		bm.ClearBit(i)
+		assert.False(t, bm.TestBit(i))
+	}
+	for _, i := range []int{1, 9, 17} {
+		assert.False(t, bm.TestBit(i))
+		bm.ClearBit(i)
+		assert.False(t, bm.TestBit(i))
+	}
+}
+
+func TestBitMa8_FlipBit(t *testing.T) {
+	var bm = BitMap8([]uint8{0b1, 0b1, 0b1})
+	for _, i := range []int{0, 8, 16} {
+		assert.True(t, bm.TestBit(i))
+		bm.FlipBit(i)
+		assert.False(t, bm.TestBit(i))
+		bm.FlipBit(i)
+		assert.True(t, bm.TestBit(i))
+	}
+	for _, i := range []int{1, 9, 17} {
+		assert.False(t, bm.TestBit(i))
+		bm.FlipBit(i)
+		assert.True(t, bm.TestBit(i))
+		bm.FlipBit(i)
+		assert.False(t, bm.TestBit(i))
+	}
+}
+
+func TestBitMap8_TestAndSetBit(t *testing.T) {
+	var bm = BitMap8([]uint8{0b1, 0b1, 0b1})
+	for _, i := range []int{0, 8, 16} {
+		assert.True(t, bm.TestAndSetBit(i))
+		assert.True(t, bm.TestBit(i))
+	}
+	for _, i := range []int{1, 9, 17} {
+		assert.False(t, bm.TestAndSetBit(i))
+		assert.True(t, bm.TestBit(i))
+	}
+}
+
+func TestBitMap8_TestAndClearBit(t *testing.T) {
+	var bm = BitMap8([]uint8{0b1, 0b1, 0b1})
+	for _, i := range []int{0, 8, 16} {
+		assert.True(t, bm.TestAndClearBit(i))
+		assert.False(t, bm.TestBit(i))
+	}
+	for _, i := range []int{1, 9, 17} {
+		assert.False(t, bm.TestAndClearBit(i))
+		assert.False(t, bm.TestBit(i))
+	}
+}
+
+func TestBitMap8_OnesCount(t *testing.T) {
+	tests := []struct {
+		input    []uint8
+		expected int
+	}{
+		{nil, 0},
+		{[]uint8{}, 0},
+		{[]uint8{0b1}, 1},
+		{[]uint8{0b10000001, 0b10000001}, 4},
+		{[]uint8{0b01010101, 0b01010101}, 8},
+	}
+	for i, tt := range tests {
+		var bm = BitMap8(tt.input)
+		assert.Equalf(t, tt.expected, bm.OnesCount(), "case-%d", i+1)
+	}
+}
+
+func TestBitMap8_IsZero(t *testing.T) {
+	tests := []struct {
+		input    []uint8
+		expected bool
+	}{
+		{nil, true},
+		{[]uint8{}, true},
+		{[]uint8{0b1}, false},
+		{[]uint8{0b0, 0b0, 0b0}, true},
+		{[]uint8{0b0, 0b1, 0b0}, false},
+	}
+	for i, tt := range tests {
+		var bm = BitMap8(tt.input)
+		assert.Equalf(t, tt.expected, bm.IsZero(), "case-%d", i+1)
+	}
+}
+
+func TestBitMap8_String(t *testing.T) {
+	tests := []struct {
+		input    []uint8
+		expected string
+	}{
+		{nil, ""},
+		{[]uint8{}, ""},
+		{[]uint8{0b1}, "10000000"},
+		{[]uint8{0b1101001}, "10010110"},
+		{[]uint8{0b1101001, 0b1001111}, "1001011011110010"},
+	}
+	for i, tt := range tests {
+		var bm = BitMap8(tt.input)
+		assert.Equalf(t, tt.expected, bm.String(), "case-%d", i+1)
 	}
 }
