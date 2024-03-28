@@ -4,12 +4,12 @@
 package strutil
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"strconv"
 	"strings"
 	"unicode"
+	"unsafe"
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-=~!@#$%^&*()_+[]\\;',./{}|:<>?"
@@ -26,13 +26,12 @@ func RandString(length int) string {
 	if length <= 0 {
 		return ""
 	}
-	var sb strings.Builder
-	sb.Grow(length)
+	var buf = make([]byte, length)
 	for i := 0; i < length; i++ {
 		idx := rand.Int() % len(alphabet)
-		sb.WriteByte(alphabet[idx])
+		buf[i] = alphabet[idx]
 	}
-	return sb.String()
+	return unsafe.String(unsafe.SliceData(buf), len(buf))
 }
 
 // RandBytes 随机长度的字节数组
@@ -94,23 +93,44 @@ func LongestCommonPrefix(s1, s2 string) string {
 	return s1[:i]
 }
 
+func abs64(n int64) int64 {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
 // PrettyBytes 打印容量大小
-func PrettyBytes(nbytes int) string {
-	var sign = ""
-	if nbytes < 0 {
-		sign = "-"
-		nbytes = -nbytes
+func PrettyBytes(nbytes int64) string {
+	if nbytes == 0 {
+		return "0B"
 	}
-	if nbytes < KiB {
-		return fmt.Sprintf("%s%dB", sign, nbytes)
-	} else if nbytes < MiB {
-		return fmt.Sprintf("%s%.2fKiB", sign, float64(nbytes)/KiB)
-	} else if nbytes < GiB {
-		return fmt.Sprintf("%s%.2fMiB", sign, float64(nbytes)/MiB)
-	} else if nbytes < TiB {
-		return fmt.Sprintf("%s%.2fGiB", sign, float64(nbytes)/GiB)
+	var unit = 1
+	var prec = 1
+	var suffix string
+	var absBytes = abs64(nbytes)
+	switch {
+	case absBytes < KiB:
+		suffix = "B"
+	case absBytes < MiB:
+		unit = KiB
+		suffix = "KiB"
+	case absBytes < GiB:
+		prec = 2
+		unit = MiB
+		suffix = "MiB"
+	case absBytes < TiB:
+		prec = 3
+		unit = GiB
+		suffix = "GiB"
+	default:
+		prec = 4
+		unit = TiB
+		suffix = "TiB"
 	}
-	return fmt.Sprintf("%s%.2fTiB", sign, float64(nbytes)/TiB)
+	var s = strconv.FormatFloat(float64(nbytes)/float64(unit), 'f', prec, 64)
+	s = strings.TrimRight(strings.TrimRight(s, "0"), ".")
+	return s + suffix
 }
 
 // ParseByteCount parses a string that represents a count of bytes.

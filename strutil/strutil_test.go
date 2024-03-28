@@ -92,17 +92,17 @@ func TestLongestCommonPrefix(t *testing.T) {
 
 func TestPrettyBytes(t *testing.T) {
 	tests := []struct {
-		input int
+		input int64
 		want  string
 	}{
 		{0, "0B"},
-		{KiB, "1.00KiB"},
-		{-KiB, "-1.00KiB"},
-		{KiB + 100, "1.10KiB"},
-		{MiB, "1.00MiB"},
+		{KiB, "1KiB"},
+		{-KiB, "-1KiB"},
+		{KiB + 100, "1.1KiB"},
+		{MiB, "1MiB"},
 		{MiB + 10*KiB, "1.01MiB"},
-		{GiB, "1.00GiB"},
-		{GiB + 100*MiB, "1.10GiB"},
+		{GiB, "1GiB"},
+		{GiB + 100*MiB, "1.098GiB"},
 	}
 	for i, tt := range tests {
 		var name = fmt.Sprintf("case-%d", i+1)
