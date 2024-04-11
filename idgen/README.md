@@ -19,7 +19,7 @@
 分布式部署下雪花ID只保证了唯一性，无法保证顺序性（递增），
 因为ID的分段包含了服务ID，在同个时间单元内(10ms)服务A按时钟后生成的ID会小于服务B按时钟先生成的ID。
 
-不同的雪花算法实现的差异主要集中在3个区间的分配，和workerID自动还是手动分配上。
+不同的雪花算法的参考实现。
 
 * sony的实现 `https://github.com/sony/sonyflake`
 * 百度的实现 `https://github.com/baidu/uid-generator`

@@ -1,5 +1,5 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
-// See accompanying files LICENSE.txt
+// See accompanying LICENSE file
 
 package maps
 
@@ -15,7 +15,7 @@ import (
 // ContainsKey(), Get(), Put() and Remove() operations.
 //
 // detail code taken from JDK, see links below
-// https://github.com/openjdk/jdk/blob/jdk-17+35/src/java.base/share/classes/java/util/TreeMap.java
+// https://github.com/openjdk/jdk/blob/jdk-11+28/src/java.base/share/classes/java/util/TreeMap.java
 
 // Color Red-black mechanics
 type Color uint8
@@ -64,6 +64,19 @@ func (e *TreeEntry[K, V]) SetValue(val V) V {
 	var old = e.value
 	e.value = val
 	return old
+}
+
+func (e *TreeEntry[K, V]) Height() int {
+	if e == nil {
+		return 0
+	}
+	var leftHeight = e.left.Height()
+	var rightHeight = e.right.Height()
+	if leftHeight > rightHeight {
+		return leftHeight + 1
+	} else {
+		return rightHeight + 1
+	}
 }
 
 type TreeMap[K, V comparable] struct {
@@ -118,7 +131,8 @@ func (m *TreeMap[K, V]) Get(key K) (V, bool) {
 	if p != nil {
 		return p.value, true
 	}
-	return util.ZeroOf[V](), false
+	var zero V
+	return zero, false
 }
 
 func (m *TreeMap[K, V]) Load(key K) (V, bool) {
@@ -169,7 +183,8 @@ func (m *TreeMap[K, V]) FloorKey(key K) (K, bool) {
 	if entry != nil {
 		return entry.key, true
 	}
-	return util.ZeroOf[K](), false
+	var zero K
+	return zero, false
 }
 
 // CeilingEntry gets the entry corresponding to the specified key;
@@ -184,7 +199,8 @@ func (m *TreeMap[K, V]) CeilingKey(key K) (K, bool) {
 	if entry != nil {
 		return entry.key, true
 	}
-	return util.ZeroOf[K](), false
+	var zero K
+	return zero, false
 }
 
 // HigherEntry gets the entry for the least key greater than the specified key
@@ -198,7 +214,8 @@ func (m *TreeMap[K, V]) HigherKey(key K) (K, bool) {
 	if entry != nil {
 		return entry.key, true
 	}
-	return util.ZeroOf[K](), false
+	var zero K
+	return zero, false
 }
 
 // Foreach performs the given action for each entry in this map until all entries
@@ -253,25 +270,25 @@ func (m *TreeMap[K, V]) ToHashMap() map[K]V {
 	return unordered
 }
 
-func (m *TreeMap[K, V]) Iterator() util.Iterator[*TreeEntry[K, V]] {
-	return NewEntryIterator(m, m.getFirstEntry())
-}
-
-func (m *TreeMap[K, V]) DescendingIterator() util.Iterator[*TreeEntry[K, V]] {
-	return NewKeyDescendingEntryIterator(m, m.getLastEntry())
-}
-
-func (m *TreeMap[K, V]) KeyIterator() util.Iterator[K] {
-	return NewKeyIterator(m, m.getFirstEntry())
-}
-
-func (m *TreeMap[K, V]) DescendingKeyIterator() util.Iterator[K] {
-	return NewDescendingKeyIterator(m, m.getLastEntry())
-}
-
-func (m *TreeMap[K, V]) ValueIterator() util.Iterator[V] {
-	return NewValueIterator(m, m.getFirstEntry())
-}
+//func (m *TreeMap[K, V]) Iterator() util.Iterator[*TreeEntry[K, V]] {
+//	return NewEntryIterator(m, m.getFirstEntry())
+//}
+//
+//func (m *TreeMap[K, V]) DescendingIterator() util.Iterator[*TreeEntry[K, V]] {
+//	return NewKeyDescendingEntryIterator(m, m.getLastEntry())
+//}
+//
+//func (m *TreeMap[K, V]) KeyIterator() util.Iterator[K] {
+//	return NewKeyIterator(m, m.getFirstEntry())
+//}
+//
+//func (m *TreeMap[K, V]) DescendingKeyIterator() util.Iterator[K] {
+//	return NewDescendingKeyIterator(m, m.getLastEntry())
+//}
+//
+//func (m *TreeMap[K, V]) ValueIterator() util.Iterator[V] {
+//	return NewValueIterator(m, m.getFirstEntry())
+//}
 
 // Put associates the specified value with the specified key in this map.
 // If the map previously contained a mapping for the key, the old value is replaced.
@@ -534,13 +551,13 @@ func (m *TreeMap[K, V]) getLowerEntry(key K) *TreeEntry[K, V] {
 }
 
 func (m *TreeMap[K, V]) put(key K, value V, replaceOld bool) V {
-	var zero = util.ZeroOf[V]()
+	var zero V
 	var t = m.root
 	if t == nil {
 		m.addEntryToEmptyMap(key, value)
 		return zero
 	}
-	var cmp int
+	var cmp = 0
 	var parent *TreeEntry[K, V]
 	for {
 		parent = t
@@ -792,7 +809,8 @@ func keyOf[K, V comparable](e *TreeEntry[K, V]) (K, bool) {
 	if e != nil {
 		return e.key, true
 	}
-	return util.ZeroOf[K](), false
+	var zero K
+	return zero, false
 }
 
 func colorOf[K, V comparable](p *TreeEntry[K, V]) Color {

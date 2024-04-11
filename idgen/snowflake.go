@@ -1,5 +1,5 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
-// See accompanying files LICENSE.txt
+// See accompanying LICENSE file
 
 package idgen
 
@@ -14,13 +14,13 @@ import (
 // 一个64位UUID由以下部分组成
 //
 //	1位符号位
-//	1位时钟回拨标记
+//	2位时钟回拨标记
 //	37位时间戳（厘秒），最大可以表示到2065-07-20
 //	13位服务器ID，最大服务器ID=8191
 //	12位序列号，单个时间单位的最大分配数量（409/毫秒）
 const (
 	SequenceBits       = 12
-	WorkerIDBits       = 13
+	WorkerIDBits       = 12
 	TimeUnitBits       = 37
 	WorkIDMask         = 1<<WorkerIDBits - 1
 	MaxSeqID           = (1 << SequenceBits) - 1
