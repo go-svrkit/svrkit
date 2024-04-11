@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime/metrics"
 	"strings"
 	"time"
 
+	"gopkg.in/svrkit.v1/strutil"
 	"gopkg.in/svrkit.v1/zlog"
 )
 
@@ -43,4 +45,54 @@ func StartProfiler(addr string) {
 			zlog.Infof("%v", err)
 		}
 	}()
+}
+
+// ReadMetrics 读取指定的metrics
+// see https://pkg.go.dev/runtime/metrics
+func ReadMetrics(category string) map[string]any {
+	if category == "" {
+		return nil
+	}
+	var allDesc = metrics.All()
+	var names = make([]string, 0, 8)
+	for i := 0; i < len(allDesc); i++ {
+		if strings.HasPrefix(allDesc[i].Name, "/"+category) {
+			names = append(names, allDesc[i].Name)
+		}
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	var samples = make([]metrics.Sample, len(names))
+	for i, name := range names {
+		samples[i].Name = name
+	}
+	metrics.Read(samples)
+	var result = make(map[string]any)
+	for i := 0; i < len(samples); i++ {
+		var name = names[i]
+		var sample = &samples[i]
+		switch sample.Value.Kind() {
+		case metrics.KindUint64:
+			var val = sample.Value.Uint64()
+			if strings.HasSuffix(name, "bytes") {
+				result[name] = strutil.PrettyBytes(int64(val))
+			} else {
+				result[name] = val
+			}
+		case metrics.KindFloat64:
+			result[name] = fmt.Sprintf("%v", sample.Value.Float64()) // JSON INF problem
+
+		case metrics.KindFloat64Histogram:
+			var histogram = sample.Value.Float64Histogram()
+			if histogram != nil {
+				result[name] = map[string]any{
+					"counts":  histogram.Counts,
+					"buckets": fmt.Sprintf("%v", histogram.Buckets), // JSON INF problem
+				}
+			}
+		default:
+		}
+	}
+	return result
 }

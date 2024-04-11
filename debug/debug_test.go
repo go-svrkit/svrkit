@@ -34,3 +34,8 @@ func TestCatchPanic(t *testing.T) {
 func TestStartProfiler(t *testing.T) {
 	StartProfiler("localhost:16060")
 }
+
+func TestReadMetrics(t *testing.T) {
+	ReadMetrics("cpu")
+	ReadMetrics("memory")
+}

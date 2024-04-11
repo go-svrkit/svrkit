@@ -7,6 +7,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/agiledragon/gomonkey"
+	"gopkg.in/svrkit.v1/datetime"
 )
 
 type NoLock struct {
@@ -19,24 +22,24 @@ func (NoLock) Unlock() {
 }
 
 func TestSnowflakeLimit(t *testing.T) {
-	var sf = NewSnowflake(0)
-	t.Logf("a typical uuid is %d", sf.MustNext())
-
+	const interval = time.Duration(TimeUnit) * MaxTimeUnits
+	var s = datetime.PrettyTime(interval.Milliseconds())
 	var epoch = time.Unix(CustomEpoch/int64(time.Second), 0)
-	var endOfWorld = epoch.Add(time.Duration(TimeUnit) * MaxTimeUnits)
-	t.Logf("the end time of uuid is %v", endOfWorld.UTC())
+	var endOfWorld = epoch.Add(interval)
+	t.Logf("custom epoch is %v, after %s, the end time of uuid is %v", epoch.UTC(), s, endOfWorld.UTC())
 }
 
 func TestSnowflake_ClockBackwards(t *testing.T) {
 	var count = 0
-	var old = currentTimeUnit
-	currentTimeUnit = func() int64 {
+	var realTimeUnit = func() int64 { return (time.Now().UTC().UnixNano() - CustomEpoch) / TimeUnit }
+	gomonkey.ApplyFunc(currentTimeUnit, func() int64 {
 		count++
 		if count%10 == 0 {
-			return old() - 50
+			return realTimeUnit() - 50
 		}
-		return old()
-	}
+		return realTimeUnit()
+	})
+
 	var dict = make(map[int64]bool)
 	var sf = NewSnowflake(1)
 	for i := 0; i < 10; i++ {

@@ -14,14 +14,15 @@ import (
 // 一个64位UUID由以下部分组成
 //
 //	1位符号位
-//	2位时钟回拨标记
-//	37位时间戳（厘秒），最大可以表示到2065-07-20
+//	2位时钟回拨标记，时钟最多被回拨3次
+//	36位时间戳（厘秒），~=21y288d, 最大可以表示到2045-10-10
 //	13位服务器ID，最大服务器ID=8191
 //	12位序列号，单个时间单位的最大分配数量（409/毫秒）
 const (
 	SequenceBits       = 12
-	WorkerIDBits       = 12
-	TimeUnitBits       = 37
+	WorkerIDBits       = 13
+	TimeUnitBits       = 36
+	ClockBackwardsBits = 2
 	WorkIDMask         = 1<<WorkerIDBits - 1
 	MaxSeqID           = (1 << SequenceBits) - 1
 	TimestampShift     = WorkerIDBits + SequenceBits
@@ -29,7 +30,7 @@ const (
 	BackwardsMaskShift = TimeUnitBits + WorkerIDBits + SequenceBits
 
 	TimeUnit    = int64(time.Millisecond * 10)    // 厘秒（10毫秒）
-	CustomEpoch = int64(1640966400 * time.Second) // 起始纪元 2022-01-01 00:00:00 UTC
+	CustomEpoch = int64(1704038400 * time.Second) // 起始纪元 2024-01-01 00:00:00 UTC
 )
 
 var (
@@ -38,23 +39,28 @@ var (
 	ErrUUIDIntOverflow    = errors.New("uuid integer overflow")
 )
 
-// 雪花算法的UUID的生成依赖系统时钟，如果系统时钟被回拨，会有潜在的生成重复ID的情况
-// 	1，系统时钟被人为回拨，需要业务层提供逻辑时钟机制
-// 	2，NTP同步和UTC闰秒(https://en.wikipedia.org/wiki/Leap_second)
+// 1，唯一和递增
+// 分布式环境下部署的雪花ID只保证了唯一性，多个节点生成的ID范围无法保证顺序性（递增），因为ID的分段包含了服务ID，在同个时间
+// 单元内(10ms)服务A按时钟后生成的ID会小于服务B按时钟先生成的ID。
 //
-// 设计中增加了时钟回拨标记位，可以让系统(重启前)在时钟被回拨时仍正确工作
-// 但时钟回拨标记位有限并且未存档，时钟回拨后如果在系统重启前没有恢复，仍然会有ID重复的可能
+// 2，时钟回拨问题
+// 雪花算法的UUID的生成依赖系统时钟，如果系统时钟被回拨，会有潜在的生成重复ID的情况。
+//   a, 系统时钟被人为回拨，需要业务层提供逻辑时钟机制
+//   b, NTP同步和UTC闰秒(https://en.wikipedia.org/wiki/Leap_second)
 //
-// 分布式部署下雪花ID只保证了唯一性，无法保证顺序性（递增）
-// 因为ID的分段包含了服务ID，在同个时间单元内(10ms)服务A按时钟后生成的ID会小于服务B按时钟先生成的ID；
+// 设计中增加了时钟回拨标记位，可以让系统(重启前)在时钟被回拨时仍正确工作，但时钟回拨标记位有限并且未存档，时钟回拨位用完后
+// 如果系统有重启，仍然会有ID重复的可能。
+//
+// 3. Worker ID的分配
+// WorkerID跟原版实现一样人工分配，靠配置参数保证唯一性
 
 type Snowflake struct {
-	guard         sync.Mutex // 线程安全
-	workerId      int64      // 服务器ID
-	seq           int64      // 当前序列号
-	lastID        int64      // 最近生成的ID
-	lastTimeUnit  int64      // 最近的时间单元
-	backwardsMask int64      // 允许时钟被回拨1次
+	guard        sync.Mutex // 线程安全
+	workerId     int64      // 服务ID
+	seq          int64      // 当前序列号
+	lastID       int64      // 最近生成的ID
+	lastTimeUnit int64      // 最近的时间单元
+	backwards    int64      // 时钟回拨标记
 }
 
 func NewSnowflake(workerId uint16) *Snowflake {
@@ -68,30 +74,30 @@ func NewSnowflake(workerId uint16) *Snowflake {
 	}
 }
 
-func (sf *Snowflake) clockBackwards() error {
+func (sf *Snowflake) maskClockBackwards() error {
 	log.Printf("Snowflake: time has gone backwards")
-	if sf.backwardsMask > 0 {
+	if sf.backwards >= (1<<ClockBackwardsBits)-1 {
 		return ErrClockGoneBackwards
 	}
-	sf.backwardsMask = 1 << BackwardsMaskShift
+	sf.backwards++
 	return nil
 }
 
 // sequence expired, tick to next time unit
 func (sf *Snowflake) waitTilNext(lastTs int64) (int64, error) {
 	var prevTs int64
-	for i := 0; i < 1000; i++ {
-		time.Sleep(time.Millisecond)
+	for i := 0; i < 10; i++ {
+		time.Sleep(5 * time.Millisecond)
 		var now = currentTimeUnit()
 		if now > lastTs {
 			return now, nil
 		}
-		// 时钟是否被回拨
+		// sleep期间时钟是否又被回拨了
 		if now < lastTs || now < prevTs {
-			if err := sf.clockBackwards(); err != nil {
+			if err := sf.maskClockBackwards(); err != nil {
 				return 0, err
 			} else {
-				return now, nil // 已经设置了回拨标记
+				return now, nil // 标记了回拨后直接返回
 			}
 		}
 		prevTs = now
@@ -108,14 +114,23 @@ func (sf *Snowflake) Next() (int64, error) {
 		return 0, ErrTimeUnitOverflow // 已经是2065年
 	}
 
-	// 判断时钟是否被回拨了
-	// 注意：这里如果时钟回拨间隔在一个时间单元内（10ms）不会被发觉
+	// 时钟回拨判断
 	if curTimeUnits < sf.lastTimeUnit {
-		if err := sf.clockBackwards(); err != nil {
-			return 0, err
+		// 如果只是回拨了1个时间单元，就等待一下时钟
+		if curTimeUnits+1 == sf.lastTimeUnit {
+			if ts, err := sf.waitTilNext(curTimeUnits); err != nil {
+				return 0, err
+			} else {
+				curTimeUnits = ts
+			}
+		} else {
+			if err := sf.maskClockBackwards(); err != nil {
+				return 0, err
+			}
 		}
 	}
 	// 当前仍在同一个时间单元内，只增加序列号
+	// 注意：时钟也可能发生了一个时间单元内(10ms)的回拨
 	if curTimeUnits == sf.lastTimeUnit {
 		sf.seq++
 		// 如果序列号满了，需要等待时钟走到下一个时间单元
@@ -133,7 +148,7 @@ func (sf *Snowflake) Next() (int64, error) {
 	}
 
 	sf.lastTimeUnit = curTimeUnits
-	var id = sf.backwardsMask | (curTimeUnits << TimestampShift) | (sf.workerId << SequenceBits) | sf.seq
+	var id = (sf.backwards << BackwardsMaskShift) | (curTimeUnits << TimestampShift) | (sf.workerId << SequenceBits) | sf.seq
 	if id <= sf.lastID {
 		return 0, ErrUUIDIntOverflow
 	}
@@ -149,8 +164,7 @@ func (sf *Snowflake) MustNext() int64 {
 	}
 }
 
-// make it easier to mock time in unit tests
-var currentTimeUnit = func() int64 {
+func currentTimeUnit() int64 {
 	return (time.Now().UTC().UnixNano() - CustomEpoch) / TimeUnit
 }
 
