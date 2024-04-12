@@ -6,8 +6,10 @@ package handler
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"gopkg.in/svrkit.v1/codec"
+	"gopkg.in/svrkit.v1/debug"
 	"gopkg.in/svrkit.v1/qnet"
 	"gopkg.in/svrkit.v1/zlog"
 )
@@ -32,13 +34,21 @@ type Dispatcher struct {
 	once        map[uint32]bool
 	beforeHooks []BeforeHookFunc
 	afterHooks  []AfterHookFunc
+	errCaptrue  func(*qnet.NetMessage, any)
 }
+
+var dp = NewDispatcher()
 
 func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
-		handlers: make(map[uint32]any),
-		once:     make(map[uint32]bool),
+		handlers:   make(map[uint32]any),
+		once:       make(map[uint32]bool),
+		errCaptrue: onError,
 	}
+}
+
+func Get() *Dispatcher {
+	return dp
 }
 
 func (d *Dispatcher) Clear() {
@@ -46,23 +56,6 @@ func (d *Dispatcher) Clear() {
 	clear(d.once)
 	d.beforeHooks = nil
 	d.afterHooks = nil
-}
-
-func (d *Dispatcher) Register(cmd uint32, action any) bool {
-	if d.HasRegistered(cmd) {
-		zlog.Warnf("duplicate handler registration of cmd %d", cmd)
-	}
-	switch action.(type) {
-	case MessageHandlerV1, MessageHandlerV2, MessageHandlerV3, MessageHandlerV4, MessageHandlerV5:
-		d.handlers[cmd] = action
-		return true
-	}
-	return false
-}
-
-func (d *Dispatcher) RegisterOnce(cmd uint32, action any) {
-	d.once[cmd] = true
-	d.Register(cmd, action)
 }
 
 // HasRegistered 是否注册
@@ -109,11 +102,24 @@ func (d *Dispatcher) invokePostHooks(ctx context.Context, msg *qnet.NetMessage) 
 	}
 }
 
+func (d *Dispatcher) SetErrorCapture(f func(*qnet.NetMessage, any)) {
+	d.errCaptrue = f
+}
+
 func (d *Dispatcher) Handle(ctx context.Context, message *qnet.NetMessage) (codec.Message, error) {
 	if !d.invokePreHooks(ctx, message) {
 		return nil, nil // stop continue
 	}
-	defer d.invokePostHooks(ctx, message)
+	defer func() {
+		if d.once[message.Command] {
+			delete(d.handlers, message.Command)
+			delete(d.once, message.Command)
+		}
+		d.invokePostHooks(ctx, message)
+		if v := recover(); v != nil {
+			d.errCaptrue(message, v)
+		}
+	}()
 
 	var h = d.handlers[message.Command]
 	return d.dispatch(ctx, h, message)
@@ -135,4 +141,29 @@ func (d *Dispatcher) dispatch(ctx context.Context, action any, msg *qnet.NetMess
 		err = fmt.Errorf("unexpected handler type %T", h)
 	}
 	return resp, err
+}
+
+func onError(msg *qnet.NetMessage, err any) {
+	var sb strings.Builder
+	var title = fmt.Sprintf("dispatch message %d", msg.Command)
+	debug.TraceStack(1, title, err, &sb)
+	zlog.Error(sb.String())
+}
+
+func Register[F IHandler](cmd uint32, action F) {
+	if dp.HasRegistered(cmd) {
+		zlog.Warnf("duplicate handler registration of cmd %d", cmd)
+	}
+	if action != nil {
+		dp.handlers[cmd] = action
+	}
+}
+
+func RegisterOnce[F IHandler](cmd uint32, action F) {
+	Register(cmd, action)
+	dp.once[cmd] = true
+}
+
+func Handle(ctx context.Context, message *qnet.NetMessage) (codec.Message, error) {
+	return dp.Handle(ctx, message)
 }
