@@ -1,14 +1,14 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package codec
+package qnet
 
 import (
 	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/svrkit.v1/codec/testdata"
+	"gopkg.in/svrkit.v1/qnet/testdata"
 )
 
 func TestHasValidSuffix(t *testing.T) {

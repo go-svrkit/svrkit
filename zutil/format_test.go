@@ -9,18 +9,7 @@ import (
 	"math"
 	"reflect"
 	"testing"
-
-	"github.com/golang/protobuf/proto"
 )
-
-type Coord struct {
-	X int32 `protobuf:"varint,1,opt,name=X,proto3" json:"X,omitempty"`
-	Z int32 `protobuf:"varint,2,opt,name=Z,proto3" json:"Z,omitempty"`
-}
-
-func (m *Coord) Reset()         { *m = Coord{} }
-func (m *Coord) String() string { return proto.CompactTextString(m) }
-func (*Coord) ProtoMessage()    {}
 
 func TestJSONParse(t *testing.T) {
 	tests := []struct {

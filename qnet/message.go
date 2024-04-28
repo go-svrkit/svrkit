@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"time"
 
-	"gopkg.in/svrkit.v1/codec"
+	"github.com/gogo/protobuf/proto"
 	"gopkg.in/svrkit.v1/pool"
 	"gopkg.in/svrkit.v1/reflext"
 )
@@ -18,7 +18,7 @@ const ErrCodeField = "Code"
 type SessionMessage struct {
 	Session Endpoint
 	MsgId   uint32
-	MsgBody codec.Message
+	MsgBody proto.Message
 }
 
 type NetMessage struct {
@@ -26,7 +26,7 @@ type NetMessage struct {
 	Command   uint32        `json:"cmd"`
 	Seq       uint32        `json:"seq,omitempty"`
 	Data      []byte        `json:"data,omitempty"`
-	Body      codec.Message `json:"body,omitempty"`
+	Body      proto.Message `json:"body,omitempty"`
 	Session   Endpoint      `json:"-"`
 }
 
@@ -38,7 +38,7 @@ func NewNetMessage(cmd, seq uint32, data []byte) *NetMessage {
 	return msg
 }
 
-func CreateNetMessage(cmd, seq uint32, body codec.Message) *NetMessage {
+func CreateNetMessage(cmd, seq uint32, body proto.Message) *NetMessage {
 	var msg = AllocNetMessage()
 	msg.Command = cmd
 	msg.Seq = seq
@@ -46,7 +46,7 @@ func CreateNetMessage(cmd, seq uint32, body codec.Message) *NetMessage {
 	return msg
 }
 
-func CreateNetMessageWith(body codec.Message) *NetMessage {
+func CreateNetMessageWith(body proto.Message) *NetMessage {
 	var msg = AllocNetMessage()
 	msg.Command = DefaultMsgIDReflector(body)
 	msg.Body = body
@@ -77,7 +77,7 @@ func (m *NetMessage) Encode() error {
 		return nil
 	}
 	if m.Body != nil {
-		data, err := codec.Marshal(m.Body)
+		data, err := proto.Marshal(m.Body)
 		if err != nil {
 			return err
 		}
@@ -88,8 +88,8 @@ func (m *NetMessage) Encode() error {
 }
 
 // DecodeTo decode `Data` to `msg`
-func (m *NetMessage) DecodeTo(msg codec.Message) error {
-	if err := codec.Unmarshal(m.Data, msg); err != nil {
+func (m *NetMessage) DecodeTo(msg proto.Message) error {
+	if err := proto.Unmarshal(m.Data, msg); err != nil {
 		return err
 	}
 	m.Data = nil
@@ -104,7 +104,7 @@ func (m *NetMessage) Reply(cmd uint32, data []byte) error {
 	return m.Session.SendMsg(netMsg, SendNonblock)
 }
 
-func (m *NetMessage) Ack(ack codec.Message) error {
+func (m *NetMessage) Ack(ack proto.Message) error {
 	var netMsg = CreateNetMessageWith(ack)
 	netMsg.Seq = m.Seq
 	return m.Session.SendMsg(netMsg, SendNonblock)
@@ -143,7 +143,7 @@ func FreeNetMessage(netMsg *NetMessage) {
 }
 
 // DefaultMsgIDReflector get message ID by reflection
-var DefaultMsgIDReflector = func(msg codec.Message) uint32 {
+var DefaultMsgIDReflector = func(msg proto.Message) uint32 {
 	var fullname string
 	var rType = reflect.TypeOf(msg)
 	if rType.Kind() == reflect.Ptr {
@@ -151,7 +151,7 @@ var DefaultMsgIDReflector = func(msg codec.Message) uint32 {
 	} else {
 		fullname = rType.String()
 	}
-	return codec.NameHash(fullname)
+	return proto.NameHash(fullname)
 }
 
 // TryEnqueueMsg 尝试将消息放入队列，如果队列已满返回false

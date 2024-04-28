@@ -3,12 +3,13 @@ module gopkg.in/svrkit.v1
 go 1.22
 
 require (
+	github.com/agiledragon/gomonkey v2.0.2+incompatible
 	github.com/bytedance/sonic v1.11.6
 	github.com/go-redis/redis/v8 v8.11.5
 	github.com/go-sql-driver/mysql v1.8.1
-	github.com/golang/protobuf v1.5.4
 	github.com/joho/godotenv v1.5.1
-	github.com/stretchr/testify v1.8.4
+	github.com/planetscale/vtprotobuf v0.6.0
+	github.com/stretchr/testify v1.9.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	go.etcd.io/etcd/client/v3 v3.5.13
 	go.mongodb.org/mongo-driver v1.15.0
@@ -22,11 +23,8 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.1.0 // indirect
-	github.com/agiledragon/gomonkey v2.0.2+incompatible // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
-	github.com/chenzhuoyu/iasm v0.9.1 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
@@ -34,11 +32,11 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/klauspost/compress v1.17.8 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/montanaflynn/stats v0.7.1 // indirect
-	github.com/planetscale/vtprotobuf v0.6.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
