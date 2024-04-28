@@ -74,7 +74,8 @@ func CreateFuncForPC(outFuncPtr interface{}, pc uintptr) {
 	outFuncVal := reflect.ValueOf(outFuncPtr).Elem()
 	newFuncVal := reflect.MakeFunc(outFuncVal.Type(), nil)
 	funcValuePtr := reflect.ValueOf(newFuncVal).FieldByName("ptr").Pointer()
-	(*FuncP)(unsafe.Pointer(funcValuePtr)).pc = pc
+	funcPtr := (*FuncP)(unsafe.Pointer(funcValuePtr))
+	funcPtr.pc = pc
 	outFuncVal.Set(newFuncVal)
 }
 
