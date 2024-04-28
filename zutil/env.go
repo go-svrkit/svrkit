@@ -4,7 +4,6 @@
 package zutil
 
 import (
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -62,13 +61,9 @@ func GetEnvBool(key string) bool {
 	return false
 }
 
-func LoadDotEnv() {
-	var filename = ".env"
-	if IsFileExist(filename) {
-		if err := godotenv.Load(filename); err != nil {
-			log.Printf("load %s failed: %v", filename, err)
-		} else {
-			log.Printf("load %s OK", filename)
-		}
+func LoadDotEnv(filenames ...string) error {
+	if len(filenames) == 0 {
+		filenames = []string{".env"}
 	}
+	return godotenv.Overload(filenames...)
 }
