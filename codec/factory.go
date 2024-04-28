@@ -99,7 +99,7 @@ func registerByNameHash(mt protoreflect.MessageType) bool {
 // protobuf使用init()注册(RegisterType)，则此API需要在import后调用
 func RegisterAllMessages() {
 	protoregistry.GlobalTypes.RangeMessages(registerByNameHash)
-	log.Printf("registered %d proto messages", len(id2name))
+	log.Printf("registered %d proto messages\n", len(id2name))
 }
 
 func Register(fullname string) error {

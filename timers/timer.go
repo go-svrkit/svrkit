@@ -150,8 +150,8 @@ func Schedule(durationMs int64, runnable sched.IRunner) int64 {
 }
 
 func gTimerWorker(ready chan struct{}) {
-	zlog.Infof("timeout worker thread started")
-	defer zlog.Infof("timeout worker thread exit")
+	zlog.Infof("timer worker thread started")
+	defer zlog.Infof("timer worker thread exit")
 
 	ready <- struct{}{}
 

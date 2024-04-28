@@ -10,6 +10,8 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+const LayoutISO8601 = "2006-01-02T15:04:05.000Z0700"
+
 // Config 配置参数
 type Config struct {
 	Level      string `json:"level"`       // DEBUG, INFO, WARN, DPANIC, PANIC, FATAL
@@ -25,14 +27,33 @@ func NewConfig() *Config {
 	return &Config{
 		Level:      "debug",
 		Encoding:   "console",
-		TimeLayout: "2006-01-02T15:04:05.000Z0700", // ISO-8601
+		TimeLayout: LayoutISO8601,
 		MaxSize:    100,
 		MaxBackups: 10,
 		CallerSkip: 1,
 	}
 }
 
+func (c *Config) initDefault() {
+	if c.Level == "" {
+		c.Level = "INFO"
+	}
+	if c.Encoding == "" {
+		c.Encoding = "console"
+	}
+	if c.TimeLayout == "" {
+		c.TimeLayout = LayoutISO8601
+	}
+	if c.MaxSize <= 0 {
+		c.MaxSize = 100
+	}
+	if c.MaxBackups <= 0 {
+		c.MaxBackups = 10
+	}
+}
+
 func (c *Config) Build() *zap.Logger {
+	c.initDefault()
 	var core = CreateZapCore(c)
 	return zap.New(core,
 		zap.AddCallerSkip(c.CallerSkip),
