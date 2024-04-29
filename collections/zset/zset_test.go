@@ -7,11 +7,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/svrkit.v1/collections/util"
+	"gopkg.in/svrkit.v1/collections/cutil"
 )
 
 func TestSortedSet_Add(t *testing.T) {
-	var st = NewSortedSet(util.OrderedCmp[string])
+	var st = NewSortedSet(cutil.OrderedCmp[string])
 	assert.Equal(t, 0, st.Len())
 	st.Add("key", 10)
 	st.Add("key", 20)
@@ -21,7 +21,7 @@ func TestSortedSet_Add(t *testing.T) {
 }
 
 func TestSortedSet_Remove(t *testing.T) {
-	var st = NewSortedSet(util.OrderedCmp[string])
+	var st = NewSortedSet(cutil.OrderedCmp[string])
 	assert.False(t, st.Remove("key"))
 	assert.Equal(t, 0, st.Len())
 	st.Add("key", 10)
@@ -43,7 +43,7 @@ func TestSortedSet_Remove(t *testing.T) {
 }
 
 func TestSortedSet_Count(t *testing.T) {
-	var st = NewSortedSet(util.OrderedCmp[string])
+	var st = NewSortedSet(cutil.OrderedCmp[string])
 	for i := 1; i <= 100; i++ {
 		var key = fmt.Sprintf("test%d", i)
 		st.Add(key, int64(i))
@@ -73,7 +73,7 @@ func TestSortedSet_Count(t *testing.T) {
 }
 
 func TestSortedSet_GetRank(t *testing.T) {
-	var st = NewSortedSet(util.OrderedCmp[string])
+	var st = NewSortedSet(cutil.OrderedCmp[string])
 	for i := 100; i > 0; i-- {
 		var key = fmt.Sprintf("test%d", i)
 		st.Add(key, int64(i))
@@ -99,7 +99,7 @@ func TestSortedSet_GetRank(t *testing.T) {
 }
 
 func TestSortedSet_GetScore(t *testing.T) {
-	var st = NewSortedSet(util.OrderedCmp[string])
+	var st = NewSortedSet(cutil.OrderedCmp[string])
 	for i := 100; i > 0; i-- {
 		var key = fmt.Sprintf("test%d", i)
 		st.Add(key, int64(i))
@@ -113,7 +113,7 @@ func TestSortedSet_GetScore(t *testing.T) {
 }
 
 func TestSortedSet_GetRange(t *testing.T) {
-	var st = NewSortedSet(util.OrderedCmp[string])
+	var st = NewSortedSet(cutil.OrderedCmp[string])
 	for i := 1; i <= 20; i++ {
 		st.Add(strconv.Itoa(i), int64(i))
 	}
@@ -147,7 +147,7 @@ func TestSortedSet_GetRange(t *testing.T) {
 }
 
 func TestSortedSet_GetRangeByScore(t *testing.T) {
-	var st = NewSortedSet(util.OrderedCmp[string])
+	var st = NewSortedSet(cutil.OrderedCmp[string])
 	for i := 1; i <= 20; i++ {
 		st.Add(strconv.Itoa(i), int64(i))
 	}

@@ -18,7 +18,7 @@ import (
 	"math/rand"
 	"strings"
 
-	"gopkg.in/svrkit.v1/collections/util"
+	"gopkg.in/svrkit.v1/collections/cutil"
 )
 
 const (
@@ -59,15 +59,15 @@ func (n *ZSkipListNode[T]) Next() *ZSkipListNode[T] {
 
 // ZSkipList 带索引的排序链表
 type ZSkipList[T comparable] struct {
-	head       *ZSkipListNode[T]  // 头结点
-	tail       *ZSkipListNode[T]  // 尾节点（最大值节点）
-	comparator util.Comparator[T] //
-	length     int                // 节点数
-	level      int                // 层级
+	head       *ZSkipListNode[T]   // 头结点
+	tail       *ZSkipListNode[T]   // 尾节点（最大值节点）
+	comparator cutil.Comparator[T] //
+	length     int                 // 节点数
+	level      int                 // 层级
 }
 
-func NewZSkipList[T comparable](comparator util.Comparator[T]) *ZSkipList[T] {
-	var zero = util.ZeroOf[T]()
+func NewZSkipList[T comparable](comparator cutil.Comparator[T]) *ZSkipList[T] {
+	var zero T
 	return &ZSkipList[T]{
 		level:      1,
 		comparator: comparator,
@@ -261,7 +261,7 @@ func (zsl *ZSkipList[T]) UpdateScore(ele T, curScore, newScore int64) *ZSkipList
 	// one at a different place.
 	zsl.deleteNode(x, update[:])
 	var newNode = zsl.Insert(newScore, x.Ele)
-	x.Ele = util.ZeroOf[T]()
+	x.Ele = cutil.ZeroOf[T]()
 	return newNode
 }
 
@@ -411,8 +411,9 @@ func (zsl *ZSkipList[K]) LastInRange(min, max int64) *ZSkipListNode[K] {
 }
 
 func (zsl *ZSkipList[T]) Clear() {
+	var zero T
 	zsl.level = 1
-	zsl.head = newZSkipListNode[T](ZSKIPLIST_MAXLEVEL, 0, util.ZeroOf[T]())
+	zsl.head = newZSkipListNode[T](ZSKIPLIST_MAXLEVEL, 0, zero)
 	zsl.tail = nil
 }
 

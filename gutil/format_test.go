@@ -9,6 +9,8 @@ import (
 	"math"
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestJSONParse(t *testing.T) {
@@ -70,54 +72,52 @@ func TestJSONStringify(t *testing.T) {
 	}
 }
 
-func TestMD5Sum(t *testing.T) {
+func TestPrettyBytes(t *testing.T) {
 	tests := []struct {
-		input []byte
+		input int64
 		want  string
 	}{
-		{[]byte("hello"), "5d41402abc4b2a76b9719d911017c592"},
-		{[]byte("world"), "7d793037a0760186574b0282f2f435e7"},
+		{0, "0B"},
+		{KiB, "1KiB"},
+		{-KiB, "-1KiB"},
+		{KiB + 100, "1.1KiB"},
+		{MiB, "1MiB"},
+		{MiB + 10*KiB, "1.01MiB"},
+		{GiB, "1GiB"},
+		{GiB + 100*MiB, "1.098GiB"},
 	}
 	for i, tt := range tests {
 		var name = fmt.Sprintf("case-%d", i+1)
 		t.Run(name, func(t *testing.T) {
-			if got := MD5Sum(tt.input); got != tt.want {
-				t.Errorf("MD5Sum() = %v, want %v", got, tt.want)
+			if got := PrettyBytes(tt.input); got != tt.want {
+				t.Errorf("PrettyBytes() = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestSHA1Sum(t *testing.T) {
+func TestParseByteCount(t *testing.T) {
 	tests := []struct {
-		input []byte
-		want  string
+		input  string
+		want   int64
+		wantOK bool
 	}{
-		{[]byte("hello"), "aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d"},
-		{[]byte("world"), "7c211433f02071597741e6ff5a8ea34789abbf43"},
+		{"", 0, true},
+		{"0", 0, true},
+		{"0B", 0, false},
+		{"64B", 64, false},
+		{"1KiB", KiB, true},
+		{"1MiB", MiB, true},
+		{"1GiB", GiB, true},
+		{"1TiB", TiB, true},
 	}
 	for i, tt := range tests {
-		var name = fmt.Sprintf("case-%d", i+1)
+		var name = fmt.Sprintf("case-%d", i)
 		t.Run(name, func(t *testing.T) {
-			if got := SHA1Sum(tt.input); got != tt.want {
-				t.Errorf("SHA1Sum() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestSHA256Sum(t *testing.T) {
-	tests := []struct {
-		input []byte
-		want  string
-	}{
-		{[]byte("hello"), "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"},
-	}
-	for i, tt := range tests {
-		var name = fmt.Sprintf("case-%d", i+1)
-		t.Run(name, func(t *testing.T) {
-			if got := SHA256Sum(tt.input); got != tt.want {
-				t.Errorf("SHA1Sum() = %v, want %v", got, tt.want)
+			got, ok := ParseByteCount(tt.input)
+			assert.Equal(t, tt.wantOK, ok)
+			if ok {
+				assert.Equalf(t, tt.want, got, "ParseByteCount(%v)", tt.input)
 			}
 		})
 	}

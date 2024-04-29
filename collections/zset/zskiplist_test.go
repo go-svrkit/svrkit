@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/svrkit.v1/collections/util"
+	"gopkg.in/svrkit.v1/collections/cutil"
 )
 
 func uniqueScoreGen() func() int64 {
@@ -35,12 +35,12 @@ func Test_zslRandLevel(t *testing.T) {
 }
 
 func testSkipList(t *testing.T, sl *ZSkipList[string]) {
-	var pairs = make([]util.Pair[int64, string], 0, sl.Len())
+	var pairs = make([]cutil.Pair[int64, string], 0, sl.Len())
 	sl.Range(func(score int64, ele string) {
-		pairs = append(pairs, util.MakePair(score, ele))
+		pairs = append(pairs, cutil.MakePair(score, ele))
 	})
 	assert.Equal(t, len(pairs), sl.Len())
-	var isSorted = slices.IsSortedFunc(pairs, func(a, b util.Pair[int64, string]) int {
+	var isSorted = slices.IsSortedFunc(pairs, func(a, b cutil.Pair[int64, string]) int {
 		return cmp.Compare(a.First, b.First)
 	})
 	assert.True(t, isSorted)
@@ -53,7 +53,7 @@ func testSkipList(t *testing.T, sl *ZSkipList[string]) {
 
 func TestZSkipList_Insert(t *testing.T) {
 	// 顺序插入
-	var sl = NewZSkipList[string](util.OrderedCmp[string])
+	var sl = NewZSkipList[string](cutil.OrderedCmp[string])
 	for i := 100; i > 0; i-- {
 		var score = 100 + int64(i)
 		sl.Insert(score, fmt.Sprintf("test%d", i))
@@ -62,7 +62,7 @@ func TestZSkipList_Insert(t *testing.T) {
 
 	//t.Logf("%s", sl.String())
 	// 随机插入
-	sl = NewZSkipList[string](util.OrderedCmp[string])
+	sl = NewZSkipList[string](cutil.OrderedCmp[string])
 	var g = uniqueScoreGen()
 	for i := 0; i < 100; i++ {
 		var score = g()
@@ -72,7 +72,7 @@ func TestZSkipList_Insert(t *testing.T) {
 }
 
 func TestZSkipList_Delete(t *testing.T) {
-	var sl = NewZSkipList[string](util.OrderedCmp[string])
+	var sl = NewZSkipList[string](cutil.OrderedCmp[string])
 	sl.Insert(10, "test01")
 	sl.Insert(20, "test02")
 	sl.Insert(30, "test03")
@@ -93,7 +93,7 @@ func TestZSkipList_Delete(t *testing.T) {
 }
 
 func TestZSkipList_UpdateScore(t *testing.T) {
-	var sl = NewZSkipList[string](util.OrderedCmp[string])
+	var sl = NewZSkipList[string](cutil.OrderedCmp[string])
 	sl.Insert(10, "test01")
 	sl.Insert(20, "test02")
 	sl.Insert(30, "test03")
@@ -109,7 +109,7 @@ func TestZSkipList_UpdateScore(t *testing.T) {
 
 func TestZSkipList_DeleteRangeByRank(t *testing.T) {
 	var dict = make(map[string]int64)
-	var sl = NewZSkipList[string](util.OrderedCmp[string])
+	var sl = NewZSkipList[string](cutil.OrderedCmp[string])
 	for i := 1; i <= 10; i++ {
 		var score = 10 * int64(i)
 		var elem = fmt.Sprintf("test%02d", i)
@@ -137,7 +137,7 @@ func TestZSkipList_DeleteRangeByRank(t *testing.T) {
 
 func TestZSkipList_DeleteRangeByScore(t *testing.T) {
 	var dict = make(map[string]int64)
-	var sl = NewZSkipList[string](util.OrderedCmp[string])
+	var sl = NewZSkipList[string](cutil.OrderedCmp[string])
 	for i := 1; i <= 10; i++ {
 		var score = 10 * int64(i)
 		var elem = fmt.Sprintf("test%02d", i)
@@ -152,7 +152,7 @@ func TestZSkipList_DeleteRangeByScore(t *testing.T) {
 }
 
 func TestZSkipList_GetRank(t *testing.T) {
-	var sl = NewZSkipList[string](util.OrderedCmp[string])
+	var sl = NewZSkipList[string](cutil.OrderedCmp[string])
 	for i := 1; i <= 100; i++ {
 		var score = 10 * int64(i)
 		var elem = fmt.Sprintf("test%02d", i)
@@ -169,7 +169,7 @@ func TestZSkipList_GetRank(t *testing.T) {
 }
 
 func TestZSkipList_GetElementByRank(t *testing.T) {
-	var sl = NewZSkipList[string](util.OrderedCmp[string])
+	var sl = NewZSkipList[string](cutil.OrderedCmp[string])
 	for i := 1; i <= 100; i++ {
 		var score = 10 * int64(i)
 		var elem = fmt.Sprintf("test%02d", i)

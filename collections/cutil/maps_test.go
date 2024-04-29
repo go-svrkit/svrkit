@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package util
+package cutil
 
 import (
 	"fmt"
@@ -81,25 +81,7 @@ func TestMapOrderedKeys(t *testing.T) {
 		var name = fmt.Sprintf("case-%d", i+1)
 		t.Run(name, func(t *testing.T) {
 			out := MapOrderedKeys(tt.m)
-			assert.Truef(t, slices.Equal(tt.want, out), "%v != %v", tt.want, out)
-		})
-	}
-}
-
-func TestMapOrderedValues(t *testing.T) {
-	tests := []struct {
-		m    map[int]string
-		want []string
-	}{
-		{map[int]string{}, nil},
-		{map[int]string{1: "a"}, []string{"a"}},
-		{map[int]string{3: "a", 2: "b", 1: "c"}, []string{"c", "b", "a"}},
-	}
-	for i, tt := range tests {
-		var name = fmt.Sprintf("case-%d", i+1)
-		t.Run(name, func(t *testing.T) {
-			out := MapOrderedValues(tt.m)
-			assert.Truef(t, slices.Equal(tt.want, out), "%v != %v", tt.want, out)
+			assert.True(t, slices.Equal(tt.want, out))
 		})
 	}
 }
@@ -118,8 +100,26 @@ func TestMapOrderedKeyValues(t *testing.T) {
 		var name = fmt.Sprintf("case-%d", i+1)
 		t.Run(name, func(t *testing.T) {
 			out1, out2 := MapOrderedKeyValues(tt.m)
-			assert.Truef(t, slices.Equal(tt.want1, out1), "%v != %v", tt.want1, out1)
-			assert.Truef(t, slices.Equal(tt.want2, out2), "%v != %v", tt.want2, out2)
+			assert.True(t, slices.Equal(tt.want1, out1))
+			assert.True(t, slices.Equal(tt.want2, out2))
+		})
+	}
+}
+
+func TestMapOrderedValues(t *testing.T) {
+	tests := []struct {
+		m    map[int]string
+		want []string
+	}{
+		{map[int]string{}, nil},
+		{map[int]string{1: "a"}, []string{"a"}},
+		{map[int]string{3: "a", 2: "b", 1: "c"}, []string{"c", "b", "a"}},
+	}
+	for i, tt := range tests {
+		var name = fmt.Sprintf("case-%d", i+1)
+		t.Run(name, func(t *testing.T) {
+			out := MapOrderedValues(tt.m)
+			assert.True(t, slices.Equal(tt.want, out))
 		})
 	}
 }

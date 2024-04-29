@@ -6,7 +6,7 @@ package maps
 import (
 	"cmp"
 
-	"gopkg.in/svrkit.v1/collections/util"
+	"gopkg.in/svrkit.v1/collections/cutil"
 )
 
 // TreeMap is a Red-Black tree based map implementation.
@@ -81,14 +81,14 @@ func (e *TreeEntry[K, V]) Height() int {
 
 type TreeMap[K, V comparable] struct {
 	root       *TreeEntry[K, V]
-	comparator util.Comparator[K]
+	comparator cutil.Comparator[K]
 	size       int // The number of entries in the tree
 	version    int // The number of structural modifications to the tree.
 }
 
 var _ MapInterface[int, int] = (*TreeMap[int, int])(nil)
 
-func NewTreeMap[K, V comparable](comparator util.Comparator[K]) *TreeMap[K, V] {
+func NewTreeMap[K, V comparable](comparator cutil.Comparator[K]) *TreeMap[K, V] {
 	return &TreeMap[K, V]{
 		comparator: comparator,
 	}
@@ -220,7 +220,7 @@ func (m *TreeMap[K, V]) HigherKey(key K) (K, bool) {
 
 // Foreach performs the given action for each entry in this map until all entries
 // have been processed or the action panic
-func (m *TreeMap[K, V]) Foreach(visit util.KeyValVisitor[K, V]) {
+func (m *TreeMap[K, V]) Foreach(visit cutil.KeyValVisitor[K, V]) {
 	var ver = m.version
 	for e := m.getFirstEntry(); e != nil; e = successor(e) {
 		visit(e.key, e.value)
@@ -270,23 +270,23 @@ func (m *TreeMap[K, V]) ToHashMap() map[K]V {
 	return unordered
 }
 
-//func (m *TreeMap[K, V]) Iterator() util.Iterator[*TreeEntry[K, V]] {
+//func (m *TreeMap[K, V]) Iterator() cutil.Iterator[*TreeEntry[K, V]] {
 //	return NewEntryIterator(m, m.getFirstEntry())
 //}
 //
-//func (m *TreeMap[K, V]) DescendingIterator() util.Iterator[*TreeEntry[K, V]] {
+//func (m *TreeMap[K, V]) DescendingIterator() cutil.Iterator[*TreeEntry[K, V]] {
 //	return NewKeyDescendingEntryIterator(m, m.getLastEntry())
 //}
 //
-//func (m *TreeMap[K, V]) KeyIterator() util.Iterator[K] {
+//func (m *TreeMap[K, V]) KeyIterator() cutil.Iterator[K] {
 //	return NewKeyIterator(m, m.getFirstEntry())
 //}
 //
-//func (m *TreeMap[K, V]) DescendingKeyIterator() util.Iterator[K] {
+//func (m *TreeMap[K, V]) DescendingKeyIterator() cutil.Iterator[K] {
 //	return NewDescendingKeyIterator(m, m.getLastEntry())
 //}
 //
-//func (m *TreeMap[K, V]) ValueIterator() util.Iterator[V] {
+//func (m *TreeMap[K, V]) ValueIterator() cutil.Iterator[V] {
 //	return NewValueIterator(m, m.getFirstEntry())
 //}
 

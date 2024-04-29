@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/svrkit.v1/strutil"
+	"gopkg.in/svrkit.v1/gutil"
 	"gopkg.in/svrkit.v1/zlog"
 )
 
@@ -76,7 +76,7 @@ func ReadMetrics(category string) map[string]any {
 		case metrics.KindUint64:
 			var val = sample.Value.Uint64()
 			if strings.HasSuffix(name, "bytes") {
-				result[name] = strutil.PrettyBytes(int64(val))
+				result[name] = gutil.PrettyBytes(int64(val))
 			} else {
 				result[name] = val
 			}
