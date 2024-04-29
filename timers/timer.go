@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gopkg.in/svrkit.v1/datetime"
 	"gopkg.in/svrkit.v1/sched"
 	"gopkg.in/svrkit.v1/zlog"
 )
@@ -54,17 +53,15 @@ var (
 	gTimer       TimerScheduler
 	gTimeouts    = make(map[int64]*TimeoutMsg, 1024)
 	gTimeoutChan = make(chan *TimeoutMsg, DefaultTimeoutCapacity)
+
+	clockNow = func() int64 { return time.Now().UnixNano() }
 )
 
 func init() {
 	gTimer = NewTimerQueue(DefaultTimeoutCapacity)
 }
 
-func currentUnixNano() int64 {
-	return datetime.NowNano()
-}
-
-func Init() {
+func Init(nowFunc func() int64) {
 	gLock.Lock()
 	defer gLock.Unlock()
 
@@ -77,6 +74,12 @@ func Init() {
 	if gTimeoutChan == nil {
 		gTimeoutChan = make(chan *TimeoutMsg, DefaultTimeoutCapacity)
 	}
+	if nowFunc != nil {
+		nowFunc = func() int64 {
+			return time.Now().UnixNano()
+		}
+	}
+	clockNow = nowFunc
 }
 
 func SetDefault(timer TimerScheduler) {
@@ -119,7 +122,7 @@ func AddTimerAt(deadline int64, msg *TimeoutMsg) int64 {
 }
 
 func AddTimer(owner, duration int64, action int, arg int64, data any) int64 {
-	var deadline = currentUnixNano() + duration*int64(time.Millisecond)
+	var deadline = clockNow() + duration*int64(time.Millisecond)
 	var msg = &TimeoutMsg{Owner: owner, Deadline: deadline, Action: action, Arg: arg, Data: data}
 	return AddTimerAt(deadline, msg)
 }
@@ -132,7 +135,7 @@ func RunAt(deadline int64, action func()) int64 {
 
 // RunAfter 在`durationMs`毫秒后执行`action`
 func RunAfter(durationMs int64, action func()) int64 {
-	var deadline = currentUnixNano() + durationMs*int64(time.Millisecond)
+	var deadline = clockNow() + durationMs*int64(time.Millisecond)
 	var msg = &TimeoutMsg{Action: ActionExecFunc, Data: action}
 	return AddTimerAt(deadline, msg)
 }
@@ -145,7 +148,7 @@ func ScheduleAt(deadline int64, runnable sched.IRunner) int64 {
 
 // Schedule 在`durationMs`毫秒后执行`runnable`
 func Schedule(durationMs int64, runnable sched.IRunner) int64 {
-	var deadline = currentUnixNano() + durationMs*int64(time.Millisecond)
+	var deadline = clockNow() + durationMs*int64(time.Millisecond)
 	return ScheduleAt(deadline, runnable)
 }
 

@@ -52,7 +52,7 @@ func (w *TimerWheel) Init(capacity int, tickDuration time.Duration) *TimerWheel 
 	for i := 0; i < len(w.wheels); i++ {
 		w.wheels[i] = &WheelBucket{timers: w, level: i + 1}
 	}
-	var nowNano = currentUnixNano()
+	var nowNano = clockNow()
 	w.startedAt = nowNano
 	w.lastTime = nowNano
 	//log.Printf("timer wheel start at %s\n", datetime.FormatNanoTime(nowNano))
@@ -115,7 +115,7 @@ func (w *TimerWheel) AddTimeoutAt(tid int64, deadline int64) {
 }
 
 func (w *TimerWheel) AddTimeout(tid int64, delayMs int64) {
-	var deadline = currentUnixNano() + delayMs*int64(time.Millisecond)
+	var deadline = clockNow() + delayMs*int64(time.Millisecond)
 	if delayMs > 0 && deadline < 0 {
 		deadline = math.MaxInt64 // guard against overflow
 	}
@@ -184,7 +184,7 @@ func (w *TimerWheel) tick() {
 }
 
 func (w *TimerWheel) update() {
-	var nowNano = currentUnixNano()
+	var nowNano = clockNow()
 	for w.lastTime+int64(TICK_DURATION) <= nowNano {
 		w.lastTime += int64(TICK_DURATION)
 		w.tick()

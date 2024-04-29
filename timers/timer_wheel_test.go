@@ -55,7 +55,7 @@ func TestTimerWheel_AddTimeoutAt(t *testing.T) {
 	timer.Start()
 	defer timer.Shutdown()
 
-	var now = currentUnixNano()
+	var now = clockNow()
 	timer.AddTimeoutAt(1, now)
 	timer.AddTimeoutAt(2, now+int64(150*time.Millisecond))
 	timer.AddTimeoutAt(3, now+int64(500*time.Millisecond))
@@ -114,7 +114,7 @@ func TestTimerWheel_Range(t *testing.T) {
 	var timer = NewTimerWheel(64)
 	defer timer.Shutdown()
 
-	var now = currentUnixNano()
+	var now = clockNow()
 	var d = map[int64]int64{
 		1: now,
 		2: now + 150,

@@ -106,7 +106,7 @@ func (s *TimerQueue) AddTimeoutAt(tid int64, deadline int64) {
 
 // AddTimeout 创建一个定时器，在`delayMs`毫秒后过期
 func (s *TimerQueue) AddTimeout(tid int64, delayMs int64) {
-	var deadline = currentUnixNano() + delayMs*int64(time.Millisecond)
+	var deadline = clockNow() + delayMs*int64(time.Millisecond)
 	if delayMs > 0 && deadline < 0 {
 		deadline = math.MaxInt64 // guard against overflow
 	}
@@ -146,7 +146,7 @@ func (s *TimerQueue) worker(ready chan struct{}) {
 	for {
 		select {
 		case <-ticker.C:
-			s.update(currentUnixNano())
+			s.update(clockNow())
 
 		case <-s.done:
 			return

@@ -37,7 +37,7 @@ func pollTimeoutRunners(ctx context.Context) {
 }
 
 func TestIsPending(t *testing.T) {
-	Init()
+	Init(nil)
 	defer Shutdown()
 
 	var tids []int64
@@ -57,7 +57,7 @@ func TestIsPending(t *testing.T) {
 }
 
 func TestCancel(t *testing.T) {
-	Init()
+	Init(nil)
 	defer Shutdown()
 
 	var tids []int64
@@ -79,7 +79,7 @@ func TestCancel(t *testing.T) {
 }
 
 func TestAddTimer(t *testing.T) {
-	Init()
+	Init(nil)
 	defer Shutdown()
 
 	var tids = map[int]int64{}
@@ -103,14 +103,14 @@ func TestAddTimer(t *testing.T) {
 }
 
 func TestRunAt(t *testing.T) {
-	Init()
+	Init(nil)
 	defer Shutdown()
 
 	var firedAt int64
-	var startAt = currentUnixNano()
+	var startAt = clockNow()
 	var deadline = startAt + 100*int64(time.Millisecond)
 	var tid = RunAt(deadline, func() {
-		firedAt = currentUnixNano()
+		firedAt = clockNow()
 	})
 
 	assert.True(t, IsPending(tid))
@@ -123,20 +123,20 @@ func TestRunAt(t *testing.T) {
 	<-ctx.Done()
 	assert.False(t, IsPending(tid))
 
-	var endAt = currentUnixNano()
+	var endAt = clockNow()
 	assert.True(t, firedAt > 0)
 	assert.True(t, firedAt > startAt)
 	assert.True(t, firedAt < endAt)
 }
 
 func TestRunAfter(t *testing.T) {
-	Init()
+	Init(nil)
 	defer Shutdown()
 
 	var firedAt int64
-	var startAt = currentUnixNano()
+	var startAt = clockNow()
 	var tid = RunAfter(100, func() {
-		firedAt = currentUnixNano()
+		firedAt = clockNow()
 	})
 
 	assert.True(t, IsPending(tid))
@@ -149,23 +149,23 @@ func TestRunAfter(t *testing.T) {
 	<-ctx.Done()
 	assert.False(t, IsPending(tid))
 
-	var endAt = currentUnixNano()
+	var endAt = clockNow()
 	assert.True(t, firedAt > 0)
 	assert.True(t, firedAt > startAt)
 	assert.True(t, firedAt < endAt)
 }
 
 func TestScheduleAt(t *testing.T) {
-	Init()
+	Init(nil)
 	defer Shutdown()
 
 	var firedAt int64
 	var run = sched.NewRunnable(func() error {
-		firedAt = currentUnixNano()
+		firedAt = clockNow()
 		return nil
 	})
 
-	var startAt = currentUnixNano()
+	var startAt = clockNow()
 	var deadline = startAt + 100*int64(time.Millisecond)
 	var tid = ScheduleAt(deadline, run)
 
@@ -179,23 +179,23 @@ func TestScheduleAt(t *testing.T) {
 	<-ctx.Done()
 	assert.False(t, IsPending(tid))
 
-	var endAt = currentUnixNano()
+	var endAt = clockNow()
 	assert.True(t, firedAt > 0)
 	assert.True(t, firedAt > startAt)
 	assert.True(t, firedAt < endAt)
 }
 
 func TestSchedule(t *testing.T) {
-	Init()
+	Init(nil)
 	defer Shutdown()
 
 	var firedAt int64
 	var run = sched.NewRunnable(func() error {
-		firedAt = currentUnixNano()
+		firedAt = clockNow()
 		return nil
 	})
 
-	var startAt = currentUnixNano()
+	var startAt = clockNow()
 	var tid = Schedule(50, run)
 
 	assert.True(t, IsPending(tid))
@@ -208,7 +208,7 @@ func TestSchedule(t *testing.T) {
 	<-ctx.Done()
 	assert.False(t, IsPending(tid))
 
-	var endAt = currentUnixNano()
+	var endAt = clockNow()
 	assert.True(t, firedAt > 0)
 	assert.True(t, firedAt > startAt)
 	assert.True(t, firedAt < endAt)
