@@ -6,7 +6,6 @@ require (
 	github.com/agiledragon/gomonkey v2.0.2+incompatible
 	github.com/bytedance/sonic v1.11.6
 	github.com/go-redis/redis/v8 v8.11.5
-	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.9.0
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 	go.etcd.io/etcd/client/v3 v3.5.13
