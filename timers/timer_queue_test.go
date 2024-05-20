@@ -60,7 +60,7 @@ func TestTimerQueue_AddTimeoutAt(t *testing.T) {
 	timer.Start()
 	defer timer.Shutdown()
 
-	var now = clockNow()
+	var now = clockNow().UnixMilli()
 	timer.AddTimeoutAt(1, now)
 	timer.AddTimeoutAt(2, now+int64(150*time.Millisecond))
 	timer.AddTimeoutAt(3, now+int64(500*time.Millisecond))
@@ -120,7 +120,7 @@ func TestTimerQueue_CancelTimeout(t *testing.T) {
 func TestTimerQueue_Range(t *testing.T) {
 	var timer = NewTimerQueue(64)
 
-	var now = clockNow()
+	var now = clockNow().UnixMilli()
 	var d = map[int64]int64{
 		1: now,
 		2: now + 150,
