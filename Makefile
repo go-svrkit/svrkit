@@ -16,8 +16,7 @@ ALL_TEST_PKG=gopkg.in/svrkit.v1/...
 
 dep:
 	$(GO) mod tidy
-	$(GO) install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	$(GO) install github.com/planetscale/vtprotobuf/cmd/protoc-gen-go-vtproto@latest
+	$(GO) install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.58.1
 
 testdata:
 	@cd codec/testdata && protoc $(PROTOC_FLAGS) ./*.proto

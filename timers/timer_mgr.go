@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"gopkg.in/svrkit.v1/sched"
-	"gopkg.in/svrkit.v1/zlog"
 )
 
 const (
@@ -68,9 +67,6 @@ func NewTimerMgr() *TimerMgr {
 }
 
 func (tm *TimerMgr) worker(ready chan struct{}) {
-	zlog.Infof("timer worker thread started")
-	defer zlog.Infof("timer worker thread exit")
-
 	ready <- struct{}{}
 
 	for tm.running.Load() {
