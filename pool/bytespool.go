@@ -24,8 +24,8 @@ func AllocBytes(size int) []byte {
 }
 
 func FreeBytes(buf []byte) {
-	var size = len(buf)
-	if cap(buf) >= MaxSmallSize && len(buf) <= MaxSmallSize {
+	var size = cap(buf)
+	if size <= MaxSmallSize {
 		var sizeClass = getSizeClass(size)
 		if sizeClass > 0 {
 			classBytesPool[sizeClass-1].Put(buf)
