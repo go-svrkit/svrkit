@@ -1,10 +1,12 @@
-// Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
+// Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package cutil
+package algext
 
 import (
 	"math/rand"
+	"strconv"
+	"strings"
 )
 
 // Pair is a type that provides a way to store two heterogeneous objects as a single unit.
@@ -27,6 +29,11 @@ type Range struct {
 	Max int
 }
 
+// In returns true if the value is in the range
+func (r *Range) In(val int) bool {
+	return r.Min <= val && val <= r.Max
+}
+
 // Mid returns the middle value of the range
 func (r *Range) Mid() int {
 	return (r.Min + r.Max) / 2
@@ -39,4 +46,23 @@ func (r *Range) Rand() int {
 	}
 	var val = rand.Intn(r.Max - r.Min + 1)
 	return r.Min + val
+}
+
+func ParseRange(text, sep string) Range {
+	var r Range
+	if text == "" {
+		return r
+	}
+	var parts = strings.Split(text, sep)
+	if len(parts) != 2 {
+		return r
+	}
+	minVal, _ := strconv.Atoi(parts[0])
+	maxVal, _ := strconv.Atoi(parts[1])
+	if minVal > maxVal {
+		maxVal, minVal = minVal, maxVal
+	}
+	r.Min = minVal
+	r.Max = maxVal
+	return r
 }

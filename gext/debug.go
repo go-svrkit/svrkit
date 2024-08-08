@@ -1,7 +1,7 @@
-// Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
+// Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package funk
+package gext
 
 import (
 	"fmt"
@@ -12,14 +12,13 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/svrkit.v1/dbg"
 	"gopkg.in/svrkit.v1/zlog"
 )
 
 const timestampLayout = "2006-01-02T15:04:05.000-0700" // IOS8601
 
 func TraceStack(skip int, title string, err interface{}, w io.Writer) {
-	var stack = dbg.GetCallerStack(skip + 1)
+	var stack = GetCallerStack(skip + 1)
 	var now = time.Now()
 	fmt.Fprintf(w, "%s\n%v\nstack traceback[%s] (most recent calls):\n", title, err, now.Format(timestampLayout))
 	fmt.Fprintf(w, "%v\n", stack)
@@ -27,7 +26,7 @@ func TraceStack(skip int, title string, err interface{}, w io.Writer) {
 
 func CatchPanic(title string) {
 	if v := recover(); v != nil {
-		var stack = dbg.GetCallerStack(1)
+		var stack = GetCallerStack(1)
 		var now = time.Now()
 		var sb strings.Builder
 		fmt.Fprintf(&sb, "%s\n%v\nstack traceback[%s] (most recent calls):", title, v, now.Format(timestampLayout))

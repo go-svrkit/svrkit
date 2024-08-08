@@ -1,4 +1,4 @@
-// Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
+// Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
 package cluster
@@ -12,8 +12,9 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+"encoding/json"
 
-	"github.com/bytedance/sonic"
+
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"gopkg.in/svrkit.v1/zlog"
 )
@@ -140,13 +141,13 @@ func (c *EtcdClient) GetNode(ctx context.Context, name string) (*Node, error) {
 // PutNode 设置节点信息
 func (c *EtcdClient) PutNode(ctx context.Context, name string, value any, leaseId int64) error {
 	var key = c.FormatKey(name)
-	data, err := sonic.MarshalString(value)
+	data, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
 	var resp *clientv3.PutResponse
 	if leaseId <= 0 {
-		resp, err = c.client.Put(ctx, key, data)
+		resp, err = c.client.Put(ctx, key, strutil.by data)
 	} else {
 		resp, err = c.client.Put(ctx, key, data, clientv3.WithLease(clientv3.LeaseID(leaseId)))
 	}

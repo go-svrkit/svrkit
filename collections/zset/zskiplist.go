@@ -18,7 +18,7 @@ import (
 	"math/rand"
 	"strings"
 
-	"gopkg.in/svrkit.v1/collections/cutil"
+	"gopkg.in/svrkit.v1/collections/algext"
 )
 
 const (
@@ -59,14 +59,14 @@ func (n *ZSkipListNode[T]) Next() *ZSkipListNode[T] {
 
 // ZSkipList 带索引的排序链表
 type ZSkipList[T comparable] struct {
-	head       *ZSkipListNode[T]   // 头结点
-	tail       *ZSkipListNode[T]   // 尾节点（最大值节点）
-	comparator cutil.Comparator[T] //
-	length     int                 // 节点数
-	level      int                 // 层级
+	head       *ZSkipListNode[T]    // 头结点
+	tail       *ZSkipListNode[T]    // 尾节点（最大值节点）
+	comparator algext.Comparator[T] //
+	length     int                  // 节点数
+	level      int                  // 层级
 }
 
-func NewZSkipList[T comparable](comparator cutil.Comparator[T]) *ZSkipList[T] {
+func NewZSkipList[T comparable](comparator algext.Comparator[T]) *ZSkipList[T] {
 	var zero T
 	return &ZSkipList[T]{
 		level:      1,
@@ -261,7 +261,7 @@ func (zsl *ZSkipList[T]) UpdateScore(ele T, curScore, newScore int64) *ZSkipList
 	// one at a different place.
 	zsl.deleteNode(x, update[:])
 	var newNode = zsl.Insert(newScore, x.Ele)
-	x.Ele = cutil.ZeroOf[T]()
+	x.Ele = algext.ZeroOf[T]()
 	return newNode
 }
 

@@ -7,7 +7,7 @@
 package zset
 
 import (
-	"gopkg.in/svrkit.v1/collections/cutil"
+	"gopkg.in/svrkit.v1/collections/algext"
 )
 
 // SortedSet 跳表实现的有序字典
@@ -16,7 +16,7 @@ type SortedSet[T comparable] struct {
 	zsl  *ZSkipList[T] // indexed linked list
 }
 
-func NewSortedSet[T comparable](comparator cutil.Comparator[T]) *SortedSet[T] {
+func NewSortedSet[T comparable](comparator algext.Comparator[T]) *SortedSet[T] {
 	return &SortedSet[T]{
 		dict: make(map[T]int64),
 		zsl:  NewZSkipList[T](comparator),

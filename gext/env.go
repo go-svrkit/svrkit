@@ -1,7 +1,7 @@
-// Copyright © Johnnie Chen ( ki7chen@github ). All rights reserved.
+// Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package funk
+package gext
 
 import (
 	"os"
