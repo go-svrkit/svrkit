@@ -7,10 +7,6 @@ import (
 	"cmp"
 )
 
-type Complex interface {
-	~complex64 | ~complex128
-}
-
 // Comparable compares its two arguments for order. Returns a negative integer, zero, or a positive integer as the first argument is less than, equal to, or greater than the second.
 // The implementor must ensure that signum(compare(x, y)) == -signum(compare(y, x)) for all x and y. (This implies that compare(x, y) must throw an exception if and only if compare(y, x) throws an exception.)
 // The implementor must also ensure that the relation is transitive: ((compare(x, y)>0) && (compare(y, z)>0)) implies compare(x, z)>0.
@@ -84,9 +80,4 @@ func Complex128Cmp(a, b complex128) int {
 		return -1
 	}
 	return 1
-}
-
-func ZeroOf[T any]() T {
-	var zero T
-	return zero
 }

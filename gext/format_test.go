@@ -102,10 +102,10 @@ func TestParseByteCount(t *testing.T) {
 		want   int64
 		wantOK bool
 	}{
-		{"", 0, true},
+		{"", 0, false},
 		{"0", 0, true},
-		{"0B", 0, false},
-		{"64B", 64, false},
+		{"0B", 0, true},
+		{"64B", 64, true},
 		{"1KiB", KiB, true},
 		{"1MiB", MiB, true},
 		{"1GiB", GiB, true},

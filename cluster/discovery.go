@@ -5,6 +5,7 @@ package cluster
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -12,10 +13,10 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-"encoding/json"
-
+	"unsafe"
 
 	clientv3 "go.etcd.io/etcd/client/v3"
+
 	"gopkg.in/svrkit.v1/zlog"
 )
 
@@ -145,11 +146,12 @@ func (c *EtcdClient) PutNode(ctx context.Context, name string, value any, leaseI
 	if err != nil {
 		return err
 	}
+	var sval = unsafe.String(unsafe.SliceData(data), len(data))
 	var resp *clientv3.PutResponse
 	if leaseId <= 0 {
-		resp, err = c.client.Put(ctx, key, strutil.by data)
+		resp, err = c.client.Put(ctx, key, sval)
 	} else {
-		resp, err = c.client.Put(ctx, key, data, clientv3.WithLease(clientv3.LeaseID(leaseId)))
+		resp, err = c.client.Put(ctx, key, sval, clientv3.WithLease(clientv3.LeaseID(leaseId)))
 	}
 	if err != nil {
 		return err

@@ -5,6 +5,7 @@ package eval
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -13,7 +14,6 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/bytedance/sonic/decoder"
 	"gopkg.in/svrkit.v1/conv"
 )
 
@@ -78,8 +78,8 @@ func ConvParamToType(rType reflect.Type, input string) (val reflect.Value, err e
 		return ConvParamToType(rType.Elem(), input)
 	case reflect.Slice, reflect.Map, reflect.Struct:
 		var b = unsafe.Slice(unsafe.StringData(input), len(input))
-		var dec = decoder.NewStreamDecoder(bytes.NewReader(b))
-		dec.UseInt64()
+		var dec = json.NewDecoder(bytes.NewReader(b))
+		dec.UseNumber()
 		val = reflect.New(rType)
 		err = dec.Decode(val.Interface())
 		return

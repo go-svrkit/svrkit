@@ -5,6 +5,7 @@ package cluster
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"os"
@@ -12,9 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-
-	"github.com/bytedance/sonic"
-	"github.com/bytedance/sonic/decoder"
+	"unsafe"
 )
 
 // Node 表示用于服务发现的节点信息
@@ -56,8 +55,8 @@ func (n *Node) Set(key string, val any) {
 	if n.Args == nil {
 		n.Args = make(map[string]string)
 	}
-	data, _ := sonic.MarshalString(val)
-	n.Args[key] = data
+	data, _ := json.Marshal(val)
+	n.Args[key] = unsafe.String(unsafe.SliceData(data), len(data))
 }
 
 func (n *Node) GetInt(key string) int {
@@ -100,8 +99,8 @@ func (n *Node) Clone() Node {
 }
 
 func (n *Node) String() string {
-	data, _ := sonic.MarshalString(n)
-	return data
+	data, _ := json.Marshal(n)
+	return unsafe.String(unsafe.SliceData(data), len(data))
 }
 
 type NodeEventType int
@@ -250,8 +249,8 @@ func (m *NodeMap) String() string {
 // 使用bigint序列化大整数
 func unmarshalNode(data []byte, node *Node) error {
 	if len(data) > 0 {
-		var dec = decoder.NewStreamDecoder(bytes.NewReader(data))
-		dec.UseInt64()
+		var dec = json.NewDecoder(bytes.NewReader(data))
+		dec.UseNumber()
 		return dec.Decode(node)
 	}
 	return nil

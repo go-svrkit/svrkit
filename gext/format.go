@@ -5,12 +5,12 @@ package gext
 
 import (
 	"bytes"
+	"encoding/json"
 	"math"
 	"strconv"
 	"strings"
+	"unsafe"
 
-	"github.com/bytedance/sonic"
-	"github.com/bytedance/sonic/decoder"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 
@@ -26,8 +26,8 @@ const (
 
 // JSONParse 避免大数值被解析为float导致的精度丢失
 func JSONParse(s string, v any) error {
-	var dec = decoder.NewDecoder(s)
-	dec.UseInt64()
+	var dec = json.NewDecoder(strings.NewReader(s))
+	dec.UseNumber()
 	if err := dec.Decode(v); err != nil {
 		return err
 	}
@@ -36,12 +36,12 @@ func JSONParse(s string, v any) error {
 
 // JSONStringify 序列化为json字符串
 func JSONStringify(v any) string {
-	data, err := sonic.MarshalString(v)
+	data, err := json.Marshal(v)
 	if err != nil {
 		zlog.Errorf("JSONStringify %T: %v", v, err)
 		return ""
 	}
-	return data
+	return unsafe.String(unsafe.SliceData(data), len(data))
 }
 
 func abs64(n int64) int64 {
