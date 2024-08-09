@@ -28,7 +28,7 @@ var clockNow = time.Now
 // TimeoutMsg 定时器到期消息
 type TimeoutMsg struct {
 	Owner    int64 // 定时器归属
-	Deadline int64 // 定时器到期时间
+	Deadline int64 // 定时器到期时间（毫秒）
 	Action   int   // 定时器触发行为枚举
 	Data     any   // 注意这个字段可能会序列化
 }
@@ -163,7 +163,7 @@ func (tm *TimerMgr) Schedule(durationMs int64, runnable sched.IRunner) int64 {
 // TimerData 持久化定时器
 type TimerData struct {
 	Id       int64 `json:"id"`
-	Deadline int64 `json:"deadline"`
+	Deadline int64 `json:"deadline"` // timestamp in milliseconds
 	Owner    int64 `json:"owner"`
 	Action   int   `json:"action"`
 	Data     any   `json:"data,omitempty"`

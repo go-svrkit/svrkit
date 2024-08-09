@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func pollExpiredTimeouts(timer TimerScheduler) (expired []int64) {
@@ -37,16 +38,15 @@ func TestTimerQueue_IsPending(t *testing.T) {
 	defer timer.Shutdown()
 
 	timer.AddTimeout(1, 0)
-	timer.AddTimeout(2, 150)
-	timer.AddTimeout(3, 500)
+	timer.AddTimeout(2, 100)
+	timer.AddTimeout(3, 800)
 	assert.Equal(t, 3, timer.Size())
 
 	assert.True(t, timer.IsPending(3))
 	assert.False(t, timer.IsPending(4))
 
 	timer.Start()
-
-	<-time.NewTimer(400 * time.Millisecond).C
+	<-time.NewTimer(200 * time.Millisecond).C
 
 	assert.False(t, timer.IsPending(1))
 	assert.False(t, timer.IsPending(2))
@@ -62,8 +62,8 @@ func TestTimerQueue_AddTimeoutAt(t *testing.T) {
 
 	var now = clockNow().UnixMilli()
 	timer.AddTimeoutAt(1, now)
-	timer.AddTimeoutAt(2, now+int64(150*time.Millisecond))
-	timer.AddTimeoutAt(3, now+int64(500*time.Millisecond))
+	timer.AddTimeoutAt(2, now+100)
+	timer.AddTimeoutAt(3, now+600)
 	assert.True(t, timer.IsPending(1))
 	assert.True(t, timer.IsPending(2))
 	assert.True(t, timer.IsPending(3))
@@ -71,20 +71,19 @@ func TestTimerQueue_AddTimeoutAt(t *testing.T) {
 
 	<-time.NewTimer(50 * time.Millisecond).C
 	var timedOut = pollExpiredTimeouts(timer)
-	assert.Equal(t, 1, len(timedOut))
-	assert.Equal(t, 1, len(timedOut))
-	assert.Equal(t, int64(1), timedOut[0])
+	require.Equal(t, 1, len(timedOut))
+	require.Equal(t, int64(1), timedOut[0])
 
 	assert.Equal(t, 2, timer.Size())
 	assert.False(t, timer.IsPending(1))
 	assert.True(t, timer.IsPending(2))
 	assert.True(t, timer.IsPending(3))
 
-	<-time.NewTimer(500 * time.Millisecond).C
+	<-time.NewTimer(700 * time.Millisecond).C
 	timedOut = pollExpiredTimeouts(timer)
-	assert.Equal(t, 2, len(timedOut))
-	assert.Equal(t, int64(2), timedOut[0])
-	assert.Equal(t, int64(3), timedOut[1])
+	require.Equal(t, 2, len(timedOut))
+	require.Equal(t, int64(2), timedOut[0])
+	require.Equal(t, int64(3), timedOut[1])
 
 	assert.Equal(t, 0, timer.Size())
 	assert.False(t, timer.IsPending(1))

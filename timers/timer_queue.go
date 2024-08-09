@@ -12,7 +12,8 @@ import (
 )
 
 const (
-	TickInterval = 10 * time.Millisecond
+	TickInterval    = 10 * time.Millisecond
+	TimestampLayout = "2006-01-02T15:04:05-0700"
 )
 
 // TimerQueue 最小堆实现的定时器
@@ -94,12 +95,12 @@ func (s *TimerQueue) Shutdown() {
 	s.timers = nil
 }
 
-// AddTimeoutAt 创建在指定时机触发的定时器 `deadline`使用纳秒
-func (s *TimerQueue) AddTimeoutAt(tid int64, deadline int64) {
+// AddTimeoutAt 创建在指定时机触发的定时器
+func (s *TimerQueue) AddTimeoutAt(tid int64, deadlineMs int64) {
 	s.guard.Lock()
 	defer s.guard.Unlock()
 
-	var node = newTimerNode(tid, deadline)
+	var node = newTimerNode(tid, deadlineMs)
 	s.refer[tid] = node
 	heap.Push(&s.timers, node)
 }
@@ -110,6 +111,7 @@ func (s *TimerQueue) AddTimeout(tid int64, delayMs int64) {
 	if delayMs > 0 && deadline < 0 {
 		deadline = math.MaxInt64 // guard against overflow
 	}
+	// log.Printf("timer %d start, deadline=%s\n", tid, time.UnixMilli(deadline).Format(TimestampLayout))
 	s.AddTimeoutAt(tid, deadline)
 }
 
@@ -146,7 +148,7 @@ func (s *TimerQueue) worker(ready chan struct{}) {
 	for {
 		select {
 		case <-ticker.C:
-			s.update(clockNow().UnixNano())
+			s.update(clockNow().UnixMilli())
 
 		case <-s.done:
 			return
@@ -155,27 +157,27 @@ func (s *TimerQueue) worker(ready chan struct{}) {
 }
 
 // 返回触发的timer列表
-func (s *TimerQueue) update(nowNano int64) {
+func (s *TimerQueue) update(nowMs int64) {
 	s.guard.Lock()
 	defer s.guard.Unlock()
 
 	for len(s.timers) > 0 {
 		var node = s.timers[0] // peek first item of heap
-		if nowNano < node.deadline {
+		if nowMs < node.deadline {
 			break // no new timer expired
 		}
 
 		heap.Pop(&s.timers)
 		delete(s.refer, node.id)
 		s.C <- node.id
-		//log.Printf("timer %d expired deadline=%s\n", node.id, time.Unix(0, node.deadline).Format(datetime.TimestampLayout))
+		// log.Printf("timer %d expired deadline=%s\n", node.id, time.UnixMilli(node.deadline).Format(TimestampLayout))
 	}
 }
 
 // 二叉堆节点
 type heapNode struct {
 	id       int64 // unique id
-	deadline int64 // unix nano
+	deadline int64 // timestamp in unix milliseconds
 	index    int   // heap index
 }
 
