@@ -28,7 +28,7 @@ var (
 )
 
 const (
-	EventChanCapacity = 256
+	EventChanCapacity = 1024
 	OpTimeout         = 5
 
 	VerboseLv1 = 1
@@ -74,7 +74,7 @@ func (c *EtcdClient) Init(parentCtx context.Context) error {
 	ctx, cancel := context.WithTimeout(parentCtx, time.Second*3)
 	defer cancel()
 
-	if _, err := cli.Status(ctx, c.endpoints[0]); err != nil {
+	if _, err = cli.Status(ctx, c.endpoints[0]); err != nil {
 		return fmt.Errorf("get status of etcd %s: %w", c.endpoints[0], err)
 	}
 	c.client = cli
@@ -162,8 +162,8 @@ func (c *EtcdClient) PutNode(ctx context.Context, name string, value any, leaseI
 	return nil
 }
 
-// DelKey 删除一个key
-func (c *EtcdClient) DelKey(ctx context.Context, name string) error {
+// DeleteKey 删除一个key
+func (c *EtcdClient) DeleteKey(ctx context.Context, name string) error {
 	var key = c.FormatKey(name)
 	resp, err := c.client.Delete(ctx, key)
 	if err != nil {

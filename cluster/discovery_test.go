@@ -138,7 +138,7 @@ func TestEtcdClient_RegisterNode(t *testing.T) {
 	}
 
 	job()
-	defer client.DelKey(context.Background(), name)
+	defer client.DeleteKey(context.Background(), name)
 
 	var ticker = time.NewTicker(time.Second * 3)
 	defer ticker.Stop()
@@ -150,7 +150,7 @@ func TestEtcdClient_RegisterNode(t *testing.T) {
 			fmt.Printf("ticks %d\n", ticks)
 			if !regCtx.LeaseAlive.Load() {
 				fmt.Printf("re-register worker at tick %d, in case of etcd server lost\n", ticks)
-				client.DelKey(context.Background(), name)
+				client.DeleteKey(context.Background(), name)
 				job()
 			}
 
