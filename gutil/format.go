@@ -13,7 +13,6 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
-
 	"gopkg.in/svrkit.v1/zlog"
 )
 
@@ -42,6 +41,23 @@ func JSONStringify(v any) string {
 		return ""
 	}
 	return unsafe.String(unsafe.SliceData(data), len(data))
+}
+
+func UnmarshalProtoJSON(b []byte, m proto.Message) error {
+	return jsonpb.Unmarshal(bytes.NewReader(b), m)
+}
+
+// MarshalProtoJSON 序列化proto消息为json格式
+func MarshalProtoJSON(msg proto.Message) ([]byte, error) {
+	var buf bytes.Buffer
+	var jm = jsonpb.Marshaler{
+		EnumsAsInts:  true,
+		EmitDefaults: true,
+	}
+	if err := jm.Marshal(&buf, msg); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 func abs64(n int64) int64 {
@@ -155,21 +171,4 @@ func ParseByteCount(s string) (int64, bool) {
 		return 0, false
 	}
 	return int64(un), true
-}
-
-func UnmarshalProtoJSON(b []byte, m proto.Message) error {
-	return jsonpb.Unmarshal(bytes.NewReader(b), m)
-}
-
-// MarshalProtoJSON 序列化proto消息为json格式
-func MarshalProtoJSON(msg proto.Message) ([]byte, error) {
-	var buf bytes.Buffer
-	var jm = jsonpb.Marshaler{
-		EnumsAsInts:  true,
-		EmitDefaults: true,
-	}
-	if err := jm.Marshal(&buf, msg); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }
