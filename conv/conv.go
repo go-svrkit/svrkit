@@ -4,6 +4,9 @@
 package conv
 
 import (
+	"encoding/json"
+	"fmt"
+	"reflect"
 	"unsafe"
 )
 
@@ -91,4 +94,116 @@ func ConvTo[T Integer](val any) T {
 		return n
 	}
 	return 0
+}
+
+func ReflectConvAny(rtype reflect.Type, body string) (rval reflect.Value, err error) {
+	var kind = rtype.Kind()
+	switch kind {
+	case reflect.Ptr:
+		return ReflectConvAny(rtype.Elem(), body)
+
+	case reflect.Bool:
+		rval = reflect.ValueOf(ParseBool(body))
+
+	case reflect.String:
+		rval = reflect.ValueOf(body)
+
+	case reflect.Int:
+		var n int64
+		if n, err = ParseI64(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(int(n))
+
+	case reflect.Uint:
+		var n uint64
+		if n, err = ParseU64(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(uint(n))
+
+	case reflect.Int8:
+		var n int8
+		if n, err = ParseI8(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(n)
+
+	case reflect.Uint8:
+		var n uint8
+		if n, err = ParseU8(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(n)
+
+	case reflect.Int16:
+		var n int16
+		if n, err = ParseI16(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(n)
+
+	case reflect.Uint16:
+		var n uint16
+		if n, err = ParseU16(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(n)
+
+	case reflect.Int32:
+		var n int32
+		if n, err = ParseI32(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(n)
+
+	case reflect.Uint32:
+		var n uint32
+		if n, err = ParseU32(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(n)
+
+	case reflect.Int64:
+		var n int64
+		if n, err = ParseI64(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(n)
+
+	case reflect.Uint64:
+		var n uint64
+		if n, err = ParseU64(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(n)
+
+	case reflect.Float32:
+		var f float32
+		if f, err = ParseF32(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(f)
+
+	case reflect.Float64:
+		var f float64
+		if f, err = ParseF64(body); err != nil {
+			return
+		}
+		rval = reflect.ValueOf(f)
+		return
+
+	case reflect.Slice, reflect.Map, reflect.Struct:
+		rval = reflect.New(rtype)
+		if body != "" {
+			if err = json.Unmarshal(StrAsBytes(body), rval.Interface()); err != nil {
+				return
+			}
+		}
+		rval = rval.Elem()
+
+	default:
+		err = fmt.Errorf("unsupported type %v", kind)
+	}
+	return
 }
