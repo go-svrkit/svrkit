@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package algext
+package gutil
 
 import (
 	"fmt"
@@ -92,6 +92,25 @@ func TestRange_Rand(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			var ra = Range{Min: tt.min, Max: tt.max}
 			expectRandomResult(t, name, tt.min, tt.max, ra.Rand)
+		})
+	}
+}
+
+func TestParseRange(t *testing.T) {
+	tests := []struct {
+		input string
+		sep   string
+		want  Range
+	}{
+		{"0/0", "/", Range{}},
+		{"-12,21", ",", Range{-12, 21}},
+		{"123456789-987654321", "-", Range{123456789, 987654321}},
+	}
+	for i, tt := range tests {
+		var name = fmt.Sprintf("case-%v", i+1)
+		t.Run(name, func(t *testing.T) {
+			var output = ParseRange(tt.input, tt.sep)
+			assert.Equal(t, tt.want, output)
 		})
 	}
 }

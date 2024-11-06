@@ -10,6 +10,12 @@ import (
 	"encoding/hex"
 )
 
+// ZeroOf returns the zero value of the type T
+func ZeroOf[T any]() T {
+	var zero T
+	return zero
+}
+
 // MD5Sum 计算MD5值
 func MD5Sum(data []byte) string {
 	var hash = md5.New()
