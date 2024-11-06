@@ -8,7 +8,7 @@ import (
 	"unsafe"
 )
 
-// _PageSize at runtime/malloc.go
+// ArenaPageSize is _PageSize at runtime/malloc.go
 const ArenaPageSize = 8192
 
 // ArenaPool
@@ -22,6 +22,9 @@ type ArenaPool[T any] struct {
 func NewArenaPool[T any]() *ArenaPool[T] {
 	var dummy T
 	var blockSize = ArenaPageSize / unsafe.Sizeof(dummy)
+	if blockSize <= 1 {
+		blockSize = 4 // no more than 32KB
+	}
 	return &ArenaPool[T]{
 		block: make([]T, blockSize),
 	}
@@ -63,9 +66,9 @@ func (a *ArenaPool[T]) Alloc() *T {
 		a.block = make([]T, size)
 		a.off = 0
 	}
-	var ret = &a.block[a.off]
+	var obj = &a.block[a.off]
 	a.off++
-	return ret
+	return obj
 }
 
 // AllocN 从block里分配n个
@@ -81,9 +84,9 @@ func (a *ArenaPool[T]) AllocN(n int) []T {
 		a.block = make([]T, size)
 		a.off = 0
 	}
-	var ret = a.block[a.off : a.off+n]
+	var obj = a.block[a.off : a.off+n]
 	a.off += n
-	return ret
+	return obj
 }
 
 func (a *ArenaPool[T]) Free(*T) {

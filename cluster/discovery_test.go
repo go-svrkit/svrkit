@@ -74,7 +74,7 @@ func TestEtcdClient_IsNodeExist(t *testing.T) {
 	t.Logf("node %s exist: %v\n", name, found)
 
 	if found {
-		if err := client.DelKey(ctx, name); err != nil {
+		if err := client.DeleteKey(ctx, name); err != nil {
 			t.Fatalf("delete node: %v\n", err)
 		}
 	}
@@ -179,7 +179,7 @@ func TestEtcdClient_RegisterAndKeepAliveForever(t *testing.T) {
 		t.Fatalf("register forever: %v", err)
 	}
 
-	defer client.DelKey(context.Background(), name)
+	defer client.DeleteKey(context.Background(), name)
 
 	// wait until timed-out
 	<-ctx.Done()
@@ -212,7 +212,7 @@ func TestEtcdClient_WatchDir(t *testing.T) {
 			t.Fatalf("set node: %v\n", err)
 		}
 		if tick > 0 && tick%5 == 0 {
-			if err := client.DelKey(ctx, key); err != nil {
+			if err := client.DeleteKey(ctx, key); err != nil {
 				t.Fatalf("del node: %v\n", err)
 			}
 		}
@@ -284,7 +284,7 @@ func TestEtcdClient_WatchDirTo(t *testing.T) {
 			t.Fatalf("set node: %v\n", err)
 		}
 		if tick > 0 && tick%5 == 0 {
-			if err := client.DelKey(ctx, key); err != nil {
+			if err := client.DeleteKey(ctx, key); err != nil {
 				t.Fatalf("del node: %v\n", err)
 			}
 		}

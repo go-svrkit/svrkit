@@ -1,6 +1,3 @@
-// Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
-// See accompanying LICENSE file
-
 package strutil
 
 import (

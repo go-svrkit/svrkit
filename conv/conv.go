@@ -7,8 +7,24 @@ import (
 	"unsafe"
 )
 
+type Signed interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64
+}
+
+type Unsigned interface {
+	~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+}
+
 type Integer interface {
-	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
+	Signed | Unsigned
+}
+
+type Float interface {
+	~float32 | ~float64
+}
+
+type Number interface {
+	Integer | Float
 }
 
 // StrAsBytes returns the bytes backing a string, it is the caller's responsibility not to mutate the bytes returned.
@@ -36,4 +52,43 @@ func BoolTo[T Integer](b bool) T {
 // IntToBool converts an integer to bool
 func IntToBool[T Integer](v T) bool {
 	return v != 0
+}
+
+// ConvTo 转换为整数
+func ConvTo[T Integer](val any) T {
+	switch v := val.(type) {
+	case int8:
+		return T(v)
+	case uint8:
+		return T(v)
+	case int16:
+		return T(v)
+	case uint16:
+		return T(v)
+	case int:
+		return T(v)
+	case uint:
+		return T(v)
+	case int32:
+		return T(v)
+	case uint32:
+		return T(v)
+	case int64:
+		return T(v)
+	case uint64:
+		return T(v)
+	case float32:
+		return T(v)
+	case float64:
+		return T(v)
+	case bool:
+		if v {
+			return T(1)
+		}
+		return T(0)
+	case string:
+		n, _ := ParseTo[T](v)
+		return n
+	}
+	return 0
 }

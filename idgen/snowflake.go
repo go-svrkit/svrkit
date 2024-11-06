@@ -17,7 +17,7 @@ import (
 //	2位时钟回拨标记，时钟最多被回拨3次
 //	36位时间戳（厘秒），~=21y288d, 最大可以表示到2045-10-10
 //	13位服务器ID，最大服务器ID=8191
-//	12位序列号，单个时间单位的最大分配数量（409/毫秒）
+//	12位序列号，单个时间单位的最大分配数量（4096/毫秒）
 const (
 	SequenceBits       = 12
 	WorkerIDBits       = 13
@@ -66,7 +66,7 @@ type Snowflake struct {
 func NewSnowflake(workerId uint16) *Snowflake {
 	if workerId == 0 {
 		workerId = privateIP4()
-		log.Printf("snowflake auto set worker id to %d", workerId)
+		log.Printf("snowflake auto set worker id to %d\n", workerId)
 	}
 	return &Snowflake{
 		workerId:     int64(workerId) & WorkIDMask,
@@ -75,7 +75,7 @@ func NewSnowflake(workerId uint16) *Snowflake {
 }
 
 func (sf *Snowflake) maskClockBackwards() error {
-	log.Printf("Snowflake: time has gone backwards")
+	log.Printf("Snowflake: time has gone backwards\n")
 	if sf.backwards >= (1<<ClockBackwardsBits)-1 {
 		return ErrClockGoneBackwards
 	}
@@ -86,7 +86,7 @@ func (sf *Snowflake) maskClockBackwards() error {
 // sequence expired, tick to next time unit
 func (sf *Snowflake) waitTilNext(lastTs int64) (int64, error) {
 	var prevTs int64
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		time.Sleep(5 * time.Millisecond)
 		var now = currentTimeUnit()
 		if now > lastTs {

@@ -261,7 +261,8 @@ func (zsl *ZSkipList[T]) UpdateScore(ele T, curScore, newScore int64) *ZSkipList
 	// one at a different place.
 	zsl.deleteNode(x, update[:])
 	var newNode = zsl.Insert(newScore, x.Ele)
-	x.Ele = algext.ZeroOf[T]()
+	var zero T
+	x.Ele = zero
 	return newNode
 }
 

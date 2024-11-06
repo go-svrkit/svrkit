@@ -15,6 +15,11 @@ import (
 	"gopkg.in/svrkit.v1/collections/algext"
 )
 
+type Pair struct {
+	First  int64
+	Second string
+}
+
 func uniqueScoreGen() func() int64 {
 	var dict = map[int64]bool{}
 	return func() int64 {
@@ -36,12 +41,12 @@ func Test_zslRandLevel(t *testing.T) {
 }
 
 func testSkipList(t *testing.T, sl *ZSkipList[string]) {
-	var pairs = make([]algext.Pair[int64, string], 0, sl.Len())
+	var pairs = make([]Pair, 0, sl.Len())
 	sl.Range(func(score int64, ele string) {
-		pairs = append(pairs, algext.MakePair(score, ele))
+		pairs = append(pairs, Pair{score, ele})
 	})
 	assert.Equal(t, len(pairs), sl.Len())
-	var isSorted = slices.IsSortedFunc(pairs, func(a, b algext.Pair[int64, string]) int {
+	var isSorted = slices.IsSortedFunc(pairs, func(a, b Pair) int {
 		return cmp.Compare(a.First, b.First)
 	})
 	assert.True(t, isSorted)

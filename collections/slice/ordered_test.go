@@ -15,7 +15,7 @@ func TestOrderedInsert(t *testing.T) {
 	var idSet []int
 
 	for i := 50; i > 0; i-- {
-		idSet = PutIfAbsent(idSet, i)
+		idSet = OrderedPutIfAbsent(idSet, i)
 	}
 	if !sort.IsSorted(IntSlice(idSet)) {
 		t.Error("OrderedIDSet is not sorted")
@@ -27,7 +27,7 @@ func TestOrderedInsert(t *testing.T) {
 	}
 	var n = len(idSet)
 	for i := 1; i < 50; i++ {
-		idSet = PutIfAbsent(idSet, i)
+		idSet = OrderedPutIfAbsent(idSet, i)
 	}
 	if len(idSet) != n {
 		t.Error("OrderedIDSet does not contain duplicates")
@@ -37,7 +37,7 @@ func TestOrderedInsert(t *testing.T) {
 func TestOrderedDelete(t *testing.T) {
 	var idSet []int
 	for i := 1; i <= 100; i++ {
-		idSet = PutIfAbsent(idSet, i)
+		idSet = OrderedPutIfAbsent(idSet, i)
 	}
 	for i := 1; i <= 90; i++ {
 		idSet = OrderedDelete(idSet, i)
@@ -47,7 +47,7 @@ func TestOrderedDelete(t *testing.T) {
 	}
 	idSet = nil
 	for i := 1; i <= 100; i++ {
-		idSet = PutIfAbsent(idSet, i)
+		idSet = OrderedPutIfAbsent(idSet, i)
 	}
 
 	var deleted []int

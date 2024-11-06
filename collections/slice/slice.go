@@ -4,7 +4,9 @@
 package slice
 
 import (
+	"cmp"
 	"math/rand"
+	"slices"
 )
 
 // 常用的数组操作，配合下面的包使用
@@ -30,6 +32,16 @@ func RemoveAt[E any](s []E, i int) []E {
 	return s
 }
 
+// RemoveFirst 删除第一个查询到的元素
+func RemoveFirst[E comparable](s []E, elem E) []E {
+	for i, v := range s {
+		if v == elem {
+			return slices.Delete(s, i, i+1)
+		}
+	}
+	return s
+}
+
 func Shuffle[E any](s []E) {
 	rand.Shuffle(len(s), func(i, j int) {
 		s[i], s[j] = s[j], s[i]
@@ -46,4 +58,25 @@ func Shrink[E any](s []E) []E {
 	var a = make([]E, len(s))
 	copy(a, s)
 	return a
+}
+
+// SortAndRemoveDup 去重并排序
+func SortAndRemoveDup[E cmp.Ordered](s []E) []E {
+	if len(s) <= 1 {
+		return s
+	}
+	slices.Sort(s)
+	s = slices.Compact(s)
+	return s
+}
+
+// IsAllElemZero 是否数组的所有元素都为0
+func IsAllElemZero[E cmp.Ordered | ~bool](s []E) bool {
+	var zero E
+	for i := 0; i < len(s); i++ {
+		if s[i] != zero {
+			return false
+		}
+	}
+	return true
 }

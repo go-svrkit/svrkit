@@ -27,8 +27,8 @@ func OrderedContains[T cmp.Ordered](set []T, elem T) bool {
 	return OrderedIndexOf(set, elem) >= 0
 }
 
-// PutIfAbsent 插入`n`到有序数组
-func PutIfAbsent[T cmp.Ordered](set []T, elem T) []T {
+// OrderedPutIfAbsent 插入`n`到有序数组
+func OrderedPutIfAbsent[T cmp.Ordered](set []T, elem T) []T {
 	var i = sort.Search(len(set), func(i int) bool {
 		return set[i] >= elem
 	})
