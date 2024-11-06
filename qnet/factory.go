@@ -30,7 +30,7 @@ var (
 	id2type = make(map[uint32]protoreflect.MessageType) // <消息名全称, 消息类型>
 )
 
-const MessagePackagePrefix = "protos."
+var MessagePackagePrefix = "protos."
 
 func ClearFactory() {
 	clear(name2id)

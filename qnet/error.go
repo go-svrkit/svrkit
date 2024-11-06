@@ -16,6 +16,8 @@ var (
 	ErrConnOutboundOverflow = errors.New("connection outbound queue overflow")
 	ErrConnForceClose       = errors.New("connection forced to close")
 	ErrBufferOutOfRange     = errors.New("buffer out of range")
+	ErrConnClosed           = errors.New("connection is closed")
+	ErrInvalidWSMsgType     = errors.New("invalid websocket message type")
 )
 
 type Error struct {

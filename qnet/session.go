@@ -15,6 +15,8 @@ import (
 	"gopkg.in/svrkit.v1/zlog"
 )
 
+const WriteBufferReuseSize = 1 << 14
+
 var (
 	TCPReadTimeout = 300 * time.Second // 默认读超时
 )
@@ -163,7 +165,7 @@ func (t *TcpSession) writePump(ctx context.Context) {
 				return
 			}
 			// reuse small size buffer
-			if buf.Cap() < 16<<10 {
+			if buf.Cap() < WriteBufferReuseSize {
 				buf.Reset()
 			} else {
 				buf = new(bytes.Buffer)
@@ -200,6 +202,7 @@ func (t *TcpSession) readMessage(rd io.Reader, netMsg *NetMessage) error {
 		return err
 	}
 	netMsg.Session = t
+	netMsg.CreatedAt = time.Now().UnixMicro()
 	return nil
 }
 
@@ -220,8 +223,6 @@ func (t *TcpSession) readPump(ctx context.Context) {
 			t.ForceClose(err) // I/O超时或者发生错误，强制关闭连接
 			return
 		}
-		netMsg.Session = t
-		netMsg.CreatedAt = time.Now().UnixMicro()
 		// 如果channel满了，不能丢弃，需要阻塞等待
 		t.RecvQueue <- netMsg
 
