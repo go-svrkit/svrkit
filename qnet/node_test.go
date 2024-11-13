@@ -20,8 +20,8 @@ func TestMakeBackendNode(t *testing.T) {
 		var node = MakeBackendNode(tt.service, tt.instance)
 		assert.True(t, node.IsBackend())
 		assert.False(t, node.IsSession())
-		assert.Equal(t, tt.service, node.ServiceType())
-		assert.Equal(t, tt.instance, node.InstanceID())
+		assert.Equal(t, tt.service, node.Service())
+		assert.Equal(t, tt.instance, node.Instance())
 	}
 }
 
