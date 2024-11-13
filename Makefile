@@ -6,8 +6,6 @@ GOBIN = $(PWD)/bin
 GO?=go
 PATH := $(GOBIN):$(PATH)
 
-PROTOC_FLAGS = --go_opt=paths=source_relative --go_out=. \
-	--go-vtproto_opt=paths=source_relative,features=marshal+unmarshal+size --go-vtproto_out=.
 
 ALL_TEST_PKG=gopkg.in/svrkit.v1/...
 
@@ -17,9 +15,6 @@ ALL_TEST_PKG=gopkg.in/svrkit.v1/...
 dep:
 	$(GO) mod tidy
 	$(GO) install -v github.com/golangci/golangci-lint/cmd/golangci-lint@v1.58.1
-
-testdata:
-	@cd codec/testdata && protoc $(PROTOC_FLAGS) ./*.proto
 
 vet:
 	$(GO) vet ${ALL_TEST_PKG}
