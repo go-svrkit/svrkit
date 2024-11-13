@@ -2,13 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rt
+package reflext
 
 import (
 	"unsafe"
 )
 
-// Everything below is taken from the GO 1.21 runtime package, and must stay in sync with it.
+// Everything below is taken from the Go 1.21 runtime package, and must stay in sync with it.
 
 //go:linkname firstmoduledata runtime.firstmoduledata
 var firstmoduledata Moduledata
@@ -36,5 +36,8 @@ func unsafe_NewArray(unsafe.Pointer, int) unsafe.Pointer
 //go:linkname GetItab runtime.getitab
 func GetItab(inter unsafe.Pointer, typ *GoType, canfail bool) *GoItab
 
-// get current runtime.G
-func getg() uintptr
+//go:linkname typelinks reflect.typelinks
+func typelinks() (sections []unsafe.Pointer, offset [][]int32)
+
+//go:linkname resolveTypeOff reflect.resolveTypeOff
+func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer

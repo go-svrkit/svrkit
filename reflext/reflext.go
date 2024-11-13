@@ -9,8 +9,6 @@ import (
 	"runtime"
 	"strings"
 	"unsafe"
-
-	"gopkg.in/svrkit.v1/reflext/rt"
 )
 
 func indirect(v reflect.Value) reflect.Value {
@@ -115,7 +113,7 @@ func EnumerateAllStructs() map[string]reflect.Type {
 
 func EnumerateAllFuncPCs() map[string]uintptr {
 	var all = map[string]uintptr{}
-	for md := rt.GetFirstModuleData(); md != nil; md = md.Next {
+	for md := GetFirstModuleData(); md != nil; md = md.Next {
 		for _, ftab := range md.Ftab {
 			if int(ftab.Funcoff) >= len(md.Pclntable) {
 				continue
@@ -154,7 +152,7 @@ func CreateFuncForPC(outFuncPtr interface{}, pc uintptr) {
 }
 
 func FindFuncPCWithName(name string) (uintptr, error) {
-	for md := rt.GetFirstModuleData(); md != nil; md = md.Next {
+	for md := GetFirstModuleData(); md != nil; md = md.Next {
 		for _, ftab := range md.Ftab {
 			f := (*runtime.Func)(unsafe.Pointer(&md.Pclntable[ftab.Funcoff]))
 			if f != nil && f.Name() == name {
@@ -164,9 +162,3 @@ func FindFuncPCWithName(name string) (uintptr, error) {
 	}
 	return 0, fmt.Errorf("invalid function name: %s", name)
 }
-
-//go:linkname typelinks reflect.typelinks
-func typelinks() (sections []unsafe.Pointer, offset [][]int32)
-
-//go:linkname resolveTypeOff reflect.resolveTypeOff
-func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer

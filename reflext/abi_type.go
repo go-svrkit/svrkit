@@ -2,14 +2,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package rt
+package reflext
 
 import (
 	"reflect"
 	"unsafe"
 )
 
-// Everything below is taken from the GO 1.21 runtime package, and must stay in sync with it.
+// Everything below is taken from the Go 1.21 runtime package, and must stay in sync with it.
 
 func FuncPCABI0(f interface{}) uintptr {
 	words := (*[2]unsafe.Pointer)(unsafe.Pointer(&f))
