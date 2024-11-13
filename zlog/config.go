@@ -14,7 +14,7 @@ const LayoutISO8601 = "2006-01-02T15:04:05.000Z0700"
 
 // Config 配置参数
 type Config struct {
-	Level      string `json:"level"`       // DEBUG, INFO, WARN, DPANIC, PANIC, FATAL
+	Level      string `json:"level"`       // DEBUG, INFO, WARN, PANIC, FATAL
 	Encoding   string `json:"encoding"`    // "json" or "console"
 	TimeLayout string `json:"time-layout"` // layout to encoding time
 	Filename   string `json:"filename"`    //

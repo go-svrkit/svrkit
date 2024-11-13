@@ -9,28 +9,28 @@ import (
 	"math/rand"
 )
 
-func Max[T Integer](x, y T) T {
+func Max[T Number](x, y T) T {
 	if x < y {
 		return y
 	}
 	return x
 }
 
-func Min[T Integer](x, y T) T {
+func Min[T Number](x, y T) T {
 	if x > y {
 		return y
 	}
 	return x
 }
 
-func Abs[T Integer](x T) T {
+func Abs[T Number](x T) T {
 	if x < 0 {
 		return -x
 	}
 	return x
 }
 
-func Dim[T Integer](x, y T) T {
+func Dim[T Number](x, y T) T {
 	return Max[T](x-y, 0)
 }
 
