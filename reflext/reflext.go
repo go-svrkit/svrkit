@@ -6,7 +6,6 @@ package reflext
 import (
 	"fmt"
 	"reflect"
-	"runtime"
 	"strings"
 	"unsafe"
 )
@@ -109,56 +108,4 @@ func EnumerateAllStructs() map[string]reflect.Type {
 		}
 	}
 	return types
-}
-
-func EnumerateAllFuncPCs() map[string]uintptr {
-	var all = map[string]uintptr{}
-	for md := GetFirstModuleData(); md != nil; md = md.Next {
-		for _, ftab := range md.Ftab {
-			if int(ftab.Funcoff) >= len(md.Pclntable) {
-				continue
-			}
-			f := (*runtime.Func)(unsafe.Pointer(&md.Pclntable[ftab.Funcoff]))
-			if f != nil {
-				if name := f.Name(); name != "" {
-					all[name] = f.Entry()
-				}
-			}
-		}
-	}
-	return all
-}
-
-func GetFunc(outFuncPtr interface{}, name string) error {
-	pc, err := FindFuncPCWithName(name)
-	if err != nil {
-		return err
-	}
-	CreateFuncForPC(outFuncPtr, pc)
-	return nil
-}
-
-type FuncP struct {
-	pc uintptr
-}
-
-func CreateFuncForPC(outFuncPtr interface{}, pc uintptr) {
-	outFuncVal := reflect.ValueOf(outFuncPtr).Elem()
-	newFuncVal := reflect.MakeFunc(outFuncVal.Type(), nil)
-	funcValuePtr := reflect.ValueOf(newFuncVal).FieldByName("ptr").Pointer()
-	funcPtr := (*FuncP)(unsafe.Pointer(funcValuePtr))
-	funcPtr.pc = pc
-	outFuncVal.Set(newFuncVal)
-}
-
-func FindFuncPCWithName(name string) (uintptr, error) {
-	for md := GetFirstModuleData(); md != nil; md = md.Next {
-		for _, ftab := range md.Ftab {
-			f := (*runtime.Func)(unsafe.Pointer(&md.Pclntable[ftab.Funcoff]))
-			if f != nil && f.Name() == name {
-				return f.Entry(), nil
-			}
-		}
-	}
-	return 0, fmt.Errorf("invalid function name: %s", name)
 }

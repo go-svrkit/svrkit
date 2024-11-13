@@ -67,27 +67,6 @@ func TestEnumerateAllStructs(t *testing.T) {
 
 }
 
-func TestEnumerateAllFuncPCs(t *testing.T) {
-	var all = EnumerateAllFuncPCs()
-	assert.True(t, len(all) > 0)
-
-	var pc = all["time.now"]
-	assert.True(t, pc > 0)
-	var nowFunc func() (sec int64, nsec int32, mono int64)
-	CreateFuncForPC(&nowFunc, pc)
-	assert.NotNil(t, nowFunc)
-	sec, nsec, mono := nowFunc()
-	assert.True(t, sec > 0 && nsec >= 0 && mono >= 0)
-}
-
-func TestGetFunc(t *testing.T) {
-	var nowFunc func() (sec int64, nsec int32, mono int64)
-	GetFunc(&nowFunc, "time.now")
-	assert.NotNil(t, nowFunc)
-	sec, nsec, mono := nowFunc()
-	assert.True(t, sec > 0 && nsec >= 0 && mono >= 0)
-}
-
 func TestRTPackEface(t *testing.T) {
 	var pt = image.Point{X: 1234, Y: 5678}
 	var eface = UnpackEface(pt)

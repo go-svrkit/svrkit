@@ -22,23 +22,6 @@ var (
 	MaxClientUpStreamSize    = 1 << 18 // 最大client上行消息大小，256KB
 )
 
-type MsgFlag uint8
-
-const (
-	FlagCompress MsgFlag = 0x10
-	FlagEncrypt  MsgFlag = 0x20
-	FlagError    MsgFlag = 0x40
-	FlagExtent   MsgFlag = 0x80
-)
-
-func (g MsgFlag) Has(n MsgFlag) bool {
-	return g&n != 0
-}
-
-func (g MsgFlag) Clear(n MsgFlag) MsgFlag {
-	return g &^ n
-}
-
 // a simple wire protocol
 // ------|---------|---------|--------|---------|---------|----------|
 // field |--<len>--|--<crc>--|-<flag>-|--<seq>--|--<cmd>--|--<data>--|
@@ -100,8 +83,26 @@ func (h NetV1Header) Pack(size uint32, flag MsgFlag, seq, cmd uint32) {
 	binary.LittleEndian.PutUint32(h[12:], cmd)
 }
 
+type MsgFlag uint8
+
+const (
+	FlagCompress MsgFlag = 0x01
+	FlagEncrypt  MsgFlag = 0x02
+	FlagExtent   MsgFlag = 0x08
+	FlagError    MsgFlag = 0x10
+	FlagCache    MsgFlag = 0x20
+)
+
+func (g MsgFlag) Has(n MsgFlag) bool {
+	return g&n != 0
+}
+
+func (g MsgFlag) Clear(n MsgFlag) MsgFlag {
+	return g &^ n
+}
+
 // ReadHeadBody read header and body less than `maxSize`
-func ReadHeadBody(rd io.Reader, head NetV1Header, maxSize uint32) ([]byte, error) {
+var ReadHeadBody = func(rd io.Reader, head NetV1Header, maxSize uint32) ([]byte, error) {
 	if _, err := io.ReadFull(rd, head); err != nil {
 		return nil, err
 	}
@@ -125,7 +126,7 @@ func ReadHeadBody(rd io.Reader, head NetV1Header, maxSize uint32) ([]byte, error
 	return body, nil
 }
 
-func DecodeMsgBody(flags MsgFlag, body []byte, decrypt Encryptor) ([]byte, error) {
+var DecodeMsgBody = func(flags MsgFlag, body []byte, decrypt Encryptor) ([]byte, error) {
 	if flags.Has(FlagEncrypt) {
 		if decrypt == nil {
 			return nil, ErrCannotDecryptPkt
@@ -148,7 +149,7 @@ func DecodeMsgBody(flags MsgFlag, body []byte, decrypt Encryptor) ([]byte, error
 }
 
 // DecodeMsgFrom decode message from reader
-func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetMessage) error {
+var DecodeMsgFrom = func(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetMessage) error {
 	var head = NewNetV1Header()
 	body, err := ReadHeadBody(rd, head, maxSize)
 	if err != nil {
@@ -157,7 +158,7 @@ func DecodeMsgFrom(rd io.Reader, maxSize uint32, decrypt Encryptor, netMsg *NetM
 	return DecodeNetMsg(head, body, decrypt, netMsg)
 }
 
-func DecodeNetMsg(head NetV1Header, body []byte, decrypt Encryptor, netMsg *NetMessage) error {
+var DecodeNetMsg = func(head NetV1Header, body []byte, decrypt Encryptor, netMsg *NetMessage) error {
 	var err error
 	body, err = DecodeMsgBody(head.Flag(), body, decrypt)
 	if err != nil {
@@ -170,7 +171,7 @@ func DecodeNetMsg(head NetV1Header, body []byte, decrypt Encryptor, netMsg *NetM
 }
 
 // EncodeMsgTo encode message to writer
-func EncodeMsgTo(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
+var EncodeMsgTo = func(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error {
 	var flags MsgFlag
 	if err := netMsg.Encode(); err != nil {
 		return err
