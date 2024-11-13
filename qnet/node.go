@@ -39,13 +39,13 @@ func (n NodeID) IsSession() bool {
 	return n < NodeBackendTypeMask
 }
 
-// ServiceType 服务型
-func (n NodeID) ServiceType() int16 {
+// Service 服务型
+func (n NodeID) Service() int16 {
 	return int16(n >> NodeInstanceShift)
 }
 
-// InstanceID 节点的实例编号
-func (n NodeID) InstanceID() uint32 {
+// Instance 节点的实例编号
+func (n NodeID) Instance() uint32 {
 	return uint32(n)
 }
 
@@ -62,7 +62,7 @@ func (n NodeID) String() string {
 	if n.IsSession() {
 		return fmt.Sprintf("G%d#%d", n.GateID(), n.Session())
 	}
-	return fmt.Sprintf("%02X#%d", n.ServiceType(), n.InstanceID())
+	return fmt.Sprintf("%02X#%d", n.Service(), n.Instance())
 }
 
 // NodeIDSet 没有重复ID的有序集合

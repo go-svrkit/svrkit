@@ -5,10 +5,9 @@ package slice
 
 import (
 	"math/rand"
+	"slices"
 	"sort"
 	"testing"
-
-	"golang.org/x/exp/slices"
 )
 
 func TestOrderedInsert(t *testing.T) {

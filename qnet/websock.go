@@ -16,6 +16,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/websocket"
+
 	"gopkg.in/svrkit.v1/zlog"
 )
 
@@ -161,7 +162,7 @@ func (t *WebsockSession) writePump(ctx context.Context) {
 	}
 }
 
-func (t *WebsockSession) readMessage(netMsg *NetMessage) error {
+func (t *WebsockSession) ReadMessage(netMsg *NetMessage) error {
 	if t.conn == nil {
 		return ErrConnClosed
 	}
@@ -208,7 +209,7 @@ func (t *WebsockSession) readPump(ctx context.Context) {
 
 	for t.IsRunning() {
 		var netMsg = AllocNetMessage()
-		if err := t.readMessage(netMsg); err != nil {
+		if err := t.ReadMessage(netMsg); err != nil {
 			if err != io.EOF {
 				zlog.Errorf("session %v read packet %v", t.Node, err)
 			}
