@@ -163,3 +163,23 @@ func TestMapIntersect(t *testing.T) {
 		})
 	}
 }
+
+func TestMapAdd(t *testing.T) {
+	tests := []struct {
+		m1   map[int]int
+		m2   map[int]int
+		want map[int]int
+	}{
+		{nil, nil, nil},
+		{map[int]int{1: 1}, nil, map[int]int{1: 1}},
+		{nil, map[int]int{1: 1}, map[int]int{1: 1}},
+		{map[int]int{1: 2, 3: 4}, map[int]int{1: 1, 4: 5}, map[int]int{1: 3, 3: 4, 4: 5}},
+	}
+	for i, tt := range tests {
+		var name = fmt.Sprintf("case-%d", i+1)
+		t.Run(name, func(t *testing.T) {
+			var out = MapAdd(tt.m1, tt.m2)
+			assert.True(t, maps.Equal(tt.want, out))
+		})
+	}
+}

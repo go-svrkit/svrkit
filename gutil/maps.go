@@ -85,3 +85,17 @@ func MapIntersect[M ~map[K]V, K, V comparable](a, b M) M {
 	}
 	return result
 }
+
+// MapAdd 把b的所有值加到a里
+func MapAdd[M ~map[K]V, K comparable, V cmp.Ordered](a, b M) M {
+	if len(b) == 0 {
+		return a
+	}
+	if len(a) == 0 {
+		return maps.Clone(b)
+	}
+	for k, v := range b {
+		a[k] += v
+	}
+	return a
+}
