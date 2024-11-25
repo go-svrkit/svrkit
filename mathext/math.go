@@ -6,7 +6,6 @@ package mathext
 import (
 	"math"
 	"math/bits"
-	"math/rand"
 )
 
 func Max[T Number](x, y T) T {
@@ -68,59 +67,6 @@ func SafeMulInt64(a, b int64) (product int64, overflow bool) {
 		return -int64(lo), false
 	}
 	return int64(lo), false
-}
-
-// LCG 线性同余法的随机数生成器
-// see https://en.wikipedia.org/wiki/Linear_congruential_generator
-type LCG struct {
-	seed uint32
-}
-
-func (g *LCG) Seed(seed uint32) {
-	g.seed = seed*214013 + 2531011
-}
-
-func (g *LCG) Rand() uint32 {
-	g.seed = g.seed*214013 + 2531011
-	var r = uint32(g.seed>>16) & 0x7fff
-	return r
-}
-
-// RandInt rand an integer in [min, max]
-func RandInt(min, max int) int {
-	if min > max {
-		panic("RandInt,min greater than max")
-	}
-	if min == max {
-		return min
-	}
-	return rand.Intn(max-min+1) + min
-}
-
-// RandFloat rand a float number in [min, max]
-func RandFloat(min, max float64) float64 {
-	if min > max {
-		panic("RandFloat: min greater than max")
-	}
-	if min == max {
-		return min
-	}
-	return rand.Float64()*(max-min) + min
-}
-
-// RangePerm [min,max]区间内的随机数集合
-func RangePerm(min, max int) []int {
-	if min > max {
-		panic("RangePerm: min greater than max")
-	}
-	if min == max {
-		return []int{min}
-	}
-	list := rand.Perm(max - min + 1)
-	for i := 0; i < len(list); i++ {
-		list[i] += min
-	}
-	return list
 }
 
 // Truncate 截断浮点数的`n`位后，n不应过大
