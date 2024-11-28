@@ -16,7 +16,7 @@ type ObjectPool[T any] struct {
 func NewObjectPool[T any]() *ObjectPool[T] {
 	return &ObjectPool[T]{
 		pool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return new(T)
 			},
 		},
@@ -26,7 +26,7 @@ func NewObjectPool[T any]() *ObjectPool[T] {
 func NewObjectPoolWith[T any](creator func() *T) *ObjectPool[T] {
 	return &ObjectPool[T]{
 		pool: sync.Pool{
-			New: func() interface{} {
+			New: func() any {
 				return creator()
 			},
 		},
@@ -34,9 +34,17 @@ func NewObjectPoolWith[T any](creator func() *T) *ObjectPool[T] {
 }
 
 func (a *ObjectPool[T]) Put(p *T) {
-	a.pool.Put(p)
+	if p != nil {
+		a.pool.Put(p)
+	}
 }
 
 func (a *ObjectPool[T]) Get() *T {
-	return a.pool.Get().(*T)
+	var p = a.pool.Get().(*T)
+	if p == nil {
+		return new(T)
+	}
+	var zero T
+	*p = zero
+	return p
 }
