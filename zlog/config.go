@@ -5,6 +5,7 @@ package zlog
 
 import (
 	"os"
+	"runtime"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -78,7 +79,11 @@ func CreateZapCore(c *Config) zapcore.Core {
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	}
 	if c.Encoding == "console" && IsTerminal(os.Stdout) {
-		encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		if runtime.GOOS == "windows" {
+			encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+		} else {
+			encoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		}
 	}
 	var enc zapcore.Encoder
 	if c.Encoding == "json" {
