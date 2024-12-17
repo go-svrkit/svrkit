@@ -9,6 +9,8 @@ import (
 	"slices"
 	"testing"
 	"unsafe"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func randText(n int) string {
@@ -234,4 +236,33 @@ func TestTreeMap_CeilingAndFloor(t *testing.T) {
 	if node := tree.CeilingEntry(8); node != nil {
 		t.Errorf("Got %v expected %v", node, "<nil>")
 	}
+}
+
+func TestTreeMap_Iterator(t *testing.T) {
+	tree := NewTreeMapCmp[int, string]()
+	tree.Put(5, "e")
+	tree.Put(6, "f")
+	tree.Put(7, "g")
+	tree.Put(3, "c")
+	tree.Put(4, "d")
+	tree.Put(1, "x")
+	tree.Put(2, "b")
+
+	var keys []int
+	var values []string
+	for k, v := range tree.IterSeq() {
+		keys = append(keys, k)
+		values = append(values, v)
+	}
+	assert.Equal(t, keys, []int{1, 2, 3, 4, 5, 6, 7})
+	assert.Equal(t, values, []string{"x", "b", "c", "d", "e", "f", "g"})
+
+	keys = keys[:0]
+	values = values[:0]
+	for k, v := range tree.IterBackwards() {
+		keys = append(keys, k)
+		values = append(values, v)
+	}
+	assert.Equal(t, keys, []int{7, 6, 5, 4, 3, 2, 1})
+	assert.Equal(t, values, []string{"g", "f", "e", "d", "c", "b", "x"})
 }

@@ -5,6 +5,7 @@ package collections
 
 import (
 	"cmp"
+	"iter"
 )
 
 // TreeMap is a Red-Black tree based map implementation.
@@ -285,25 +286,25 @@ func (m *TreeMap[K, V]) ToMap() map[K]V {
 	return unordered
 }
 
-//func (m *TreeMap[K, V]) Iterator() algext.Iterator[*TreeEntry[K, V]] {
-//	return NewEntryIterator(m, m.FirstEntry())
-//}
-//
-//func (m *TreeMap[K, V]) DescendingIterator() algext.Iterator[*TreeEntry[K, V]] {
-//	return NewKeyDescendingEntryIterator(m, m.getLastEntry())
-//}
-//
-//func (m *TreeMap[K, V]) KeyIterator() algext.Iterator[K] {
-//	return NewKeyIterator(m, m.FirstEntry())
-//}
-//
-//func (m *TreeMap[K, V]) DescendingKeyIterator() algext.Iterator[K] {
-//	return NewDescendingKeyIterator(m, m.getLastEntry())
-//}
-//
-//func (m *TreeMap[K, V]) ValueIterator() algext.Iterator[V] {
-//	return NewValueIterator(m, m.FirstEntry())
-//}
+func (m *TreeMap[K, V]) IterSeq() iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for e := m.getFirstEntry(); e != nil; e = successor(e) {
+			if !yield(e.Key, e.Value) {
+				break
+			}
+		}
+	}
+}
+
+func (m *TreeMap[K, V]) IterBackwards() iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for e := m.getLastEntry(); e != nil; e = predecessor(e) {
+			if !yield(e.Key, e.Value) {
+				break
+			}
+		}
+	}
+}
 
 // Put associates the specified Value with the specified Key in this map.
 // If the map previously contained a mapping for the Key, the old Value is replaced.
@@ -882,4 +883,10 @@ func predecessor[K comparable, V any](t *TreeEntry[K, V]) *TreeEntry[K, V] {
 		}
 		return p
 	}
+}
+
+type TreeIterator[K comparable, V any] struct {
+	tree     *TreeMap[K, V]
+	node     *TreeEntry[K, V]
+	position int8
 }
