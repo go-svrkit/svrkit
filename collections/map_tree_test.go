@@ -5,23 +5,11 @@ package collections
 
 import (
 	"fmt"
-	"math/rand"
 	"slices"
 	"testing"
-	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 )
-
-func randText(n int) string {
-	const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	var b = make([]byte, n)
-	for i := range b {
-		idx := rand.Int() % len(alphabet)
-		b[i] = alphabet[idx]
-	}
-	return unsafe.String(unsafe.SliceData(b), len(b))
-}
 
 func TestTreeMap_Get(t *testing.T) {
 	tree := NewTreeMapCmp[int, string]()
@@ -265,4 +253,19 @@ func TestTreeMap_Iterator(t *testing.T) {
 	}
 	assert.Equal(t, keys, []int{7, 6, 5, 4, 3, 2, 1})
 	assert.Equal(t, values, []string{"g", "f", "e", "d", "c", "b", "x"})
+}
+
+func TestTreeMap_String(t *testing.T) {
+	tree := NewTreeMapCmp[int, string]()
+	tree.Put(5, "e")
+	tree.Put(6, "f")
+	tree.Put(7, "g")
+	tree.Put(3, "c")
+	tree.Put(4, "d")
+	tree.Put(1, "x")
+	tree.Put(2, "b")
+
+	var mm = tree.CloneMap()
+	t.Logf("%v", mm)
+	t.Logf("%v", tree.String())
 }

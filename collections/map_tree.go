@@ -5,14 +5,11 @@ package collections
 
 import (
 	"cmp"
+	"fmt"
 	"iter"
+	"strings"
 )
 
-// TreeMap is a Red-Black tree based map implementation.
-// The map is sorted by a comparator passed to its constructor.
-// This implementation provides guaranteed log(n) time cost for the
-// ContainsKey(), Get(), Put() and Remove() operations.
-//
 // detail code taken from JDK, see links below
 // https://github.com/openjdk/jdk/blob/jdk-11+28/src/java.base/share/classes/java/util/TreeMap.java
 
@@ -93,6 +90,11 @@ func (e *TreeEntry[K, V]) Size() int {
 	return size
 }
 
+// TreeMap is a Red-Black tree based map implementation.
+// The map is sorted by a comparator passed to its constructor.
+// This implementation provides guaranteed log(n) time cost for the
+// Contains(), Get(), Put() and Remove() operations.
+// Algorithms are adaptations of those in Cormen, Leiserson, and Rivest's <Introduction to Algorithms>.
 type TreeMap[K comparable, V any] struct {
 	root    *TreeEntry[K, V] // root node of the tree
 	compare Comparator[K]    // The comparator used to maintain order in this tree map
@@ -131,8 +133,8 @@ func (m *TreeMap[K, V]) IsEmpty() bool {
 	return m.size == 0
 }
 
-// ContainsKey return true if this map contains a mapping for the specified Key
-func (m *TreeMap[K, V]) ContainsKey(key K) bool {
+// Contains return true if this map contains a mapping for the specified Key
+func (m *TreeMap[K, V]) Contains(key K) bool {
 	return m.getEntry(key) != nil
 }
 
@@ -234,18 +236,6 @@ func (m *TreeMap[K, V]) HigherKey(key K) (K, bool) {
 	return zero, false
 }
 
-// Foreach performs the given action for each entry in this map until all entries
-// have been processed or the action panic
-func (m *TreeMap[K, V]) Foreach(visit KeyValVisitor[K, V]) {
-	var ver = m.version
-	for e := m.FirstEntry(); e != nil; e = successor(e) {
-		visit(e.Key, e.Value)
-		if ver != m.version {
-			panic("concurrent map modification")
-		}
-	}
-}
-
 // Range calls f sequentially for each Key and Value present in the map.
 // If f returns false, range stops the iteration.
 func (m *TreeMap[K, V]) Range(visit func(key K, value V) (shouldContinue bool)) {
@@ -256,6 +246,26 @@ func (m *TreeMap[K, V]) Range(visit func(key K, value V) (shouldContinue bool)) 
 		}
 		if ver != m.version {
 			panic("concurrent map modification")
+		}
+	}
+}
+
+func (m *TreeMap[K, V]) IterSeq() iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for e := m.getFirstEntry(); e != nil; e = successor(e) {
+			if !yield(e.Key, e.Value) {
+				break
+			}
+		}
+	}
+}
+
+func (m *TreeMap[K, V]) IterBackwards() iter.Seq2[K, V] {
+	return func(yield func(K, V) bool) {
+		for e := m.getLastEntry(); e != nil; e = predecessor(e) {
+			if !yield(e.Key, e.Value) {
+				break
+			}
 		}
 	}
 }
@@ -278,7 +288,7 @@ func (m *TreeMap[K, V]) Values() []V {
 	return values
 }
 
-func (m *TreeMap[K, V]) ToMap() map[K]V {
+func (m *TreeMap[K, V]) CloneMap() map[K]V {
 	var unordered = make(map[K]V, m.size)
 	for e := m.FirstEntry(); e != nil; e = successor(e) {
 		unordered[e.Key] = e.Value
@@ -286,24 +296,19 @@ func (m *TreeMap[K, V]) ToMap() map[K]V {
 	return unordered
 }
 
-func (m *TreeMap[K, V]) IterSeq() iter.Seq2[K, V] {
-	return func(yield func(K, V) bool) {
-		for e := m.getFirstEntry(); e != nil; e = successor(e) {
-			if !yield(e.Key, e.Value) {
-				break
-			}
+func (m *TreeMap[K, V]) String() string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	var cnt = 0
+	for k, v := range m.IterSeq() {
+		fmt.Fprintf(&sb, "%v:%v", k, v)
+		cnt++
+		if cnt < m.size {
+			sb.WriteString(" ")
 		}
 	}
-}
-
-func (m *TreeMap[K, V]) IterBackwards() iter.Seq2[K, V] {
-	return func(yield func(K, V) bool) {
-		for e := m.getLastEntry(); e != nil; e = predecessor(e) {
-			if !yield(e.Key, e.Value) {
-				break
-			}
-		}
-	}
+	sb.WriteString("]")
+	return sb.String()
 }
 
 // Put associates the specified Value with the specified Key in this map.
@@ -883,10 +888,4 @@ func predecessor[K comparable, V any](t *TreeEntry[K, V]) *TreeEntry[K, V] {
 		}
 		return p
 	}
-}
-
-type TreeIterator[K comparable, V any] struct {
-	tree     *TreeMap[K, V]
-	node     *TreeEntry[K, V]
-	position int8
 }

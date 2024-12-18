@@ -11,13 +11,17 @@ import (
 
 // MapInterface is the interface SyncMap implements.
 type MapInterface[K comparable, V any] interface {
+	Size() int
+	Contains(K) bool
 	Load(K) (V, bool)
 	Store(key K, value V)
 	LoadOrStore(key K, value V) (actual V, loaded bool)
 	LoadAndDelete(key K) (value V, loaded bool)
 	Delete(K)
-	Swap(key K, value V) (previous V, loaded bool)
 	Range(func(key K, value V) (shouldContinue bool))
+	Keys() []K
+	Values() []V
+	CloneMap() map[K]V
 }
 
 var _ MapInterface[int, int] = (*MutexMap[int, int])(nil)
@@ -34,6 +38,13 @@ func (m *MutexMap[K, V]) Size() int {
 	size := len(m.dirty)
 	m.mu.RUnlock()
 	return size
+}
+
+func (m *MutexMap[K, V]) Contains(key K) bool {
+	m.mu.RLock()
+	_, ok := m.dirty[key]
+	m.mu.RUnlock()
+	return ok
 }
 
 func (m *MutexMap[K, V]) IsEmpty() bool {
@@ -60,7 +71,7 @@ func (m *MutexMap[K, V]) Values() []V {
 	return values
 }
 
-func (m *MutexMap[K, V]) ToMap() map[K]V {
+func (m *MutexMap[K, V]) CloneMap() map[K]V {
 	m.mu.RLock()
 	var clone = maps.Clone(m.dirty)
 	m.mu.RUnlock()
@@ -95,18 +106,6 @@ func (m *MutexMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
 	}
 	m.mu.Unlock()
 	return actual, loaded
-}
-
-func (m *MutexMap[K, V]) Swap(key K, value V) (previous V, loaded bool) {
-	m.mu.Lock()
-	if m.dirty == nil {
-		m.dirty = make(map[K]V)
-	}
-
-	previous, loaded = m.dirty[key]
-	m.dirty[key] = value
-	m.mu.Unlock()
-	return
 }
 
 func (m *MutexMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
