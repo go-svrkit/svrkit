@@ -15,9 +15,10 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
+
 	"gopkg.in/svrkit.v1/conv"
 	"gopkg.in/svrkit.v1/gutil"
-	"gopkg.in/svrkit.v1/zlog"
+	"gopkg.in/svrkit.v1/qlog"
 )
 
 const (
@@ -173,7 +174,7 @@ func WriteProtoHTTPResponse(w http.ResponseWriter, msg proto.Message, contentTyp
 		var err error
 		data, err = gutil.MarshalProtoJSON(msg)
 		if err != nil {
-			zlog.Errorf("WriteProtoResponse: MarshalProtoJSON: %v", err)
+			qlog.Errorf("WriteProtoResponse: MarshalProtoJSON: %v", err)
 			return err
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -181,7 +182,7 @@ func WriteProtoHTTPResponse(w http.ResponseWriter, msg proto.Message, contentTyp
 	default:
 		rawbytes, err := proto.Marshal(msg)
 		if err != nil {
-			zlog.Errorf("WriteProtoResponse: pb.Marshal: %v", err)
+			qlog.Errorf("WriteProtoResponse: pb.Marshal: %v", err)
 			return err
 		}
 		w.Header().Set("Content-Type", "application/octet-stream")
@@ -195,14 +196,14 @@ func WriteProtoHTTPResponse(w http.ResponseWriter, msg proto.Message, contentTyp
 func GetLocalIPList() []net.IP {
 	inetfaces, err := net.Interfaces()
 	if err != nil {
-		zlog.Errorf("cannot fetch net interfaces: %v", err)
+		qlog.Errorf("cannot fetch net interfaces: %v", err)
 		return nil
 	}
 	var ipList []net.IP
 	for _, inetface := range inetfaces {
 		addrs, err := inetface.Addrs()
 		if err != nil {
-			zlog.Errorf("cannot fetch net address: %v", err)
+			qlog.Errorf("cannot fetch net address: %v", err)
 			continue
 		}
 		for _, addr := range addrs {

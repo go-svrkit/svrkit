@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"gopkg.in/svrkit.v1/gutil"
+	"gopkg.in/svrkit.v1/qlog"
 	"gopkg.in/svrkit.v1/qnet"
-	"gopkg.in/svrkit.v1/zlog"
 
 	"github.com/golang/protobuf/proto"
 )
@@ -146,7 +146,7 @@ func onError(msg *qnet.NetMessage, err any) {
 	var sb strings.Builder
 	var title = fmt.Sprintf("dispatch message %d", msg.Command)
 	gutil.TraceStack(1, title, err, &sb)
-	zlog.Error(sb.String())
+	qlog.Error(sb.String())
 }
 
 func G() *Dispatcher {
@@ -155,7 +155,7 @@ func G() *Dispatcher {
 
 func Register[F IHandler](cmd uint32, action F) {
 	if dp.HasRegistered(cmd) {
-		zlog.Warnf("duplicate handler registration of message %d", cmd)
+		qlog.Warnf("duplicate handler registration of message %d", cmd)
 	}
 	if action != nil {
 		dp.handlers[cmd] = action

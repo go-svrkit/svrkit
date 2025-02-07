@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package zlog
+package qlog
 
 import (
 	"os"
@@ -22,4 +22,11 @@ func TestIsTerminal(t *testing.T) {
 	assert.True(t, IsTerminal(os.Stderr))
 	var sb strings.Builder
 	assert.False(t, IsTerminal(&sb))
+}
+
+func TestAppendFileLog(t *testing.T) {
+	err := AppendFileLog("test.log", "hello")
+	assert.Nil(t, err)
+	err = AppendFileLog("test.log", "world")
+	assert.Nil(t, err)
 }

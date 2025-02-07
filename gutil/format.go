@@ -13,7 +13,8 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
-	"gopkg.in/svrkit.v1/zlog"
+
+	"gopkg.in/svrkit.v1/qlog"
 )
 
 const (
@@ -37,7 +38,7 @@ func JSONParse(s string, v any) error {
 func JSONStringify(v any) string {
 	data, err := json.Marshal(v)
 	if err != nil {
-		zlog.Errorf("JSONStringify %T: %v", v, err)
+		qlog.Errorf("JSONStringify %T: %v", v, err)
 		return ""
 	}
 	return unsafe.String(unsafe.SliceData(data), len(data))

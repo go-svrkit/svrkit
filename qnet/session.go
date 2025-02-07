@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/svrkit.v1/zlog"
+	"gopkg.in/svrkit.v1/qlog"
 )
 
 const WriteBufferReuseSize = 1 << 14
@@ -73,7 +73,7 @@ func (t *TcpSession) Close() error {
 	}
 	if conn, ok := t.conn.(*net.TCPConn); ok {
 		if err := conn.CloseRead(); err != nil {
-			zlog.Infof("%v close read: %v", t.Node, err)
+			qlog.Infof("%v close read: %v", t.Node, err)
 		}
 	}
 	t.finally(ErrConnForceClose) // 阻塞等待投递剩余的消息
@@ -87,7 +87,7 @@ func (t *TcpSession) ForceClose(reason error) {
 
 	if conn, ok := t.conn.(*net.TCPConn); ok {
 		if err := conn.CloseRead(); err != nil {
-			zlog.Infof("%v close read: %v", t.Node, err)
+			qlog.Infof("%v close read: %v", t.Node, err)
 		}
 	}
 	go t.finally(reason) // 不阻塞等待
@@ -131,7 +131,7 @@ func (t *TcpSession) flush() {
 			}
 			buf.Reset()
 			if err := t.write(netMsg, &buf); err != nil {
-				zlog.Errorf("%v flush message %v: %v", t.Node, netMsg.Command, err)
+				qlog.Errorf("%v flush message %v: %v", t.Node, netMsg.Command, err)
 			}
 		default:
 			return
@@ -153,10 +153,10 @@ func (t *TcpSession) writePump(ctx context.Context) {
 	defer func() {
 		t.flush()
 		t.wg.Done()
-		zlog.Debugf("TcpSession: node %v writer stopped", t.Node)
+		qlog.Debugf("TcpSession: node %v writer stopped", t.Node)
 	}()
 
-	//zlog.Debugf("TcpSession: node %v(%v) writer started", t.node, t.addr)
+	//qlog.Debugf("TcpSession: node %v(%v) writer started", t.node, t.addr)
 	var buf = new(bytes.Buffer)
 	for {
 		select {
@@ -171,7 +171,7 @@ func (t *TcpSession) writePump(ctx context.Context) {
 				buf = new(bytes.Buffer)
 			}
 			if err := t.write(netMsg, buf); err != nil {
-				zlog.Errorf("%v write message %v: %v", t.Node, netMsg.Command, err)
+				qlog.Errorf("%v write message %v: %v", t.Node, netMsg.Command, err)
 				continue
 			}
 
@@ -191,7 +191,7 @@ func (t *TcpSession) readMessage(rd io.Reader, netMsg *NetMessage) error {
 	}
 	var deadline = time.Now().Add(TCPReadTimeout)
 	if err := t.conn.SetReadDeadline(deadline); err != nil {
-		zlog.Errorf("session %v set read deadline: %v", t.Node, err)
+		qlog.Errorf("session %v set read deadline: %v", t.Node, err)
 	}
 	t.recvHead.Clear()
 	body, err := ReadHeadBody(rd, t.recvHead, maxSize)
@@ -209,16 +209,16 @@ func (t *TcpSession) readMessage(rd io.Reader, netMsg *NetMessage) error {
 func (t *TcpSession) readPump(ctx context.Context) {
 	defer func() {
 		t.wg.Done()
-		zlog.Debugf("TcpSession: node %v reader stopped", t.Node)
+		qlog.Debugf("TcpSession: node %v reader stopped", t.Node)
 	}()
 
-	//zlog.Debugf("TcpSession: node %v(%v) reader started", t.node, t.addr)
+	//qlog.Debugf("TcpSession: node %v(%v) reader started", t.node, t.addr)
 	var rd = bufio.NewReader(t.conn)
 	for t.IsRunning() {
 		var netMsg = AllocNetMessage()
 		if err := t.readMessage(rd, netMsg); err != nil {
 			if err != io.EOF {
-				zlog.Errorf("session %v read packet %v", t.Node, err)
+				qlog.Errorf("session %v read packet %v", t.Node, err)
 			}
 			t.ForceClose(err) // I/O超时或者发生错误，强制关闭连接
 			return

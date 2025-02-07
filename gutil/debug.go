@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/svrkit.v1/zlog"
+	"gopkg.in/svrkit.v1/qlog"
 )
 
 const timestampLayout = "2006-01-02T15:04:05.000-0700" // IOS8601
@@ -31,18 +31,18 @@ func CatchPanic(title string) {
 		var sb strings.Builder
 		fmt.Fprintf(&sb, "%s\n%v\nstack traceback[%s] (most recent calls):", title, v, now.Format(timestampLayout))
 		fmt.Fprintf(&sb, "%v\n", stack)
-		zlog.Error(sb.String())
+		qlog.Error(sb.String())
 	}
 }
 
 func StartProfiler(addr string) {
 	go func() {
-		zlog.Infof("listen pprof at %s", addr)
+		qlog.Infof("listen pprof at %s", addr)
 		var httpServer = &http.Server{
 			Addr: addr,
 		}
 		if err := httpServer.ListenAndServe(); err != nil {
-			zlog.Infof("%v", err)
+			qlog.Infof("%v", err)
 		}
 	}()
 }

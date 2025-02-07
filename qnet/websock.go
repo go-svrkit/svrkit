@@ -17,7 +17,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/websocket"
 
-	"gopkg.in/svrkit.v1/zlog"
+	"gopkg.in/svrkit.v1/qlog"
 )
 
 type WsRecvMsg struct {
@@ -139,7 +139,7 @@ func (t *WebsockSession) write(netMsg *NetMessage) error {
 func (t *WebsockSession) writePump(ctx context.Context) {
 	defer func() {
 		t.wg.Done()
-		zlog.Debugf("WebsockSession: node %v writer stopped", t.Node)
+		qlog.Debugf("WebsockSession: node %v writer stopped", t.Node)
 	}()
 
 	for {
@@ -149,7 +149,7 @@ func (t *WebsockSession) writePump(ctx context.Context) {
 				return
 			}
 			if err := t.write(netMsg); err != nil {
-				zlog.Errorf("%v write message %v: %v", t.Node, netMsg.Command, err)
+				qlog.Errorf("%v write message %v: %v", t.Node, netMsg.Command, err)
 				continue
 			}
 
@@ -168,7 +168,7 @@ func (t *WebsockSession) ReadMessage(netMsg *NetMessage) error {
 	}
 	var deadline = time.Now().Add(TCPReadTimeout)
 	if err := t.conn.SetReadDeadline(deadline); err != nil {
-		zlog.Errorf("session %v set read deadline: %v", t.Node, err)
+		qlog.Errorf("session %v set read deadline: %v", t.Node, err)
 	}
 	msgType, data, err := t.conn.ReadMessage()
 	if err != nil {
@@ -204,14 +204,14 @@ func (t *WebsockSession) ReadMessage(netMsg *NetMessage) error {
 func (t *WebsockSession) readPump(ctx context.Context) {
 	defer func() {
 		t.wg.Done()
-		zlog.Debugf("WebsockSession: node %v reader stopped", t.Node)
+		qlog.Debugf("WebsockSession: node %v reader stopped", t.Node)
 	}()
 
 	for t.IsRunning() {
 		var netMsg = AllocNetMessage()
 		if err := t.ReadMessage(netMsg); err != nil {
 			if err != io.EOF {
-				zlog.Errorf("session %v read packet %v", t.Node, err)
+				qlog.Errorf("session %v read packet %v", t.Node, err)
 			}
 			t.ForceClose(err) // I/O超时或者发生错误，强制关闭连接
 			return

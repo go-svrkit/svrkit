@@ -11,27 +11,23 @@ import (
 	"time"
 )
 
-// 一个64位UUID由以下部分组成
+// UUID雪花算法
 //
-//	1位符号位
-//	2位时钟回拨标记，时钟最多被回拨3次
-//	36位时间戳（厘秒），~=21y288d, 最大可以表示到2045-10-10
-//	13位服务器ID，最大服务器ID=8191
-//	12位序列号，单个时间单位的最大分配数量（4096/毫秒）
-const (
-	SequenceBits       = 12
-	WorkerIDBits       = 13
-	TimeUnitBits       = 36
-	ClockBackwardsBits = 2
-	WorkIDMask         = 1<<WorkerIDBits - 1
-	MaxSeqID           = (1 << SequenceBits) - 1
-	TimestampShift     = WorkerIDBits + SequenceBits
-	MaxTimeUnits       = (1 << TimeUnitBits) - 1
-	BackwardsMaskShift = TimeUnitBits + WorkerIDBits + SequenceBits
-
-	TimeUnit    = int64(time.Millisecond * 10)    // 厘秒（10毫秒）
-	CustomEpoch = int64(1704038400 * time.Second) // 起始纪元 2024-01-01 00:00:00 UTC
-)
+// 1，唯一和递增
+// 	分布式环境下部署的雪花ID只保证了唯一性，多个节点生成的ID范围无法保证顺序性（递增），因为ID的分段包含了服务ID，在同个时间
+// 	单元内(10ms)服务A按时钟后生成的ID会小于服务B按时钟先生成的ID。
+//
+// 2，时钟回拨问题
+// 	雪花算法的UUID的生成依赖系统时钟，如果系统时钟被回拨，会有潜在的生成重复ID的情况。
+//   a, 系统时钟被人为回拨，需要业务层提供逻辑时钟机制
+//   b, NTP同步和UTC闰秒(https://en.wikipedia.org/wiki/Leap_second)
+//
+// 设计中增加了时钟回拨标记位，可以让系统(重启前)在时钟被回拨时仍正确工作，但时钟回拨标记位有限并且未存档，时钟回拨位用完后
+// 如果系统有重启，仍然会有ID重复的可能。
+//
+// 3. worker ID的分配
+// workerID跟原版实现一样人工分配，靠配置参数保证唯一性
+//
 
 var (
 	ErrClockGoneBackwards = errors.New("clock gone backwards")
@@ -39,20 +35,27 @@ var (
 	ErrUUIDIntOverflow    = errors.New("uuid integer overflow")
 )
 
-// 1，唯一和递增
-// 分布式环境下部署的雪花ID只保证了唯一性，多个节点生成的ID范围无法保证顺序性（递增），因为ID的分段包含了服务ID，在同个时间
-// 单元内(10ms)服务A按时钟后生成的ID会小于服务B按时钟先生成的ID。
+// 一个64位UUID由以下部分组成
 //
-// 2，时钟回拨问题
-// 雪花算法的UUID的生成依赖系统时钟，如果系统时钟被回拨，会有潜在的生成重复ID的情况。
-//   a, 系统时钟被人为回拨，需要业务层提供逻辑时钟机制
-//   b, NTP同步和UTC闰秒(https://en.wikipedia.org/wiki/Leap_second)
-//
-// 设计中增加了时钟回拨标记位，可以让系统(重启前)在时钟被回拨时仍正确工作，但时钟回拨标记位有限并且未存档，时钟回拨位用完后
-// 如果系统有重启，仍然会有ID重复的可能。
-//
-// 3. Worker ID的分配
-// WorkerID跟原版实现一样人工分配，靠配置参数保证唯一性
+//	1位符号位
+//	1位时钟回拨标记
+//	37位时间戳（厘秒），最大可以表示到2067-07-20
+//	13位服务器ID，最大服务器ID=8191
+//	12位序列号，单个时间单位的最大分配数量（4096/毫秒）
+const (
+	SequenceBits       = 12
+	WorkerIDBits       = 13
+	TimeUnitBits       = 37
+	ClockBackwardsBits = 1
+	WorkIDMask         = 1<<WorkerIDBits - 1
+	MaxSeqID           = (1 << SequenceBits) - 1
+	TimestampShift     = WorkerIDBits + SequenceBits
+	MaxTimeUnits       = (1 << TimeUnitBits) - 1
+	BackwardsMaskShift = TimeUnitBits + WorkerIDBits + SequenceBits
+
+	TimeUnit    = int64(time.Millisecond * 10)    // 厘秒（10毫秒）
+	CustomEpoch = int64(time.Second * 1704038400) // 起始纪元 2024-01-01 00:00:00 UTC
+)
 
 type Snowflake struct {
 	guard        sync.Mutex // 线程安全
@@ -150,7 +153,7 @@ func (sf *Snowflake) Next() (int64, error) {
 	sf.lastTimeUnit = curTimeUnits
 	var id = (sf.backwards << BackwardsMaskShift) | (curTimeUnits << TimestampShift) | (sf.workerId << SequenceBits) | sf.seq
 	if id <= sf.lastID {
-		return 0, ErrUUIDIntOverflow
+		return 0, ErrUUIDIntOverflow // int64数值溢出
 	}
 	sf.lastID = id
 	return id, nil

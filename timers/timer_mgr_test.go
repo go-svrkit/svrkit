@@ -9,8 +9,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"gopkg.in/svrkit.v1/qlog"
 	"gopkg.in/svrkit.v1/sched"
-	"gopkg.in/svrkit.v1/zlog"
 )
 
 func preprocess(msg *TimeoutMsg) bool {
@@ -19,7 +20,7 @@ func preprocess(msg *TimeoutMsg) bool {
 		var runner = msg.Data.(sched.IRunner)
 		if runner != nil {
 			if err := runner.Run(); err != nil {
-				zlog.Errorf("run timeout msg %d %T: %v", msg.Action, runner, err)
+				qlog.Errorf("run timeout msg %d %T: %v", msg.Action, runner, err)
 			}
 		}
 		return true
