@@ -96,11 +96,11 @@ func (c *Consistent) Remove(node uint64) bool {
 func (c *Consistent) Clear() {
 	clear(c.circle)
 	clear(c.nodes)
-	clear(c.sortedHash)
+	c.sortedHash = nil
 }
 
 func (c *Consistent) Members() []string {
-	var nodes = make([]string, len(c.nodes))
+	var nodes = make([]string, 0, len(c.nodes))
 	for elem, _ := range c.nodes {
 		nodes = append(nodes, elem)
 	}

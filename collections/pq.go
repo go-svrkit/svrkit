@@ -16,6 +16,8 @@ type PQItem[T any] struct {
 // A PriorityQueue implements heap.Interface and holds Items.
 type PriorityQueue[T any] []*PQItem[T]
 
+var _ heap.Interface = (*PriorityQueue[int])(nil)
+
 func (pq PriorityQueue[T]) Len() int { return len(pq) }
 
 func (pq PriorityQueue[T]) Less(i, j int) bool {

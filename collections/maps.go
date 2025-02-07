@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package gutil
+package collections
 
 import (
 	"cmp"
@@ -77,7 +77,7 @@ func MapUnion[M ~map[K]V, K comparable, V any](a, b M) M {
 
 // MapIntersect 返回两个map的交集, a ∩ b
 func MapIntersect[M ~map[K]V, K, V comparable](a, b M) M {
-	var result = make(map[K]V)
+	var result = make(M)
 	for k, v := range a {
 		if val, ok := b[k]; ok && val == v {
 			result[k] = v

@@ -36,8 +36,10 @@ func (bm BitMap64) TestBit(i int) bool {
 }
 
 func (bm BitMap64) SetBit(i int) {
-	var v = uint64(1) << (i % bitsPerWord)
-	bm[i/bitsPerWord] |= v // 这里不进行边界检查
+	if i >= 0 && i < len(bm)*bitsPerWord {
+		var v = uint64(1) << (i % bitsPerWord)
+		bm[i/bitsPerWord] |= v
+	}
 }
 
 // MustSetBit 指定位是否为1，并且自动增长数组
@@ -54,13 +56,17 @@ func (bm BitMap64) MustSetBit(i int) BitMap64 {
 
 // ClearBit clears the bit at the given index.
 func (bm BitMap64) ClearBit(i int) {
-	var v = uint64(1) << (i % bitsPerWord)
-	bm[i/bitsPerWord] &= ^v // 这里不进行边界检查
+	if i >= 0 && i < len(bm)*bitsPerWord {
+		var v = uint64(1) << (i % bitsPerWord)
+		bm[i/bitsPerWord] &= ^v
+	}
 }
 
 // FlipBit flips the bit at the given index.
 func (bm BitMap64) FlipBit(i int) {
-	bm[i/bitsPerWord] ^= 1 << (i % bitsPerWord)
+	if i >= 0 && i < len(bm)*bitsPerWord {
+		bm[i/bitsPerWord] ^= 1 << (i % bitsPerWord)
+	}
 }
 
 // TestAndSetBit returns the old Value of the bit at the given index and sets it to 1.
@@ -121,6 +127,7 @@ func (bm BitMap64) String() string {
 func (bm BitMap64) FormattedString(width int) string {
 	var size = len(bm) * bitsPerWord
 	var sb strings.Builder
+	sb.Grow(size + size/width + 1)
 	var n = 0
 	for i := 0; i < size; i++ {
 		if n%width == 0 {
@@ -152,8 +159,10 @@ func (bm BitMap8) TestBit(i int) bool {
 }
 
 func (bm BitMap8) SetBit(i int) {
-	var v = uint8(1) << (i % bitsPerByte)
-	bm[i/bitsPerByte] |= v // 这里不进行边界检查
+	if i >= 0 && i < len(bm)*bitsPerByte {
+		var v = uint8(1) << (i % bitsPerByte)
+		bm[i/bitsPerByte] |= v
+	}
 }
 
 // MustSetBit 指定位是否为1，并且自动增长数组
@@ -170,13 +179,17 @@ func (bm BitMap8) MustSetBit(i int) BitMap8 {
 
 // ClearBit clears the bit at the given index.
 func (bm BitMap8) ClearBit(i int) {
-	var v = uint8(1) << (i % bitsPerByte)
-	bm[i/bitsPerByte] &= ^v // 这里不进行边界检查
+	if i >= 0 && i < len(bm)*bitsPerByte {
+		var v = uint8(1) << (i % bitsPerByte)
+		bm[i/bitsPerByte] &= ^v
+	}
 }
 
 // FlipBit flips the bit at the given index.
 func (bm BitMap8) FlipBit(i int) {
-	bm[i/bitsPerByte] ^= 1 << (i % bitsPerByte)
+	if i >= 0 && i < len(bm)*bitsPerByte {
+		bm[i/bitsPerByte] ^= 1 << (i % bitsPerByte)
+	}
 }
 
 // TestAndSetBit returns the old Value of the bit at the given index and sets it to 1.
@@ -236,6 +249,7 @@ func (bm BitMap8) String() string {
 func (bm BitMap8) FormattedString(width int) string {
 	var size = len(bm) * bitsPerByte
 	var sb strings.Builder
+	sb.Grow(size + size/width + 1)
 	var n = 0
 	for i := 0; i < size; i++ {
 		if n%width == 0 {

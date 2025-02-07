@@ -11,8 +11,8 @@ import (
 )
 
 // 常用的数组操作，配合下面的包使用
-// `golang.org/x/exp/slices`  --> std.slices
-// `golang.org/x/exp/maps`	  --> std.maps
+// `slices`  --> std.slices
+// `maps`	 --> std.maps
 
 // InsertAt 把`v`插入到第`i`个位置
 func InsertAt[E any](s []E, i int, v E) []E {

@@ -81,18 +81,10 @@ func NewZSkipListCmp[T cmp.Ordered]() *ZSkipList[T] {
 // 返回新节点的随机层级[1-ZSKIPLIST_MAXLEVEL]
 func zslRandLevel() int {
 	var level = 1
-	for {
-		var seed = rand.Uint32() & 0xFFFF
-		if float32(seed) < ZSKIPLIST_P*0xFFFF {
-			level++
-		} else {
-			break
-		}
+	for (rand.Int31() & 0xFFFF) < int32(ZSKIPLIST_P*float64(0xFFFF)) {
+		level++
 	}
-	if level > ZSKIPLIST_MAXLEVEL {
-		return ZSKIPLIST_MAXLEVEL
-	}
-	return level
+	return min(level, ZSKIPLIST_MAXLEVEL)
 }
 
 func (zsl *ZSkipList[T]) Len() int {
@@ -375,7 +367,7 @@ func (zsl *ZSkipList[T]) IsInRange(min, max int64) bool {
 
 // FirstInRange find the first node that is contained in the specified range.
 // Returns NULL when no element is contained in the range.
-func (zsl *ZSkipList[K]) FirstInRange(min, max int64) *ZSkipListNode[K] {
+func (zsl *ZSkipList[T]) FirstInRange(min, max int64) *ZSkipListNode[T] {
 	if !zsl.IsInRange(min, max) {
 		return nil
 	}
@@ -396,7 +388,7 @@ func (zsl *ZSkipList[K]) FirstInRange(min, max int64) *ZSkipListNode[K] {
 
 // LastInRange find the last node that is contained in the specified range.
 // Returns NULL when no element is contained in the range.
-func (zsl *ZSkipList[K]) LastInRange(min, max int64) *ZSkipListNode[K] {
+func (zsl *ZSkipList[T]) LastInRange(min, max int64) *ZSkipListNode[T] {
 	if !zsl.IsInRange(min, max) {
 		return nil
 	}
