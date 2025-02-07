@@ -19,11 +19,12 @@ type Writer struct {
 	console *os.File
 }
 
-func NewWriter(filename, console string, maxSize, maxBackup int) *Writer {
+func NewWriter(filename, console string, maxSize, maxAge, maxBackup int) *Writer {
 	w := &Writer{
 		Logger: lumberjack.Logger{
 			Filename:   filename,
 			MaxSize:    maxSize,
+			MaxAge:     maxAge,
 			MaxBackups: maxBackup,
 			LocalTime:  true,
 		},
@@ -33,6 +34,8 @@ func NewWriter(filename, console string, maxSize, maxBackup int) *Writer {
 		w.console = os.Stderr
 	case "stdout":
 		w.console = os.Stdout
+	default:
+		w.console = nil
 	}
 	return w
 }
@@ -48,7 +51,7 @@ func (w *Writer) Write(p []byte) (n int, err error) {
 }
 
 // AppendFileLog append log to file
-func AppendFileLog(filename, format string, a ...interface{}) error {
+func AppendFileLog(filename, format string, a ...any) error {
 	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return err

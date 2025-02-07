@@ -12,7 +12,7 @@ import (
 )
 
 func TestWriter_Write(t *testing.T) {
-	var w = NewWriter("", "stdout", 100, 1)
+	var w = NewWriter("", "stdout", 100, 0, 1)
 	_, err := w.Write([]byte("hello"))
 	assert.Nil(t, err)
 }
@@ -25,8 +25,11 @@ func TestIsTerminal(t *testing.T) {
 }
 
 func TestAppendFileLog(t *testing.T) {
-	err := AppendFileLog("test.log", "hello")
+	var filename = "test-qlog-writer.log"
+	defer os.Remove(filename)
+
+	err := AppendFileLog(filename, "hello")
 	assert.Nil(t, err)
-	err = AppendFileLog("test.log", "world")
+	err = AppendFileLog(filename, "world")
 	assert.Nil(t, err)
 }

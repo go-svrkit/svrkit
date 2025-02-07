@@ -20,6 +20,7 @@ type Config struct {
 	TimeLayout string `json:"time-layout"` // layout to encoding time
 	Filename   string `json:"filename"`    //
 	MaxSize    int    `json:"max_size"`    // defaults to 100 MB
+	MaxAge     int    `json:"max_age"`     // maximum number of days to retain old log files based on the timestamp encoded in their filename
 	MaxBackups int    `json:"max_backups"` // maximum number of old log files to retain
 	CallerSkip int    `json:"caller_skip"` // skip some number of extra stack frames (0 = don't skip)
 }
@@ -37,7 +38,7 @@ func NewConfig() *Config {
 
 func (c *Config) initDefault() {
 	if c.Level == "" {
-		c.Level = "INFO"
+		c.Level = "info"
 	}
 	if c.Encoding == "" {
 		c.Encoding = "console"
@@ -94,7 +95,7 @@ func CreateZapCore(c *Config) zapcore.Core {
 	var level = atomicLevel(c.Level)
 
 	// application should redirect stderr to stdout first
-	var w = NewWriter(c.Filename, "stdout", c.MaxSize, c.MaxBackups)
+	var w = NewWriter(c.Filename, "stdout", c.MaxSize, c.MaxAge, c.MaxBackups)
 	var sink = zapcore.AddSync(w)
 	return zapcore.NewCore(enc, sink, zap.NewAtomicLevelAt(level))
 }
