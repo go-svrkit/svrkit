@@ -27,13 +27,17 @@ func LoadRSAPublicKey(data []byte) (*rsa.PublicKey, error) {
 		return nil, fmt.Errorf("incorrect public key file")
 	}
 	if block.Type != "PUBLIC KEY" {
-		return nil, fmt.Errorf("unexpected key type %s", block.Type)
+		return nil, fmt.Errorf("unexpected public key type %s", block.Type)
 	}
 	key, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return nil, err
 	}
-	return key.(*rsa.PublicKey), nil
+	rsaPubKey, ok := key.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("not RSA public key of type %T", key)
+	}
+	return rsaPubKey, nil
 }
 
 func LoadRSAPrivateKeyFile(pemFile string) (*rsa.PrivateKey, error) {
@@ -51,7 +55,7 @@ func LoadRSAPrivateKey(data []byte) (*rsa.PrivateKey, error) {
 		return nil, fmt.Errorf("incorrect private key file")
 	}
 	if block.Type != "RSA PRIVATE KEY" {
-		return nil, fmt.Errorf("unexpected key type %s", block.Type)
+		return nil, fmt.Errorf("unexpected private key type %s", block.Type)
 	}
 	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {

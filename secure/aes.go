@@ -95,6 +95,9 @@ func NewAESCryptor(mode string, key, iv []byte) (AESCryptor, error) {
 		return cryptor, nil
 
 	case "GCM":
+		if len(iv) < 12 {
+			return nil, fmt.Errorf("GCM standard nonce size must be 12 bytes")
+		}
 		encrypt, err := cipher.NewGCM(block)
 		if err != nil {
 			return nil, err
@@ -179,6 +182,9 @@ func PKCS5Pad(ciphertext []byte, blockSize int) []byte {
 }
 
 func PKCS5Unpad(encrypted []byte) []byte {
+	if len(encrypted) == 0 {
+		return encrypted
+	}
 	var padding = encrypted[len(encrypted)-1]
 	return encrypted[:len(encrypted)-int(padding)]
 }
