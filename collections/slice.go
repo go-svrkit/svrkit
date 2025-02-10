@@ -24,8 +24,8 @@ func InsertAt[E any](s []E, i int, v E) []E {
 
 // RemoveAt 删除第`i`个元素，不保证原来元素的顺序
 func RemoveAt[E any](s []E, i int) []E {
-	var zero E
 	if n := len(s); i >= 0 && i < n {
+		var zero E
 		s[i] = s[n-1]
 		s[n-1] = zero
 		return s[:n-1]

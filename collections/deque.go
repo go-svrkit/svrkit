@@ -211,7 +211,7 @@ func (q *Deque[T]) At(i int) T {
 // index defined by At(). If the index is invalid, the call panics.
 func (q *Deque[T]) Set(i int, elem T) {
 	if i < 0 || i >= q.count {
-		panic("deque: Set() called with index out of range")
+		log.Panicln("deque: Set() called with index out of range")
 	}
 	// bitwise modulus
 	q.buf[(q.head+i)&(len(q.buf)-1)] = elem
