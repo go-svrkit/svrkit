@@ -3,6 +3,11 @@
 
 package strutil
 
+import (
+	"slices"
+	"unsafe"
+)
+
 var (
 	b62Alphabet   = []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 	b62IndexTable = buildIndexTable(b62Alphabet)
@@ -22,17 +27,14 @@ func EncodeBase62String(id int64) string {
 	if id == 0 {
 		return string(b62Alphabet[:1])
 	}
-	var short = make([]byte, 0, 12)
+	var buf = make([]byte, 0, 12)
 	for id > 0 {
 		var rem = id % 62
-		id = id / 62
-		short = append(short, b62Alphabet[rem])
+		id /= 62
+		buf = append(buf, b62Alphabet[rem])
 	}
-	// reverse
-	for i, j := 0, len(short)-1; i < j; i, j = i+1, j-1 {
-		short[i], short[j] = short[j], short[i]
-	}
-	return string(short)
+	slices.Reverse(buf)
+	return unsafe.String(unsafe.SliceData(buf), len(buf))
 }
 
 // DecodeBase62String 解码Base62

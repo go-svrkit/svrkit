@@ -4,6 +4,7 @@
 package strutil
 
 import (
+	crand "crypto/rand"
 	"math/rand"
 	"unicode"
 	"unsafe"
@@ -27,14 +28,11 @@ func RandString(length int) string {
 // RandBytes 随机长度的字节数组
 func RandBytes(length int) []byte {
 	if length <= 0 {
-		return nil
+		var buf = make([]byte, length)
+		crand.Read(buf)
+		return buf
 	}
-	result := make([]byte, length)
-	for i := 0; i < length; i++ {
-		ch := uint8(rand.Int31() % 0xFF)
-		result[i] = ch
-	}
-	return result
+	return nil
 }
 
 // FindFirstDigit 查找第一个数字的位置
