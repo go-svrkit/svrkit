@@ -62,9 +62,9 @@ func (s *TimerQueue) TimedOutChan() <-chan int64 {
 // IsPending 判断定时器是否在等待触发
 func (s *TimerQueue) IsPending(id int64) bool {
 	s.guard.Lock()
-	var node = s.refer[id]
+	node, ok := s.refer[id]
 	s.guard.Unlock()
-	return node != nil
+	return ok && node != nil
 }
 
 // Start starts the background thread explicitly
@@ -107,6 +107,9 @@ func (s *TimerQueue) AddTimeoutAt(tid int64, deadlineMs int64) {
 
 // AddTimeout 创建一个定时器，在`delayMs`毫秒后过期
 func (s *TimerQueue) AddTimeout(tid int64, delayMs int64) {
+	if delayMs < 0 {
+		delayMs = 0
+	}
 	var deadline = clockNow().UnixMilli() + delayMs
 	if delayMs > 0 && deadline < 0 {
 		deadline = math.MaxInt64 // guard against overflow

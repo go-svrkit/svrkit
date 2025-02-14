@@ -114,7 +114,7 @@ func (sf *Snowflake) Next() (int64, error) {
 
 	var curTimeUnits = currentTimeUnit()
 	if curTimeUnits > MaxTimeUnits {
-		return 0, ErrTimeUnitOverflow // 已经是2065年
+		return 0, ErrTimeUnitOverflow // 已经是2067年
 	}
 
 	// 时钟回拨判断
@@ -178,8 +178,11 @@ func privateIP4() uint16 {
 		return 0
 	}
 	var isPrivateIPv4 = func(ip net.IP) bool {
-		return ip[0] == 10 || ip[0] == 172 && (ip[1] >= 16 &&
-			ip[1] < 32) || ip[0] == 192 && ip[1] == 168
+		if len(ip) == net.IPv4len {
+			return ip[0] == 10 || ip[0] == 172 && (ip[1] >= 16 &&
+				ip[1] < 32) || ip[0] == 192 && ip[1] == 168
+		}
+		return false
 	}
 	for _, a := range addr {
 		ipnet, ok := a.(*net.IPNet)

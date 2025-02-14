@@ -31,17 +31,17 @@ const PrefixLength = 2 // sizeof uint16
 func ReadLenData(r io.Reader, maxSize uint16) ([]byte, error) {
 	var tmp [PrefixLength]byte
 	if _, err := io.ReadFull(r, tmp[:]); err != nil {
-		return nil, fmt.Errorf("ReadLenPrefixData: read len: %v", err)
+		return nil, fmt.Errorf("ReadLenData: read len: %v", err)
 	}
 	var nLen = int(binary.BigEndian.Uint16(tmp[:]))
 	if nLen < PrefixLength || nLen > int(maxSize) {
-		return nil, fmt.Errorf("ReadLenPrefixData: msg size %d out of range", nLen)
+		return nil, fmt.Errorf("ReadLenData: msg size %d out of range", nLen)
 	}
 	var data []byte
 	if nLen > PrefixLength {
 		data = make([]byte, nLen-PrefixLength)
 		if _, err := io.ReadFull(r, data); err != nil {
-			return nil, fmt.Errorf("ReadLenPrefixData: read body of len %d: %v", nLen, err)
+			return nil, fmt.Errorf("ReadLenData: read body of len %d: %v", nLen, err)
 		}
 	}
 	return data, nil
@@ -54,7 +54,7 @@ func WriteLenData(w io.Writer, body []byte) error {
 	}
 	var nLen = len(body) + PrefixLength
 	if nLen > math.MaxUint16 {
-		return fmt.Errorf("WriteLenPrefixData: msg size %d out of range", nLen)
+		return fmt.Errorf("WriteLenData: msg size %d out of range", nLen)
 	}
 	var buf [PrefixLength]byte
 	binary.BigEndian.PutUint16(buf[:PrefixLength], uint16(nLen))

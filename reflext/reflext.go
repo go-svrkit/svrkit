@@ -11,13 +11,8 @@ import (
 )
 
 func indirect(v reflect.Value) reflect.Value {
-	for {
-		var kind = v.Kind()
-		if kind == reflect.Interface || kind == reflect.Ptr {
-			v = v.Elem()
-		} else {
-			break
-		}
+	for kind := v.Kind(); kind == reflect.Interface || kind == reflect.Ptr; kind = v.Kind() {
+		v = v.Elem()
 	}
 	return v
 }

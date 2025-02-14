@@ -4,6 +4,7 @@
 package timers
 
 import (
+	"log"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -120,6 +121,7 @@ func (tm *TimerMgr) AddTimerAt(deadline int64, msg *TimeoutMsg) int64 {
 		var ready = make(chan struct{})
 		go tm.worker(ready)
 		<-ready
+		log.Printf("timer mgr %p started\n", tm)
 	}
 	tm.guard.Lock()
 	var id = tm.nexId.Add(1)

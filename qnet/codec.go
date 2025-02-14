@@ -24,8 +24,8 @@ var (
 
 // a simple wire protocol
 // ------|---------|---------|--------|---------|---------|----------|
-// field |--<len>--|--<crc>--|-<flag>-|--<seq>--|--<cmd>--|--<data>--|
-// bytes |----3----|----4----|----1---|----4----|----4----|---N/A----|
+// field |--<len>--|--<flag>--|-<crc>-|--<seq>--|--<cmd>--|--<data>--|
+// bytes |----3----|----1----|----4---|----4----|----4----|---N/A----|
 // ------|---------|---------|--------|---------|---------|----------|
 
 // NetV1Header 协议头
@@ -40,7 +40,7 @@ func (h NetV1Header) Len() uint32 {
 }
 
 func (h NetV1Header) Flag() MsgFlag {
-	return MsgFlag(h[7])
+	return MsgFlag(h[3])
 }
 
 func (h NetV1Header) Seq() uint32 {
@@ -52,11 +52,11 @@ func (h NetV1Header) Command() uint32 {
 }
 
 func (h NetV1Header) CRC() uint32 {
-	return binary.LittleEndian.Uint32(h[3:])
+	return binary.LittleEndian.Uint32(h[4:])
 }
 
 func (h NetV1Header) SetCRC(v uint32) {
-	binary.LittleEndian.PutUint32(h[3:], v)
+	binary.LittleEndian.PutUint32(h[4:], v)
 }
 
 func (h NetV1Header) Clear() {
@@ -68,7 +68,8 @@ func (h NetV1Header) Clear() {
 // CalcCRC checksum = f(head) and f(body)
 func (h NetV1Header) CalcCRC(body []byte) uint32 {
 	var crc = crc32.NewIEEE()
-	crc.Write(h[7:])
+	crc.Write(h[:3])
+	crc.Write(h[8:])
 	if len(body) > 0 {
 		crc.Write(body)
 	}
@@ -77,8 +78,8 @@ func (h NetV1Header) CalcCRC(body []byte) uint32 {
 
 func (h NetV1Header) Pack(size uint32, flag MsgFlag, seq, cmd uint32) {
 	intToBytes(size, h[:3])
-	// h[3:7] = checksum // set after
-	h[7] = uint8(flag)
+	h[3] = uint8(flag)
+	// h[4:8] = checksum // set after
 	binary.LittleEndian.PutUint32(h[8:], seq)
 	binary.LittleEndian.PutUint32(h[12:], cmd)
 }
@@ -179,21 +180,22 @@ var EncodeMsgTo = func(netMsg *NetMessage, encrypt Encryptor, w io.Writer) error
 	var body = netMsg.Data
 	if len(body) > DefaultCompressThreshold {
 		var encoded bytes.Buffer
-		if err := compress(body, &encoded); err == nil {
+		if err := compress(body, &encoded); err != nil {
+			qlog.Errorf("msg %d compress failed: %v", netMsg.Command, err)
+			// 不压缩，plain data
+		} else {
 			if encoded.Len() < len(body) {
 				flags |= FlagCompress
 				body = encoded.Bytes()
 			}
-		} else {
-			qlog.Errorf("msg %d compress failed: %v", netMsg.Command, err)
 		}
 	}
 	if encrypt != nil {
-		if encrypted, err := encrypt.Encrypt(body); err == nil {
+		if encrypted, err := encrypt.Encrypt(body); err != nil {
+			return err
+		} else {
 			body = encrypted
 			flags |= FlagEncrypt
-		} else {
-			return err
 		}
 	}
 
@@ -223,11 +225,10 @@ func compress(input []byte, buf *bytes.Buffer) error {
 		return nil
 	}
 	var w = zlib.NewWriter(buf)
-	_, err := w.Write(input)
-	if er := w.Close(); er != nil {
-		err = er
+	if _, err := w.Write(input); err != nil {
+		return err
 	}
-	return err
+	return w.Close()
 }
 
 func uncompress(input []byte, buf *bytes.Buffer) error {
@@ -235,13 +236,14 @@ func uncompress(input []byte, buf *bytes.Buffer) error {
 		return nil
 	}
 	rd, err := zlib.NewReader(bytes.NewReader(input))
-	if err == nil {
-		_, err = io.Copy(buf, rd)
+	if err != nil {
+		return err
 	}
-	if er := rd.Close(); er != nil {
-		err = er
+	_, err = io.Copy(buf, rd)
+	if err != nil {
+		return err
 	}
-	return err
+	return rd.Close()
 }
 
 // 3-bytes little endian to uint32
