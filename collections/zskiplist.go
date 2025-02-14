@@ -16,6 +16,7 @@ import (
 	"cmp"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"strings"
 )
@@ -81,7 +82,7 @@ func NewZSkipListCmp[T cmp.Ordered]() *ZSkipList[T] {
 // 返回新节点的随机层级[1-ZSKIPLIST_MAXLEVEL]
 func zslRandLevel() int {
 	var level = 1
-	for (rand.Int31() & 0xFFFF) < int32(ZSKIPLIST_P*float64(0xFFFF)) {
+	for (rand.Int31() & 0xFFFF) < int32(math.Floor(ZSKIPLIST_P*float64(0xFFFF))) {
 		level++
 	}
 	return min(level, ZSKIPLIST_MAXLEVEL)
