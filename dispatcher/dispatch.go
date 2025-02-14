@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gopkg.in/svrkit.v1/gutil"
+	"gopkg.in/svrkit.v1/debug"
 	"gopkg.in/svrkit.v1/qlog"
 	"gopkg.in/svrkit.v1/qnet"
 
@@ -145,7 +145,7 @@ func (d *Dispatcher) dispatch(ctx context.Context, action any, msg *qnet.NetMess
 func onError(msg *qnet.NetMessage, err any) {
 	var sb strings.Builder
 	var title = fmt.Sprintf("dispatch message %d", msg.Command)
-	gutil.TraceStack(1, title, err, &sb)
+	debug.TraceStack(1, title, err, &sb)
 	qlog.Error(sb.String())
 }
 

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/svrkit.v1/gutil"
 	"gopkg.in/svrkit.v1/qlog"
 )
 
@@ -62,7 +63,7 @@ func ReadMemoryLimit() string {
 	if bytes == math.MaxInt64 {
 		return "MaxInt64"
 	}
-	return PrettyBytes(int64(bytes))
+	return gutil.PrettyBytes(int64(bytes))
 }
 
 // ReadMetrics 读取指定的metrics see https://pkg.go.dev/runtime/metrics
@@ -94,7 +95,7 @@ func ReadMetrics(category string) map[string]any {
 		case metrics.KindUint64:
 			var val = sample.Value.Uint64()
 			if strings.HasSuffix(name, "bytes") {
-				result[name] = PrettyBytes(int64(val))
+				result[name] = gutil.PrettyBytes(int64(val))
 			} else {
 				result[name] = val
 			}

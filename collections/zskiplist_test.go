@@ -13,11 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type Pair struct {
-	First  int64
-	Second string
-}
-
 func uniqueScoreGen() func() int64 {
 	var dict = map[int64]bool{}
 	return func() int64 {
@@ -39,12 +34,12 @@ func Test_zslRandLevel(t *testing.T) {
 }
 
 func testSkipList(t *testing.T, sl *ZSkipList[string]) {
-	var pairs = make([]Pair, 0, sl.Len())
+	var pairs = make([]Pair[int64, string], 0, sl.Len())
 	sl.Range(func(score int64, ele string) {
-		pairs = append(pairs, Pair{score, ele})
+		pairs = append(pairs, Pair[int64, string]{score, ele})
 	})
 	assert.Equal(t, len(pairs), sl.Len())
-	var isSorted = slices.IsSortedFunc(pairs, func(a, b Pair) int {
+	var isSorted = slices.IsSortedFunc(pairs, func(a, b Pair[int64, string]) int {
 		return cmp.Compare(a.First, b.First)
 	})
 	assert.True(t, isSorted)

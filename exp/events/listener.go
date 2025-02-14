@@ -4,7 +4,7 @@
 package events
 
 import (
-	"gopkg.in/svrkit.v1/gutil"
+	"gopkg.in/svrkit.v1/debug"
 )
 
 type Event struct {
@@ -50,7 +50,7 @@ func (h *EventHandler) Get() EventListener {
 }
 
 func (h *EventHandler) Fire(event *Event) (err error) {
-	defer gutil.CatchPanic(event.Name)
+	defer debug.CatchPanic(event.Name)
 	return h.callback(event)
 }
 
@@ -72,7 +72,7 @@ func (h *EventOnceHandler) Get() EventListener {
 }
 
 func (h *EventOnceHandler) Fire(event *Event) (err error) {
-	defer gutil.CatchPanic(event.Name)
+	defer debug.CatchPanic(event.Name)
 
 	if !h.fired {
 		h.fired = true
