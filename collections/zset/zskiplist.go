@@ -10,7 +10,7 @@
 // https://github.com/redis/redis/blob/6.2.14/src/t_zset.c
 // https://en.wikipedia.org/wiki/Skip_list
 
-package collections
+package zset
 
 import (
 	"cmp"
@@ -56,6 +56,8 @@ func (n *ZSkipListNode[T]) Before() *ZSkipListNode[T] {
 func (n *ZSkipListNode[T]) Next() *ZSkipListNode[T] {
 	return n.level[0].forward
 }
+
+type Comparator[T any] func(a, b T) int
 
 // ZSkipList 带索引的排序链表
 type ZSkipList[T comparable] struct {

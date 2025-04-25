@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package collections
+package zset
 
 import (
 	"cmp"
@@ -12,6 +12,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 )
+
+type pair[T1, T2 any] struct {
+	First  T1
+	Second T2
+}
 
 func uniqueScoreGen() func() int64 {
 	var dict = map[int64]bool{}
@@ -34,12 +39,12 @@ func Test_zslRandLevel(t *testing.T) {
 }
 
 func testSkipList(t *testing.T, sl *ZSkipList[string]) {
-	var pairs = make([]Pair[int64, string], 0, sl.Len())
+	var pairs = make([]pair[int64, string], 0, sl.Len())
 	sl.Range(func(score int64, ele string) {
-		pairs = append(pairs, Pair[int64, string]{score, ele})
+		pairs = append(pairs, pair[int64, string]{score, ele})
 	})
 	assert.Equal(t, len(pairs), sl.Len())
-	var isSorted = slices.IsSortedFunc(pairs, func(a, b Pair[int64, string]) int {
+	var isSorted = slices.IsSortedFunc(pairs, func(a, b pair[int64, string]) int {
 		return cmp.Compare(a.First, b.First)
 	})
 	assert.True(t, isSorted)

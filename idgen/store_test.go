@@ -86,6 +86,7 @@ func (ctx *IDGenWorkerContext) Go(t *testing.T, c context.Context, gid int) {
 }
 
 func (ctx *IDGenWorkerContext) Wait() {
+	g
 	ctx.wg.Wait()
 	ctx.stopAt = time.Now()
 }

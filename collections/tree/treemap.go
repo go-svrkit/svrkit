@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package collections
+package tree
 
 import (
 	"cmp"
@@ -32,15 +32,15 @@ func (c Color) String() string {
 	}
 }
 
-type TreeEntry[K comparable, V any] struct {
+type Entry[K comparable, V any] struct {
 	Key                 K
 	Value               V
 	color               Color
-	left, right, parent *TreeEntry[K, V]
+	left, right, parent *Entry[K, V]
 }
 
-func NewTreeEntry[K comparable, V any](key K, val V, parent *TreeEntry[K, V]) *TreeEntry[K, V] {
-	return &TreeEntry[K, V]{
+func NewTreeEntry[K comparable, V any](key K, val V, parent *Entry[K, V]) *Entry[K, V] {
+	return &Entry[K, V]{
 		Key:    key,
 		Value:  val,
 		parent: parent,
@@ -48,21 +48,21 @@ func NewTreeEntry[K comparable, V any](key K, val V, parent *TreeEntry[K, V]) *T
 	}
 }
 
-func (e *TreeEntry[K, V]) GetKey() K {
+func (e *Entry[K, V]) GetKey() K {
 	return e.Key
 }
 
-func (e *TreeEntry[K, V]) GetValue() V {
+func (e *Entry[K, V]) GetValue() V {
 	return e.Value
 }
 
-func (e *TreeEntry[K, V]) SetValue(val V) V {
+func (e *Entry[K, V]) SetValue(val V) V {
 	var old = e.Value
 	e.Value = val
 	return old
 }
 
-func (e *TreeEntry[K, V]) Height() int {
+func (e *Entry[K, V]) Height() int {
 	if e == nil {
 		return 0
 	}
@@ -76,7 +76,7 @@ func (e *TreeEntry[K, V]) Height() int {
 }
 
 // Size returns the number of elements stored in the subtree.
-func (e *TreeEntry[K, V]) Size() int {
+func (e *Entry[K, V]) Size() int {
 	if e == nil {
 		return 0
 	}
@@ -90,32 +90,32 @@ func (e *TreeEntry[K, V]) Size() int {
 	return size
 }
 
-// TreeMap is a Red-Black tree based map implementation.
+type Comparator[T any] func(a, b T) int
+
+// Map is a Red-Black tree based map implementation.
 // The map is sorted by a comparator passed to its constructor.
 // This implementation provides guaranteed log(n) time cost for the
 // Contains(), Get(), Put() and Remove() operations.
 // Algorithms are adaptations of those in Cormen, Leiserson, and Rivest's <Introduction to Algorithms>.
-type TreeMap[K comparable, V any] struct {
-	root    *TreeEntry[K, V] // root node of the tree
-	compare Comparator[K]    // The comparator used to maintain order in this tree map
-	size    int              // The number of entries in the tree
-	version int              // The number of structural modifications to the tree.
+type Map[K comparable, V any] struct {
+	root    *Entry[K, V]  // root node of the tree
+	compare Comparator[K] // The comparator used to maintain order in this tree map
+	size    int           // The number of entries in the tree
+	version int           // The number of structural modifications to the tree.
 }
 
-var _ MapInterface[int, int] = (*TreeMap[int, int])(nil)
-
-func NewTreeMap[K comparable, V any](comparator Comparator[K]) *TreeMap[K, V] {
-	return &TreeMap[K, V]{
+func NewMap[K comparable, V any](comparator Comparator[K]) *Map[K, V] {
+	return &Map[K, V]{
 		compare: comparator,
 	}
 }
 
-func NewTreeMapCmp[K cmp.Ordered, V any]() *TreeMap[K, V] {
-	return NewTreeMap[K, V](cmp.Compare[K])
+func NewMapCmp[K cmp.Ordered, V any]() *Map[K, V] {
+	return NewMap[K, V](cmp.Compare[K])
 }
 
-func TreeMapOf[M ~map[K]V, K cmp.Ordered, V any](m M) *TreeMap[K, V] {
-	var treeMap = &TreeMap[K, V]{
+func MapOf[M ~map[K]V, K cmp.Ordered, V any](m M) *Map[K, V] {
+	var treeMap = &Map[K, V]{
 		compare: cmp.Compare[K],
 	}
 	for k, v := range m {
@@ -125,22 +125,22 @@ func TreeMapOf[M ~map[K]V, K cmp.Ordered, V any](m M) *TreeMap[K, V] {
 }
 
 // Size returns the number of Key-Value mappings in this map.
-func (m *TreeMap[K, V]) Size() int {
+func (m *Map[K, V]) Size() int {
 	return m.size
 }
 
-func (m *TreeMap[K, V]) IsEmpty() bool {
+func (m *Map[K, V]) IsEmpty() bool {
 	return m.size == 0
 }
 
 // Contains return true if this map contains a mapping for the specified Key
-func (m *TreeMap[K, V]) Contains(key K) bool {
+func (m *Map[K, V]) Contains(key K) bool {
 	return m.getEntry(key) != nil
 }
 
 // Get returns the Value to which the specified Key is mapped,
 // or nil if this map contains no mapping for the Key.
-func (m *TreeMap[K, V]) Get(key K) (V, bool) {
+func (m *Map[K, V]) Get(key K) (V, bool) {
 	var p = m.getEntry(key)
 	if p != nil {
 		return p.Value, true
@@ -149,13 +149,13 @@ func (m *TreeMap[K, V]) Get(key K) (V, bool) {
 	return zero, false
 }
 
-func (m *TreeMap[K, V]) Load(key K) (V, bool) {
+func (m *Map[K, V]) Load(key K) (V, bool) {
 	return m.Get(key)
 }
 
 // GetOrDefault returns the Value to which the specified Key is mapped,
 // or `defaultValue` if this map contains no mapping for the Key.
-func (m *TreeMap[K, V]) GetOrDefault(key K, defVal V) V {
+func (m *Map[K, V]) GetOrDefault(key K, defVal V) V {
 	var p = m.getEntry(key)
 	if p != nil {
 		return p.Value
@@ -163,40 +163,40 @@ func (m *TreeMap[K, V]) GetOrDefault(key K, defVal V) V {
 	return defVal
 }
 
-func (m *TreeMap[K, V]) GetEntry(key K) *TreeEntry[K, V] {
+func (m *Map[K, V]) GetEntry(key K) *Entry[K, V] {
 	return m.getEntry(key)
 }
 
-// FirstKey returns the first Key in the TreeMap (according to the Key's order)
-func (m *TreeMap[K, V]) FirstKey() (K, bool) {
+// FirstKey returns the first Key in the Map (according to the Key's order)
+func (m *Map[K, V]) FirstKey() (K, bool) {
 	return keyOf[K](m.FirstEntry())
 }
 
-// LastKey returns the last Key in the TreeMap (according to the Key's order)
-func (m *TreeMap[K, V]) LastKey() (K, bool) {
+// LastKey returns the last Key in the Map (according to the Key's order)
+func (m *Map[K, V]) LastKey() (K, bool) {
 	return keyOf(m.getLastEntry())
 }
 
-func (m *TreeMap[K, V]) RootEntry() *TreeEntry[K, V] {
+func (m *Map[K, V]) RootEntry() *Entry[K, V] {
 	return m.root
 }
 
-func (m *TreeMap[K, V]) FirstEntry() *TreeEntry[K, V] {
+func (m *Map[K, V]) FirstEntry() *Entry[K, V] {
 	return m.getFirstEntry()
 }
 
-func (m *TreeMap[K, V]) LastEntry() *TreeEntry[K, V] {
+func (m *Map[K, V]) LastEntry() *Entry[K, V] {
 	return m.getLastEntry()
 }
 
 // FloorEntry gets the entry corresponding to the specified Key;
 // if no such entry exists, returns the entry for the greatest Key less than the specified Key;
-func (m *TreeMap[K, V]) FloorEntry(key K) *TreeEntry[K, V] {
+func (m *Map[K, V]) FloorEntry(key K) *Entry[K, V] {
 	return m.getFloorEntry(key)
 }
 
 // FloorKey gets the specified Key, returns the greatest Key less than the specified Key if not exist.
-func (m *TreeMap[K, V]) FloorKey(key K) (K, bool) {
+func (m *Map[K, V]) FloorKey(key K) (K, bool) {
 	var entry = m.getFloorEntry(key)
 	if entry != nil {
 		return entry.Key, true
@@ -207,12 +207,12 @@ func (m *TreeMap[K, V]) FloorKey(key K) (K, bool) {
 
 // CeilingEntry gets the entry corresponding to the specified Key;
 // returns the entry for the least Key greater than the specified Key if not exist.
-func (m *TreeMap[K, V]) CeilingEntry(key K) *TreeEntry[K, V] {
+func (m *Map[K, V]) CeilingEntry(key K) *Entry[K, V] {
 	return m.getCeilingEntry(key)
 }
 
 // CeilingKey gets the specified Key, return the least Key greater than the specified Key if not exist.
-func (m *TreeMap[K, V]) CeilingKey(key K) (K, bool) {
+func (m *Map[K, V]) CeilingKey(key K) (K, bool) {
 	var entry = m.getCeilingEntry(key)
 	if entry != nil {
 		return entry.Key, true
@@ -222,12 +222,12 @@ func (m *TreeMap[K, V]) CeilingKey(key K) (K, bool) {
 }
 
 // HigherEntry gets the entry for the least Key greater than the specified Key
-func (m *TreeMap[K, V]) HigherEntry(key K) *TreeEntry[K, V] {
+func (m *Map[K, V]) HigherEntry(key K) *Entry[K, V] {
 	return m.getHigherEntry(key)
 }
 
 // HigherKey returns the least Key greater than the specified Key
-func (m *TreeMap[K, V]) HigherKey(key K) (K, bool) {
+func (m *Map[K, V]) HigherKey(key K) (K, bool) {
 	var entry = m.getHigherEntry(key)
 	if entry != nil {
 		return entry.Key, true
@@ -238,7 +238,7 @@ func (m *TreeMap[K, V]) HigherKey(key K) (K, bool) {
 
 // Range calls f sequentially for each Key and Value present in the map.
 // If f returns false, range stops the iteration.
-func (m *TreeMap[K, V]) Range(visit func(key K, value V) (shouldContinue bool)) {
+func (m *Map[K, V]) Range(visit func(key K, value V) (shouldContinue bool)) {
 	var ver = m.version
 	for e := m.FirstEntry(); e != nil; e = successor(e) {
 		if !visit(e.Key, e.Value) {
@@ -250,7 +250,7 @@ func (m *TreeMap[K, V]) Range(visit func(key K, value V) (shouldContinue bool)) 
 	}
 }
 
-func (m *TreeMap[K, V]) IterSeq() iter.Seq2[K, V] {
+func (m *Map[K, V]) IterSeq() iter.Seq2[K, V] {
 	return func(yield func(K, V) bool) {
 		for e := m.getFirstEntry(); e != nil; e = successor(e) {
 			if !yield(e.Key, e.Value) {
@@ -260,7 +260,7 @@ func (m *TreeMap[K, V]) IterSeq() iter.Seq2[K, V] {
 	}
 }
 
-func (m *TreeMap[K, V]) IterBackwards() iter.Seq2[K, V] {
+func (m *Map[K, V]) IterBackwards() iter.Seq2[K, V] {
 	return func(yield func(K, V) bool) {
 		for e := m.getLastEntry(); e != nil; e = predecessor(e) {
 			if !yield(e.Key, e.Value) {
@@ -271,7 +271,7 @@ func (m *TreeMap[K, V]) IterBackwards() iter.Seq2[K, V] {
 }
 
 // Keys return list of all keys
-func (m *TreeMap[K, V]) Keys() []K {
+func (m *Map[K, V]) Keys() []K {
 	var keys = make([]K, 0, m.size)
 	for e := m.FirstEntry(); e != nil; e = successor(e) {
 		keys = append(keys, e.Key)
@@ -280,7 +280,7 @@ func (m *TreeMap[K, V]) Keys() []K {
 }
 
 // Values return list of all values
-func (m *TreeMap[K, V]) Values() []V {
+func (m *Map[K, V]) Values() []V {
 	var values = make([]V, 0, m.size)
 	for e := m.FirstEntry(); e != nil; e = successor(e) {
 		values = append(values, e.Value)
@@ -288,7 +288,7 @@ func (m *TreeMap[K, V]) Values() []V {
 	return values
 }
 
-func (m *TreeMap[K, V]) CloneMap() map[K]V {
+func (m *Map[K, V]) CloneMap() map[K]V {
 	var unordered = make(map[K]V, m.size)
 	for e := m.FirstEntry(); e != nil; e = successor(e) {
 		unordered[e.Key] = e.Value
@@ -296,7 +296,7 @@ func (m *TreeMap[K, V]) CloneMap() map[K]V {
 	return unordered
 }
 
-func (m *TreeMap[K, V]) String() string {
+func (m *Map[K, V]) String() string {
 	var sb strings.Builder
 	sb.WriteString("[")
 	var cnt = 0
@@ -313,19 +313,19 @@ func (m *TreeMap[K, V]) String() string {
 
 // Put associates the specified Value with the specified Key in this map.
 // If the map previously contained a mapping for the Key, the old Value is replaced.
-func (m *TreeMap[K, V]) Put(key K, value V) V {
+func (m *Map[K, V]) Put(key K, value V) V {
 	return m.put(key, value, true)
 }
 
 // Store sets the Value for a Key, equivalent to Put.
-func (m *TreeMap[K, V]) Store(key K, value V) {
+func (m *Map[K, V]) Store(key K, value V) {
 	m.put(key, value, true)
 }
 
 // LoadOrStore returns the existing Value for the Key if present.
 // Otherwise, it stores and returns the given Value.
 // The loaded result is true if the Value was loaded, false if stored.
-func (m *TreeMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
+func (m *Map[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
 	var p = m.getEntry(key)
 	if p == nil {
 		actual = value
@@ -338,7 +338,7 @@ func (m *TreeMap[K, V]) LoadOrStore(key K, value V) (actual V, loaded bool) {
 
 // Swap swaps the Value for a Key and returns the previous Value if any.
 // The loaded result reports whether the Key was present.
-func (m *TreeMap[K, V]) Swap(key K, value V) (previous V, loaded bool) {
+func (m *Map[K, V]) Swap(key K, value V) (previous V, loaded bool) {
 	var p = m.getEntry(key)
 	if p != nil {
 		loaded = true
@@ -349,13 +349,13 @@ func (m *TreeMap[K, V]) Swap(key K, value V) (previous V, loaded bool) {
 }
 
 // PutIfAbsent put a Key-Value pair if the Key is not already associated with a Value.
-func (m *TreeMap[K, V]) PutIfAbsent(key K, value V) V {
+func (m *Map[K, V]) PutIfAbsent(key K, value V) V {
 	return m.put(key, value, false)
 }
 
 // LoadAndDelete deletes the Value for a Key, returning the previous Value if any.
 // The loaded result reports whether the Key was present.
-func (m *TreeMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
+func (m *Map[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
 	var p = m.getEntry(key)
 	if p != nil {
 		loaded = true
@@ -365,8 +365,8 @@ func (m *TreeMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
 	return
 }
 
-// Remove removes the mapping for this Key from this TreeMap if present.
-func (m *TreeMap[K, V]) Remove(key K) bool {
+// Remove removes the mapping for this Key from this Map if present.
+func (m *Map[K, V]) Remove(key K) bool {
 	var p = m.getEntry(key)
 	if p != nil {
 		m.deleteEntry(p)
@@ -375,20 +375,20 @@ func (m *TreeMap[K, V]) Remove(key K) bool {
 	return false
 }
 
-func (m *TreeMap[K, V]) Delete(key K) {
+func (m *Map[K, V]) Delete(key K) {
 	m.Remove(key)
 }
 
 // Clear removes all the mappings from this map.
-func (m *TreeMap[K, V]) Clear() {
+func (m *Map[K, V]) Clear() {
 	m.version++
 	m.size = 0
 	m.root = nil
 }
 
-// Returns the first TreeEntry in the TreeMap (according to the Key's order)
-// Returns nil if the TreeMap is empty.
-func (m *TreeMap[K, V]) getFirstEntry() *TreeEntry[K, V] {
+// Returns the first Entry in the Map (according to the Key's order)
+// Returns nil if the Map is empty.
+func (m *Map[K, V]) getFirstEntry() *Entry[K, V] {
 	var p = m.root
 	if p != nil {
 		for p.left != nil {
@@ -398,9 +398,9 @@ func (m *TreeMap[K, V]) getFirstEntry() *TreeEntry[K, V] {
 	return p
 }
 
-// Returns the last TreeEntry in the TreeMap (according to the Key's order)
-// Returns nil if the TreeMap is empty.
-func (m *TreeMap[K, V]) getLastEntry() *TreeEntry[K, V] {
+// Returns the last Entry in the Map (according to the Key's order)
+// Returns nil if the Map is empty.
+func (m *Map[K, V]) getLastEntry() *Entry[K, V] {
 	var p = m.root
 	if p != nil {
 		for p.right != nil {
@@ -412,7 +412,7 @@ func (m *TreeMap[K, V]) getLastEntry() *TreeEntry[K, V] {
 
 // Returns this map's entry for the given Key,
 // or nil if the map does not contain an entry for the Key.
-func (m *TreeMap[K, V]) getEntry(key K) *TreeEntry[K, V] {
+func (m *Map[K, V]) getEntry(key K) *Entry[K, V] {
 	var p = m.root
 	for p != nil {
 		var cp = m.compare(key, p.Key)
@@ -430,7 +430,7 @@ func (m *TreeMap[K, V]) getEntry(key K) *TreeEntry[K, V] {
 // Gets the entry corresponding to the specified Key;
 // if no such entry exists, returns the entry for the least Key greater than the specified Key;
 // if no such entry exists returns nil.
-func (m *TreeMap[K, V]) getCeilingEntry(key K) *TreeEntry[K, V] {
+func (m *Map[K, V]) getCeilingEntry(key K) *Entry[K, V] {
 	var p = m.root
 	for p != nil {
 		var cp = m.compare(key, p.Key)
@@ -462,7 +462,7 @@ func (m *TreeMap[K, V]) getCeilingEntry(key K) *TreeEntry[K, V] {
 // Gets the entry corresponding to the specified Key;
 // if no such entry exists, returns the entry for the greatest Key less than the specified Key;
 // if no such entry exists, returns nil.
-func (m *TreeMap[K, V]) getFloorEntry(key K) *TreeEntry[K, V] {
+func (m *Map[K, V]) getFloorEntry(key K) *Entry[K, V] {
 	var p = m.root
 	for p != nil {
 		var cp = m.compare(key, p.Key)
@@ -495,7 +495,7 @@ func (m *TreeMap[K, V]) getFloorEntry(key K) *TreeEntry[K, V] {
 // Gets the entry for the least Key greater than the specified Key;
 // if no such entry exists, returns the entry for the least Key greater than the specified Key;
 // if no such entry exists returns nil.
-func (m *TreeMap[K, V]) getHigherEntry(key K) *TreeEntry[K, V] {
+func (m *Map[K, V]) getHigherEntry(key K) *Entry[K, V] {
 	var p = m.root
 	for p != nil {
 		var cp = m.compare(key, p.Key)
@@ -524,7 +524,7 @@ func (m *TreeMap[K, V]) getHigherEntry(key K) *TreeEntry[K, V] {
 
 // Returns the entry for the greatest Key less than the specified Key;
 // if no such entry exists (i.e., the least Key in the Tree is greater than the specified Key), returns nil
-func (m *TreeMap[K, V]) getLowerEntry(key K) *TreeEntry[K, V] {
+func (m *Map[K, V]) getLowerEntry(key K) *Entry[K, V] {
 	var p = m.root
 	for p != nil {
 		var cp = m.compare(key, p.Key)
@@ -551,7 +551,7 @@ func (m *TreeMap[K, V]) getLowerEntry(key K) *TreeEntry[K, V] {
 	return nil
 }
 
-func (m *TreeMap[K, V]) put(key K, value V, replaceOld bool) V {
+func (m *Map[K, V]) put(key K, value V, replaceOld bool) V {
 	var t = m.root
 	if t == nil {
 		m.addEntryToEmptyMap(key, value)
@@ -559,7 +559,7 @@ func (m *TreeMap[K, V]) put(key K, value V, replaceOld bool) V {
 		return zero
 	}
 	var cp = 0
-	var parent *TreeEntry[K, V]
+	var parent *Entry[K, V]
 	var loop = true
 	for loop {
 		parent = t
@@ -582,7 +582,7 @@ func (m *TreeMap[K, V]) put(key K, value V, replaceOld bool) V {
 	return zero
 }
 
-func (m *TreeMap[K, V]) addEntry(key K, value V, parent *TreeEntry[K, V], addToLeft bool) {
+func (m *Map[K, V]) addEntry(key K, value V, parent *Entry[K, V], addToLeft bool) {
 	var entry = NewTreeEntry(key, value, parent)
 	if addToLeft {
 		parent.left = entry
@@ -594,13 +594,13 @@ func (m *TreeMap[K, V]) addEntry(key K, value V, parent *TreeEntry[K, V], addToL
 	m.version++
 }
 
-func (m *TreeMap[K, V]) addEntryToEmptyMap(key K, value V) {
+func (m *Map[K, V]) addEntryToEmptyMap(key K, value V) {
 	m.root = NewTreeEntry(key, value, nil)
 	m.size = 1
 	m.version++
 }
 
-func (m *TreeMap[K, V]) deleteEntry(p *TreeEntry[K, V]) {
+func (m *Map[K, V]) deleteEntry(p *Entry[K, V]) {
 	m.version++
 	m.size--
 
@@ -665,7 +665,7 @@ func (m *TreeMap[K, V]) deleteEntry(p *TreeEntry[K, V]) {
 //
 // see original version at http://staff.ustc.edu.cn/~csli/graduate/algorithms/book6/chap14.htm
 
-func (m *TreeMap[K, V]) rotateLeft(p *TreeEntry[K, V]) {
+func (m *Map[K, V]) rotateLeft(p *Entry[K, V]) {
 	if p != nil {
 		var r = p.right
 		p.right = r.left
@@ -685,7 +685,7 @@ func (m *TreeMap[K, V]) rotateLeft(p *TreeEntry[K, V]) {
 	}
 }
 
-func (m *TreeMap[K, V]) rotateRight(p *TreeEntry[K, V]) {
+func (m *Map[K, V]) rotateRight(p *Entry[K, V]) {
 	if p != nil {
 		var l = p.left
 		p.left = l.right
@@ -705,7 +705,7 @@ func (m *TreeMap[K, V]) rotateRight(p *TreeEntry[K, V]) {
 	}
 }
 
-func (m *TreeMap[K, V]) fixAfterInsertion(x *TreeEntry[K, V]) {
+func (m *Map[K, V]) fixAfterInsertion(x *Entry[K, V]) {
 	x.color = RED
 	for x != nil && x != m.root && x.parent.color == RED {
 		if parentOf(x) == leftOf(parentOf(parentOf(x))) {
@@ -745,7 +745,7 @@ func (m *TreeMap[K, V]) fixAfterInsertion(x *TreeEntry[K, V]) {
 	m.root.color = BLACK
 }
 
-func (m *TreeMap[K, V]) fixAfterDeletion(x *TreeEntry[K, V]) {
+func (m *Map[K, V]) fixAfterDeletion(x *Entry[K, V]) {
 	for x != m.root && colorOf(x) == BLACK {
 		if x == leftOf(parentOf(x)) {
 			var sib = rightOf(parentOf(x))
@@ -806,7 +806,7 @@ func (m *TreeMap[K, V]) fixAfterDeletion(x *TreeEntry[K, V]) {
 	setColor(x, BLACK)
 }
 
-func keyOf[K comparable, V any](e *TreeEntry[K, V]) (K, bool) {
+func keyOf[K comparable, V any](e *Entry[K, V]) (K, bool) {
 	if e != nil {
 		return e.Key, true
 	}
@@ -814,42 +814,42 @@ func keyOf[K comparable, V any](e *TreeEntry[K, V]) (K, bool) {
 	return zero, false
 }
 
-func colorOf[K comparable, V any](p *TreeEntry[K, V]) Color {
+func colorOf[K comparable, V any](p *Entry[K, V]) Color {
 	if p != nil {
 		return p.color
 	}
 	return BLACK
 }
 
-func parentOf[K comparable, V any](p *TreeEntry[K, V]) *TreeEntry[K, V] {
+func parentOf[K comparable, V any](p *Entry[K, V]) *Entry[K, V] {
 	if p != nil {
 		return p.parent
 	}
 	return nil
 }
 
-func setColor[K comparable, V any](p *TreeEntry[K, V], color Color) {
+func setColor[K comparable, V any](p *Entry[K, V], color Color) {
 	if p != nil {
 		p.color = color
 	}
 }
 
-func leftOf[K comparable, V any](p *TreeEntry[K, V]) *TreeEntry[K, V] {
+func leftOf[K comparable, V any](p *Entry[K, V]) *Entry[K, V] {
 	if p != nil {
 		return p.left
 	}
 	return nil
 }
 
-func rightOf[K comparable, V any](p *TreeEntry[K, V]) *TreeEntry[K, V] {
+func rightOf[K comparable, V any](p *Entry[K, V]) *Entry[K, V] {
 	if p != nil {
 		return p.right
 	}
 	return nil
 }
 
-// Returns the successor of the specified TreeEntry, or null if no such.
-func successor[K comparable, V any](t *TreeEntry[K, V]) *TreeEntry[K, V] {
+// Returns the successor of the specified Entry, or null if no such.
+func successor[K comparable, V any](t *Entry[K, V]) *Entry[K, V] {
 	if t == nil {
 		return nil
 	} else if t.right != nil {
@@ -869,8 +869,8 @@ func successor[K comparable, V any](t *TreeEntry[K, V]) *TreeEntry[K, V] {
 	}
 }
 
-// Returns the predecessor of the specified TreeEntry, or null if no such.
-func predecessor[K comparable, V any](t *TreeEntry[K, V]) *TreeEntry[K, V] {
+// Returns the predecessor of the specified Entry, or null if no such.
+func predecessor[K comparable, V any](t *Entry[K, V]) *Entry[K, V] {
 	if t == nil {
 		return nil
 	} else if t.left != nil {

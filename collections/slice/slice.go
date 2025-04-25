@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package collections
+package slice
 
 import (
 	"cmp"
@@ -10,9 +10,10 @@ import (
 	"sort"
 )
 
-// 常用的数组操作，配合下面的包使用
-// `slices`  --> std.slices
-// `maps`	 --> std.maps
+// 提供一些常用的slice操作函数
+// See also:
+// 	https://pkg.go.dev/slices
+// 	https://ueokande.github.io/go-slice-tricks/
 
 // InsertAt 把`v`插入到第`i`个位置
 func InsertAt[E any](s []E, i int, v E) []E {
@@ -27,7 +28,7 @@ func RemoveAt[E any](s []E, i int) []E {
 	if n := len(s); i >= 0 && i < n {
 		var zero E
 		s[i] = s[n-1]
-		s[n-1] = zero
+		s[n-1] = zero //  GC friendly
 		return s[:n-1]
 	}
 	return s

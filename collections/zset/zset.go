@@ -4,7 +4,7 @@
 //
 // https://github.com/redis/redis/blob/6.2.14/src/t_zset.c
 
-package collections
+package zset
 
 import (
 	"cmp"
@@ -16,15 +16,15 @@ type SortedSet[T comparable] struct {
 	zsl  *ZSkipList[T] // indexed linked list
 }
 
-func NewSortedSet[T comparable](comparator Comparator[T]) *SortedSet[T] {
+func New[T comparable](comparator Comparator[T]) *SortedSet[T] {
 	return &SortedSet[T]{
 		dict: make(map[T]int64),
 		zsl:  NewZSkipList[T](comparator),
 	}
 }
 
-func NewSortedSetCmp[T cmp.Ordered]() *SortedSet[T] {
-	return NewSortedSet[T](cmp.Compare[T])
+func NewCmp[T cmp.Ordered]() *SortedSet[T] {
+	return New[T](cmp.Compare[T])
 }
 
 func (s *SortedSet[T]) Len() int {

@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package collections
+package consistent
 
 import (
 	"slices"
@@ -20,7 +20,7 @@ type Consistent struct {
 	sortedHash []uint32          //
 }
 
-func NewConsistent() *Consistent {
+func New() *Consistent {
 	return &Consistent{
 		circle: make(map[uint32]string),
 		nodes:  make(map[string]bool),

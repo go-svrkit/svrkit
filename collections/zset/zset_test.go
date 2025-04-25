@@ -1,4 +1,7 @@
-package collections
+// Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
+// See accompanying LICENSE file
+
+package zset
 
 import (
 	"fmt"
@@ -10,7 +13,7 @@ import (
 )
 
 func TestSortedSet_Add(t *testing.T) {
-	var st = NewSortedSetCmp[string]()
+	var st = NewCmp[string]()
 	assert.Equal(t, 0, st.Len())
 	st.Add("Key", 10)
 	st.Add("Key", 20)
@@ -20,7 +23,7 @@ func TestSortedSet_Add(t *testing.T) {
 }
 
 func TestSortedSet_Remove(t *testing.T) {
-	var st = NewSortedSetCmp[string]()
+	var st = NewCmp[string]()
 	assert.False(t, st.Remove("Key"))
 	assert.Equal(t, 0, st.Len())
 	st.Add("Key", 10)
@@ -42,7 +45,7 @@ func TestSortedSet_Remove(t *testing.T) {
 }
 
 func TestSortedSet_Count(t *testing.T) {
-	var st = NewSortedSetCmp[string]()
+	var st = NewCmp[string]()
 	for i := 1; i <= 100; i++ {
 		var key = fmt.Sprintf("test%d", i)
 		st.Add(key, int64(i))
@@ -72,7 +75,7 @@ func TestSortedSet_Count(t *testing.T) {
 }
 
 func TestSortedSet_GetRank(t *testing.T) {
-	var st = NewSortedSetCmp[string]()
+	var st = NewCmp[string]()
 	for i := 100; i > 0; i-- {
 		var key = fmt.Sprintf("test%d", i)
 		st.Add(key, int64(i))
@@ -98,7 +101,7 @@ func TestSortedSet_GetRank(t *testing.T) {
 }
 
 func TestSortedSet_GetScore(t *testing.T) {
-	var st = NewSortedSetCmp[string]()
+	var st = NewCmp[string]()
 	for i := 100; i > 0; i-- {
 		var key = fmt.Sprintf("test%d", i)
 		st.Add(key, int64(i))
@@ -112,7 +115,7 @@ func TestSortedSet_GetScore(t *testing.T) {
 }
 
 func TestSortedSet_GetRange(t *testing.T) {
-	var st = NewSortedSetCmp[string]()
+	var st = NewCmp[string]()
 	for i := 1; i <= 20; i++ {
 		st.Add(strconv.Itoa(i), int64(i))
 	}
@@ -146,7 +149,7 @@ func TestSortedSet_GetRange(t *testing.T) {
 }
 
 func TestSortedSet_GetRangeByScore(t *testing.T) {
-	var st = NewSortedSetCmp[string]()
+	var st = NewCmp[string]()
 	for i := 1; i <= 20; i++ {
 		st.Add(strconv.Itoa(i), int64(i))
 	}

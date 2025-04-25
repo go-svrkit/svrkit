@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package collections
+package tree
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 )
 
 func TestTreeMap_Get(t *testing.T) {
-	tree := NewTreeMapCmp[int, string]()
+	tree := NewMapCmp[int, string]()
 
 	if actualValue := tree.Size(); actualValue != 0 {
 		t.Errorf("Got %v expected %v", actualValue, 0)
@@ -58,7 +58,7 @@ func TestTreeMap_Get(t *testing.T) {
 }
 
 func TestTreeMap_Put(t *testing.T) {
-	tree := NewTreeMapCmp[int, string]()
+	tree := NewMapCmp[int, string]()
 	tree.Put(5, "e")
 	tree.Put(6, "f")
 	tree.Put(7, "g")
@@ -99,7 +99,7 @@ func TestTreeMap_Put(t *testing.T) {
 }
 
 func TestTreeMap_Remove(t *testing.T) {
-	tree := NewTreeMapCmp[int, string]()
+	tree := NewMapCmp[int, string]()
 	tree.Put(5, "e")
 	tree.Put(6, "f")
 	tree.Put(7, "g")
@@ -162,7 +162,7 @@ func TestTreeMap_Remove(t *testing.T) {
 }
 
 func TestTreeMap_FirstAndLast(t *testing.T) {
-	tree := NewTreeMapCmp[int, string]()
+	tree := NewMapCmp[int, string]()
 	if actualValue := tree.FirstEntry(); actualValue != nil {
 		t.Errorf("Got %v expected %v", actualValue, nil)
 	}
@@ -195,7 +195,7 @@ func TestTreeMap_FirstAndLast(t *testing.T) {
 }
 
 func TestTreeMap_CeilingAndFloor(t *testing.T) {
-	tree := NewTreeMapCmp[int, string]()
+	tree := NewMapCmp[int, string]()
 	if node := tree.FloorEntry(0); node != nil {
 		t.Errorf("Got %v expected %v", node, "<nil>")
 	}
@@ -227,7 +227,7 @@ func TestTreeMap_CeilingAndFloor(t *testing.T) {
 }
 
 func TestTreeMap_Iterator(t *testing.T) {
-	tree := NewTreeMapCmp[int, string]()
+	tree := NewMapCmp[int, string]()
 	tree.Put(5, "e")
 	tree.Put(6, "f")
 	tree.Put(7, "g")
@@ -256,7 +256,7 @@ func TestTreeMap_Iterator(t *testing.T) {
 }
 
 func TestTreeMap_String(t *testing.T) {
-	tree := NewTreeMapCmp[int, string]()
+	tree := NewMapCmp[int, string]()
 	tree.Put(5, "e")
 	tree.Put(6, "f")
 	tree.Put(7, "g")

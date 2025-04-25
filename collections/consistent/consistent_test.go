@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package collections
+package consistent
 
 import (
 	"testing"
@@ -10,7 +10,7 @@ import (
 )
 
 func testAddOneNode(t *testing.T, node uint64) *Consistent {
-	var c = NewConsistent()
+	var c = New()
 	c.Add(node)
 	assert.Equal(t, 1, c.Len())
 	assert.True(t, c.HasMemberNode(node))
@@ -23,7 +23,7 @@ func testAddOneNode(t *testing.T, node uint64) *Consistent {
 }
 
 func testAddNNode(t *testing.T, N int) *Consistent {
-	var c = NewConsistent()
+	var c = New()
 	for i := 0; i < N; i++ {
 		var node = 100 + uint64(i)
 		c.Add(node)
@@ -66,21 +66,21 @@ func TestConsistent_Get(t *testing.T) {
 }
 
 func BenchmarkConsistent_Add(b *testing.B) {
-	var c = NewConsistent()
+	var c = New()
 	for i := 1; i <= 500; i++ {
 		c.Add(uint64(i))
 	}
 }
 
 func BenchmarkConsistent_AddMany(b *testing.B) {
-	var c = NewConsistent()
+	var c = New()
 	for i := 1; i <= 500; i++ {
 		c.Add(uint64(i))
 	}
 }
 
 func BenchmarkConsistent_Remove(b *testing.B) {
-	var c = NewConsistent()
+	var c = New()
 	b.StopTimer()
 	for i := 1; i <= 500; i++ {
 		c.Add(uint64(i))
@@ -93,7 +93,7 @@ func BenchmarkConsistent_Remove(b *testing.B) {
 
 func BenchmarkConsistent_Get(b *testing.B) {
 	b.StopTimer()
-	var c = NewConsistent()
+	var c = New()
 	for i := 1; i <= 100; i++ {
 		c.Add(uint64(i))
 	}

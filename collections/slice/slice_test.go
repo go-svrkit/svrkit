@@ -1,7 +1,7 @@
 // Copyright © Johnnie Chen ( qi7chen@github ). All rights reserved.
 // See accompanying LICENSE file
 
-package collections
+package slice
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSlice_IndexOf(t *testing.T) {
+func Test_OrderedIndexOf(t *testing.T) {
 	var a = []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	for i := 0; i < len(a); i++ {
 		var idx = OrderedIndexOf(a, a[i])
@@ -28,7 +28,7 @@ func TestSlice_IndexOf(t *testing.T) {
 	}
 }
 
-func TestSlice_Shrink(t *testing.T) {
+func Test_Shrink(t *testing.T) {
 	var a = Int32Slice{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
 	var b = Shrink(a)
 	if len(a) != len(b) {
@@ -37,34 +37,39 @@ func TestSlice_Shrink(t *testing.T) {
 	if len(b) != cap(b) {
 		t.Fatalf("len(b) = %d, cap(b) = %d", len(b), cap(b))
 	}
-}
 
-func TestSlice_Shuffle(t *testing.T) {
-	var a = Int32Slice{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	Shuffle(a)
-	t.Logf("%v", a)
-}
-
-func TestShrinkTypedSlice(t *testing.T) {
-	var a, b []int64
-	for i := 0; i < 10; i++ {
-		a = append(a, int64(i))
-	}
-	b = Shrink(a)
-	if len(b) != len(a) {
-		t.Fatalf("len(b) = %d, want 10", len(b))
-	}
-	if len(b) != cap(b) {
-		t.Fatalf("len(b) = %d, cap(b) = %d, want len(b) == cap(b)", len(b), cap(b))
-	}
-	for i := 0; i < len(b); i++ {
-		if a[i] != b[i] {
-			t.Fatalf("a[%d] = %d, b[%d] = %d, want a[%d] == b[%d]", i, a[i], i, b[i], i, i)
+	//
+	{
+		var a, b []int64
+		for i := 0; i < 10; i++ {
+			a = append(a, int64(i))
+		}
+		b = Shrink(a)
+		if len(b) != len(a) {
+			t.Fatalf("len(b) = %d, want 10", len(b))
+		}
+		if len(b) != cap(b) {
+			t.Fatalf("len(b) = %d, cap(b) = %d, want len(b) == cap(b)", len(b), cap(b))
+		}
+		for i := 0; i < len(b); i++ {
+			if a[i] != b[i] {
+				t.Fatalf("a[%d] = %d, b[%d] = %d, want a[%d] == b[%d]", i, a[i], i, b[i], i, i)
+			}
 		}
 	}
+
 }
 
-func TestSlice_InsertAt(t *testing.T) {
+func Test_Shuffle(t *testing.T) {
+	var origin = []int32{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	var clone = slices.Clone(origin)
+	Shuffle(clone)
+	assert.Equal(t, len(clone), len(origin))
+	slices.Sort(clone)
+	assert.Equalf(t, origin, clone, "origin: %v", origin)
+}
+
+func Test_InsertAt(t *testing.T) {
 	tests := []struct {
 		A        Int32Slice
 		I        int
@@ -86,7 +91,7 @@ func TestSlice_InsertAt(t *testing.T) {
 	}
 }
 
-func TestSlice_RemoveAt(t *testing.T) {
+func Test_RemoveAt(t *testing.T) {
 	tests := []struct {
 		A        Int32Slice
 		I        int
@@ -107,7 +112,7 @@ func TestSlice_RemoveAt(t *testing.T) {
 	}
 }
 
-func TestRemoveFirst(t *testing.T) {
+func Test_RemoveFirst(t *testing.T) {
 	tests := []struct {
 		A        Int32Slice
 		I        int32
@@ -130,7 +135,7 @@ func TestRemoveFirst(t *testing.T) {
 	}
 }
 
-func TestSortAndRemoveDup(t *testing.T) {
+func Test_SortAndRemoveDup(t *testing.T) {
 	tests := []struct {
 		input []int
 		want  []int
@@ -155,7 +160,7 @@ func TestSortAndRemoveDup(t *testing.T) {
 	}
 }
 
-func TestIsAllZeroElem(t *testing.T) {
+func Test_IsAllZeroElem(t *testing.T) {
 	{
 		tests := []struct {
 			input []int
@@ -220,7 +225,7 @@ func TestIsAllZeroElem(t *testing.T) {
 	}
 }
 
-func TestOrderedInsert(t *testing.T) {
+func Test_OrderedInsert(t *testing.T) {
 	var idSet []int
 
 	for i := 50; i > 0; i-- {
@@ -243,7 +248,7 @@ func TestOrderedInsert(t *testing.T) {
 	}
 }
 
-func TestOrderedDelete(t *testing.T) {
+func Test_OrderedDelete(t *testing.T) {
 	var idSet []int
 	for i := 1; i <= 100; i++ {
 		idSet = OrderedPutIfAbsent(idSet, i)
@@ -272,7 +277,7 @@ func TestOrderedDelete(t *testing.T) {
 	}
 }
 
-func TestOrderedContains(t *testing.T) {
+func Test_OrderedContains(t *testing.T) {
 	var idSet Int32Slice
 	for i := 1; i <= 100; i++ {
 		idSet = append(idSet, int32(i))
@@ -291,7 +296,7 @@ func TestOrderedContains(t *testing.T) {
 	}
 }
 
-func TestOrderedUnion(t *testing.T) {
+func Test_OrderedUnion(t *testing.T) {
 	tests := []struct {
 		input1   []int32
 		input2   []int32
@@ -317,7 +322,7 @@ func TestOrderedUnion(t *testing.T) {
 	}
 }
 
-func TestOrderedIntersect(t *testing.T) {
+func Test_OrderedIntersect(t *testing.T) {
 	tests := []struct {
 		input1   []int32
 		input2   []int32
