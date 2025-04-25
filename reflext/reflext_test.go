@@ -35,32 +35,3 @@ func TestGetStructFieldValues(t *testing.T) {
 	assert.Equal(t, 11, values[0].(int))
 	assert.Equal(t, 22, values[1].(int))
 }
-
-func getFieldOffset(typ reflect.Type, fieldName string) uintptr {
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
-		if field.Name == fieldName {
-			return field.Offset
-		}
-	}
-	return 0
-}
-
-func typeHasField(typ reflect.Type, fieldName string, kind reflect.Kind) bool {
-	for i := 0; i < typ.NumField(); i++ {
-		field := typ.Field(i)
-		if field.Name == fieldName && field.Type.Kind() == kind {
-			return true
-		}
-	}
-	return false
-}
-
-func TestEnumerateAllStructs(t *testing.T) {
-	var allTypes = EnumerateAllStructs()
-	typ := allTypes["runtime.g"] // runtime G
-	assert.NotNil(t, typ)
-	assert.Truef(t, typeHasField(typ, "goid", reflect.Uint64), "runtime.g should have field goid")
-	assert.Truef(t, typeHasField(typ, "sched", reflect.Struct), "runtime.g should have field sched")
-
-}

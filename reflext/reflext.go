@@ -6,8 +6,6 @@ package reflext
 import (
 	"fmt"
 	"reflect"
-	"strings"
-	"unsafe"
 )
 
 func indirect(v reflect.Value) reflect.Value {
@@ -77,30 +75,4 @@ func GetStructFieldValueMap(val reflect.Value) map[string]any {
 		mm[name] = field.Interface()
 	}
 	return mm
-}
-
-func EnumerateAllStructs() map[string]reflect.Type {
-	var types = make(map[string]reflect.Type)
-	sections, offsets := typelinks()
-	for i, offs := range offsets {
-		rodata := sections[i]
-		for _, base := range offs {
-			var typeAddr = resolveTypeOff(rodata, base)
-			typ := reflect.TypeOf(*(*interface{})(unsafe.Pointer(&typeAddr)))
-			var kind = typ.Kind()
-			for indirect := 0; indirect < 3 && kind == reflect.Ptr; indirect++ {
-				typ = typ.Elem()
-				kind = typ.Kind()
-			}
-			// we only care struct types
-			if kind != reflect.Struct {
-				continue
-			}
-			var name = typ.String()
-			if !strings.HasPrefix(name, "struct ") { // skip unnamed struct
-				types[typ.String()] = typ
-			}
-		}
-	}
-	return types
 }
