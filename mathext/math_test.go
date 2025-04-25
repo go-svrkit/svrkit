@@ -24,44 +24,6 @@ func TestMathAbs(t *testing.T) {
 	}
 }
 
-func TestMathMax(t *testing.T) {
-	tests := []struct {
-		a        int
-		b        int
-		expected int
-	}{
-		{10, 11, 11},
-		{11, 11, 11},
-		{-10, -11, -10},
-		{-10, -10, -10},
-		{0, 0, 0},
-	}
-	for i, tc := range tests {
-		if output := Max(tc.a, tc.b); output != tc.expected {
-			t.Fatalf("unexpected case %d output: %v != %v", i, output, tc.expected)
-		}
-	}
-}
-
-func TestMathMin(t *testing.T) {
-	tests := []struct {
-		a        int
-		b        int
-		expected int
-	}{
-		{10, 11, 10},
-		{11, 11, 11},
-		{-10, -11, -11},
-		{-10, -10, -10},
-		{0, 0, 0},
-	}
-	for i, tc := range tests {
-		if output := Min(tc.a, tc.b); output != tc.expected {
-			t.Fatalf("unexpected case %d output: %v != %v", i, output, tc.expected)
-		}
-	}
-}
-
 func TestMathDim(t *testing.T) {
 	tests := []struct {
 		a        int

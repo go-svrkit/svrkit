@@ -96,7 +96,7 @@ func (m *NetMessage) DecodeTo(msg proto.Message) error {
 	return nil
 }
 
-func (m *NetMessage) Reply(cmd uint32, data []byte) error {
+func (m *NetMessage) ReplyData(cmd uint32, data []byte) error {
 	var netMsg = AllocNetMessage()
 	netMsg.Seq = m.Seq
 	netMsg.Command = cmd
@@ -104,7 +104,7 @@ func (m *NetMessage) Reply(cmd uint32, data []byte) error {
 	return m.Session.SendMsg(netMsg, SendNonblock)
 }
 
-func (m *NetMessage) Ack(ack proto.Message) error {
+func (m *NetMessage) Reply(ack proto.Message) error {
 	var netMsg = CreateNetMessageWith(ack)
 	netMsg.Seq = m.Seq
 	return m.Session.SendMsg(netMsg, SendNonblock)
@@ -128,7 +128,7 @@ func (m *NetMessage) Refuse(ec int32) error {
 	} else {
 		return fmt.Errorf("message %s has no field named `%s`", ackName, ErrCodeField)
 	}
-	return m.Ack(ack)
+	return m.Reply(ack)
 }
 
 var msgPool = pool.NewObjectPool[NetMessage]()

@@ -131,21 +131,23 @@ func JSONStringify(v any) string {
 	return unsafe.String(unsafe.SliceData(data), len(data))
 }
 
-func UnmarshalProtoJSON(b []byte, m proto.Message) error {
-	return jsonpb.Unmarshal(bytes.NewReader(b), m)
+// JSONParseTo 解析json字符串到proto消息
+func JSONParseTo(s string, dst proto.Message) error {
+	return jsonpb.Unmarshal(strings.NewReader(s), dst)
 }
 
-// MarshalProtoJSON 序列化proto消息为json格式
-func MarshalProtoJSON(msg proto.Message) ([]byte, error) {
+// JSONStringifyOf 序列化proto消息为json格式
+func JSONStringifyOf(msg proto.Message) (string, error) {
 	var buf bytes.Buffer
 	var jm = jsonpb.Marshaler{
 		EnumsAsInts:  true,
 		EmitDefaults: true,
 	}
 	if err := jm.Marshal(&buf, msg); err != nil {
-		return nil, err
+		return "", err
 	}
-	return buf.Bytes(), nil
+	var data = buf.Bytes()
+	return unsafe.String(unsafe.SliceData(data), len(data)), nil
 }
 
 func abs64(n int64) int64 {

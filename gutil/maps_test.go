@@ -62,6 +62,8 @@ func TestMapKeyValues(t *testing.T) {
 		var name = fmt.Sprintf("case-%d", i+1)
 		t.Run(name, func(t *testing.T) {
 			out1, out2 := MapKeyValues(tt.m)
+			slices.Sort(out1)
+			slices.Sort(out2)
 			assert.True(t, slices.Equal(tt.want1, out1))
 			assert.True(t, slices.Equal(tt.want2, out2))
 		})

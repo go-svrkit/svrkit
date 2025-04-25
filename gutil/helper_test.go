@@ -93,7 +93,7 @@ func TestIsFileExist(t *testing.T) {
 	}{
 		{"", false},
 		{"abcdefgxyz", false},
-		{"./fs_test.go", true},
+		{"./helper_test.go", true},
 	}
 	for i, tt := range tests {
 		var name = fmt.Sprintf("case-%d", i+1)
@@ -185,7 +185,7 @@ func TestJSONStringify(t *testing.T) {
 		var name = fmt.Sprintf("case-%d", i+1)
 		t.Run(name, func(t *testing.T) {
 			if got := JSONStringify(tt.input); got != tt.want {
-				t.Errorf("JSONStringify() = %v, want %v", got, tt.want)
+				t.Errorf("case %d JSONStringify: %v, want %v", i+1, got, tt.want)
 			}
 		})
 	}

@@ -7,8 +7,6 @@ import (
 	"sync"
 )
 
-var classBytesPool = createBytesClassPool()
-
 func AllocBytes(size int) []byte {
 	if size == 0 {
 		return nil
@@ -32,6 +30,8 @@ func FreeBytes(buf []byte) {
 		}
 	}
 }
+
+var classBytesPool = createBytesClassPool()
 
 func createBytesClassPool() *[NumSizeClasses - 1]sync.Pool {
 	var pools [NumSizeClasses - 1]sync.Pool
